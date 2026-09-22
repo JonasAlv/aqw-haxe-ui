@@ -142,3 +142,4 @@ class ApiPromptModal {
     public static function close():Void {}
 }
 #end
+

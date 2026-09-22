@@ -19,3 +19,4 @@ if [ -d "$DIR/../aqw-mobile-mod/loader/libs" ]; then
 fi
 
 echo "=> aqw-haxe-ui built successfully: bin/ModUI.swc"
+

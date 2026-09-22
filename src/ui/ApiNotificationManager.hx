@@ -161,3 +161,4 @@ class ApiNotificationManager {
         _initialized = false;
     }
 }
+

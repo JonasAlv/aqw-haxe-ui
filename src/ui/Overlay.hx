@@ -23,3 +23,4 @@ extern class Overlay extends MovieClip {
 #else
 extern class Overlay {}
 #end
+
