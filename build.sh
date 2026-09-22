@@ -13,4 +13,9 @@ else
     npx haxe build.hxml
 fi
 
+if [ -d "$DIR/../aqw-mobile-mod/loader/libs" ]; then
+    cp "$DIR/bin/ModUI.swc" "$DIR/../aqw-mobile-mod/loader/libs/ModUI.swc"
+    echo "=> Copied ModUI.swc to aqw-mobile-mod/loader/libs/"
+fi
+
 echo "=> aqw-haxe-ui built successfully: bin/ModUI.swc"
