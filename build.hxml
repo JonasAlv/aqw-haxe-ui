@@ -1,0 +1,10 @@
+-cp src
+-cp ../aqw-haxe-api/src
+-D air
+-debug
+-lib hscript
+-swf bin/ModUI.swc
+
+--macro include('ui')
+--macro exclude('com.aqwapi')
+--macro exclude('hscript')

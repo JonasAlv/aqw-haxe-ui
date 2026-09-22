@@ -1,0 +1,4 @@
+bin/
+*.swc
+.DS_Store
+.haxelib
