@@ -1,7 +1,7 @@
 -cp src
 -cp ../aqw-haxe-api/src
 -D air
--swf-version 18
+-swf-version 40
 -debug
 -lib hscript
 -swf bin/ModUI.swc
