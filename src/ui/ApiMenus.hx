@@ -180,7 +180,7 @@ class ApiMenus {
 
         // Smart Combat Check
         var smartCombatCheck = new Check(null, false, "AutoCombat (Smart)", "Start smart auto combat.", true, function(o:Dynamic):Void {
-            try {
+            tryAction("AutoCombat (Smart)", function() {
                 var c:Check = cast o;
                 if (c.state) {
                     var confClass = HelperSetting.getString("api_smart_class", "");
@@ -195,10 +195,7 @@ class ApiMenus {
                 } else {
                     if (AqwApi.combat != null) AqwApi.combat.stopAuto();
                 }
-            } catch (err:Dynamic) {
-                ApiLogger.error("UI", "SmartCombat error: " + Std.string(err));
-                AqwApi.notify("SmartCombat error: " + Std.string(err));
-            }
+            });
         });
         smartCombatCheck.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
             if (AqwApi.combat != null && smartCombatCheck.state != AqwApi.combat.isSmartRunning) {
@@ -210,7 +207,7 @@ class ApiMenus {
 
         // Custom Combat Check
         var customCombatCheck = new Check(null, false, "AutoCombat (Custom)", "Start custom combat sequence.", true, function(o:Dynamic):Void {
-            try {
+            tryAction("AutoCombat (Custom)", function() {
                 var c:Check = cast o;
                 if (c.state) {
                     overlay.gotoAndStop("Init");
@@ -218,10 +215,7 @@ class ApiMenus {
                 } else {
                     if (AqwApi.combat != null) AqwApi.combat.stopAuto();
                 }
-            } catch (err:Dynamic) {
-                ApiLogger.error("UI", "CustomCombat error: " + Std.string(err));
-                AqwApi.notify("CustomCombat error: " + Std.string(err));
-            }
+            });
         });
         customCombatCheck.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
             if (AqwApi.combat != null && customCombatCheck.state != AqwApi.combat.isCustomRunning) {
@@ -233,7 +227,7 @@ class ApiMenus {
 
         // Auto Quest Check
         var autoQuestCheck = new Check(null, false, "Auto Quest", "Start accepting and completing quests.", true, function(o:Dynamic):Void {
-            try {
+            tryAction("Auto Quest", function() {
                 var c:Check = cast o;
                 if (c.state) {
                     overlay.gotoAndStop("Init");
@@ -241,10 +235,7 @@ class ApiMenus {
                 } else {
                     if (AqwApi.quest != null) AqwApi.quest.stopAuto();
                 }
-            } catch (err:Dynamic) {
-                ApiLogger.error("UI", "AutoQuest error: " + Std.string(err));
-                AqwApi.notify("AutoQuest error: " + Std.string(err));
-            }
+            });
         });
         autoQuestCheck.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
             if (AqwApi.quest != null && autoQuestCheck.state != AqwApi.quest.isAutoRunning) {
@@ -256,7 +247,7 @@ class ApiMenus {
 
         // Auto Leveling Check
         var autoLevelingCheck = new Check(null, false, "Auto Leveling", "Auto grind XP in shadowbattleon.", true, function(o:Dynamic):Void {
-            try {
+            tryAction("Auto Leveling", function() {
                 var c:Check = cast o;
                 if (c.state) {
                     var script = "EQUIPCLASS farm\nLOADQUEST 9421,9422,9423\nJOIN shadowbattleon,Enter,Spawn\nAUTOQUEST 9421,9422,9423\nEQUIPCLASS farm\nCOMBAT smart\n";
@@ -266,10 +257,7 @@ class ApiMenus {
                 } else {
                     ScriptManager.SINGLETON.stop();
                 }
-            } catch (err:Dynamic) {
-                ApiLogger.error("UI", "AutoLeveling error: " + Std.string(err));
-                AqwApi.notify("AutoLeveling error: " + Std.string(err));
-            }
+            });
         });
         autoLevelingCheck.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
             if (autoLevelingCheck.state != ScriptManager.SINGLETON.isRunning) {
@@ -531,6 +519,15 @@ class ApiMenus {
                 if (overlay.reportBugBtn != null) overlay.reportBugBtn.visible = !isApiMenu;
             }
         });
+    }
+
+    private static function tryAction(action:String, fn:Void->Void):Void {
+        try {
+            fn();
+        } catch (err:Dynamic) {
+            ApiLogger.error("UI", action + " error: " + Std.string(err));
+            AqwApi.notify(action + " error: " + Std.string(err));
+        }
     }
 }
 #else
