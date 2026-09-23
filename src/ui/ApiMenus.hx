@@ -2,7 +2,7 @@ package ui;
 
 #if flash
 import com.aqwapi.AqwApi;
-import com.aqwapi.modules.CombatManager;
+import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Sprite;
@@ -46,10 +46,10 @@ class ApiMenus {
         ApiNotificationManager.instance.init(apiNotifs);
 
         // 2. Restore Combat Manager state from persistent settings
-        CombatManager.farmClass = HelperSetting.getString("api_farm_class", "");
-        CombatManager.farmMode = HelperSetting.getString("api_farm_mode", "Base");
-        CombatManager.soloClass = HelperSetting.getString("api_solo_class", "");
-        CombatManager.soloMode = HelperSetting.getString("api_solo_mode", "Base");
+        CombatEngine.farmClass = HelperSetting.getString("api_farm_class", "");
+        CombatEngine.farmMode = HelperSetting.getString("api_farm_mode", "Base");
+        CombatEngine.soloClass = HelperSetting.getString("api_solo_class", "");
+        CombatEngine.soloMode = HelperSetting.getString("api_solo_mode", "Base");
 
         if (AqwApi.combat != null) {
             AqwApi.combat.infiniteRange = HelperSetting.getBool("api_infinite_range", false);

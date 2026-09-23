@@ -2,7 +2,7 @@ package ui.prompts;
 
 #if flash
 import com.aqwapi.AqwApi;
-import com.aqwapi.modules.CombatManager;
+import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.utils.AqwUtils;
 import flash.display.Sprite;
@@ -220,7 +220,7 @@ class ApiPrompts {
             selectedClassStr = currentClass != "" ? currentClass : availableClasses[0];
         }
 
-        var availableModes = CombatManager.getAvailableModes(selectedClassStr);
+        var availableModes = CombatEngine.getAvailableModes(selectedClassStr);
         var selectedModeStr = HelperSetting.getString("api_smart_mode", "Base");
         if (availableModes.indexOf(selectedModeStr) == -1) {
             selectedModeStr = availableModes.length > 0 ? availableModes[0] : "Base";
@@ -237,7 +237,7 @@ class ApiPrompts {
         var ddClass:Dropdown = null;
         ddClass = new Dropdown(180, 25, availableClasses, function(sel:String):Void {
             selectedClassStr = sel;
-            var modes = CombatManager.getAvailableModes(selectedClassStr);
+            var modes = CombatEngine.getAvailableModes(selectedClassStr);
             ddMode.options = modes;
             if (modes.indexOf(selectedModeStr) == -1) {
                 selectedModeStr = modes.length > 0 ? modes[0] : "Base";
@@ -284,26 +284,26 @@ class ApiPrompts {
 
         // 1. Farm
         setupLoadoutRow(dlg, "FARM Loadout:", 45, 70, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
-            CombatManager.farmClass = c;
-            CombatManager.farmMode = m;
+            CombatEngine.farmClass = c;
+            CombatEngine.farmMode = m;
         });
 
         // 2. Solo
         setupLoadoutRow(dlg, "SOLO Loadout:", 110, 135, availableClasses, "api_solo_class", "api_solo_mode", function(c:String, m:String):Void {
-            CombatManager.soloClass = c;
-            CombatManager.soloMode = m;
+            CombatEngine.soloClass = c;
+            CombatEngine.soloMode = m;
         });
 
         // 3. Boss
         setupLoadoutRow(dlg, "BOSS Loadout:", 175, 200, availableClasses, "api_boss_class", "api_boss_mode", function(c:String, m:String):Void {
-            CombatManager.bossClass = c;
-            CombatManager.bossMode = m;
+            CombatEngine.bossClass = c;
+            CombatEngine.bossMode = m;
         });
 
         // 4. Dodge
         setupLoadoutRow(dlg, "DODGE Loadout:", 240, 265, availableClasses, "api_dodge_class", "api_dodge_mode", function(c:String, m:String):Void {
-            CombatManager.dodgeClass = c;
-            CombatManager.dodgeMode = m;
+            CombatEngine.dodgeClass = c;
+            CombatEngine.dodgeMode = m;
         });
 
         var doneBtn = ApiPromptModal.createButton("Done", 140, 35, function():Void {
@@ -334,7 +334,7 @@ class ApiPrompts {
 
         var curClass = HelperSetting.getString(classKey, classes[0]);
         if (classes.indexOf(curClass) == -1) curClass = classes[0];
-        var modes = CombatManager.getAvailableModes(curClass);
+        var modes = CombatEngine.getAvailableModes(curClass);
         var curMode = HelperSetting.getString(modeKey, modes[0]);
         if (modes.indexOf(curMode) == -1) curMode = modes[0];
 
@@ -351,7 +351,7 @@ class ApiPrompts {
         ddClass = new Dropdown(240, 25, classes, function(sel:String):Void {
             curClass = sel;
             HelperSetting.setString(classKey, sel);
-            var nm = CombatManager.getAvailableModes(curClass);
+            var nm = CombatEngine.getAvailableModes(curClass);
             ddMode.options = nm;
             curMode = nm[0];
             ddMode.selectedItem = curMode;
