@@ -46,10 +46,14 @@ class ApiMenus {
         ApiNotificationManager.instance.init(apiNotifs);
 
         // 2. Restore Combat Manager state from persistent settings
-        CombatEngine.farmClass = HelperSetting.getString("api_farm_class", "");
+        CombatEngine.farmClass = HelperSetting.getString("api_farm_class", "Current");
         CombatEngine.farmMode = HelperSetting.getString("api_farm_mode", "Base");
-        CombatEngine.soloClass = HelperSetting.getString("api_solo_class", "");
+        CombatEngine.soloClass = HelperSetting.getString("api_solo_class", "Current");
         CombatEngine.soloMode = HelperSetting.getString("api_solo_mode", "Base");
+        CombatEngine.bossClass = HelperSetting.getString("api_boss_class", "Current");
+        CombatEngine.bossMode = HelperSetting.getString("api_boss_mode", "Base");
+        CombatEngine.dodgeClass = HelperSetting.getString("api_dodge_class", "Current");
+        CombatEngine.dodgeMode = HelperSetting.getString("api_dodge_mode", "Base");
 
         if (AqwApi.combat != null) {
             AqwApi.combat.infiniteRange = HelperSetting.getBool("api_infinite_range", false);
@@ -183,9 +187,9 @@ class ApiMenus {
             tryAction("AutoCombat (Smart)", function() {
                 var c:Check = cast o;
                 if (c.state) {
-                    var confClass = HelperSetting.getString("api_smart_class", "");
+                    var confClass = HelperSetting.getString("api_smart_class", "Current");
                     var confMode = HelperSetting.getString("api_smart_mode", "Base");
-                    if (confClass != "" && AqwApi.inventory != null) {
+                    if (confClass != "" && confClass != "Current" && AqwApi.inventory != null) {
                         AqwApi.inventory.equip(confClass);
                     }
                     if (AqwApi.combat != null) {
