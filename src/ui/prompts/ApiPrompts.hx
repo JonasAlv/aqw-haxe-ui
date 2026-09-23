@@ -353,7 +353,9 @@ class ApiPrompts {
             HelperSetting.setString(classKey, sel);
             var nm = CombatEngine.getAvailableModes(curClass);
             ddMode.options = nm;
-            curMode = nm[0];
+            if (nm.indexOf(curMode) == -1) {
+                curMode = nm.length > 0 ? nm[0] : "Base";
+            }
             ddMode.selectedItem = curMode;
             HelperSetting.setString(modeKey, curMode);
             onUpdate(curClass, curMode);
@@ -368,22 +370,69 @@ class ApiPrompts {
     }
 
     private static function getAvailableClasses():Array<String> {
+        var classMap:Map<String, String> = new Map<String, String>();
         var classes:Array<String> = [];
-        if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null && AqwApi.game.world.myAvatar.items != null) {
-            var items:Dynamic = AqwApi.game.world.myAvatar.items;
-            for (item in (cast items : Array<Dynamic>)) {
-                if (item != null && item.sES == "ar") {
-                    classes.push(item.sName);
-                }
+
+        var addClass = function(name:Dynamic):Void {
+            if (name == null) return;
+            var str:String = Std.string(name);
+            var trimmed:String = StringTools.trim(str);
+            if (trimmed == "" || trimmed == "null" || trimmed == "No Classes Found") return;
+            var key:String = trimmed.toLowerCase();
+            if (!classMap.exists(key)) {
+                classMap.set(key, trimmed);
+                classes.push(trimmed);
             }
+        };
+
+        // 1. Current class
+        var cur:String = getCurrentClass();
+        if (cur != "") addClass(cur);
+
+        // 2. Equipped or inventory armors/classes
+        if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null && AqwApi.game.world.myAvatar.items != null) {
+            try {
+                var items:Dynamic = AqwApi.game.world.myAvatar.items;
+                if (Std.isOfType(items, Array)) {
+                    for (item in (cast items : Array<Dynamic>)) {
+                        if (item != null && (item.sES == "ar" || item.sType == "Class")) {
+                            if (item.sName != null) addClass(item.sName);
+                        }
+                    }
+                }
+            } catch (e:Dynamic) {}
         }
+
+        // 3. Known classes from CombatEngine (AdvancedSkills.json)
+        try {
+            var known:Array<String> = CombatEngine.getKnownClasses();
+            if (known != null) {
+                for (k in known) addClass(k);
+            }
+        } catch (e:Dynamic) {}
+
+        classes.sort(function(a, b) {
+            var la:String = a.toLowerCase();
+            var lb:String = b.toLowerCase();
+            if (la < lb) return -1;
+            if (la > lb) return 1;
+            return 0;
+        });
+
         if (classes.length == 0) classes.push("No Classes Found");
         return classes;
     }
 
     private static function getCurrentClass():String {
-        if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null && AqwApi.game.world.myAvatar.objData != null) {
-            return Std.string(AqwApi.game.world.myAvatar.objData.strClassName);
+        if (AqwApi.player != null && AqwApi.player.className != "") {
+            return AqwApi.player.className;
+        }
+        if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
+            var av = AqwApi.game.world.myAvatar;
+            if (av.objData != null && av.objData.strClassName != null) {
+                var c = Std.string(av.objData.strClassName);
+                if (c != "" && c != "null") return c;
+            }
         }
         return "";
     }
