@@ -130,9 +130,7 @@ class Dropdown extends Sprite {
         return listHeight;
     }
 
-    public var options(get, set):Array<String>;
-    public function get_options():Array<String> { return _options; }
-    public function set_options(newOptions:Array<String>):Array<String> {
+    public function setOptions(newOptions:Array<String>):Array<String> {
         _options = newOptions != null ? newOptions : [];
         _listContent.y = 0;
         var listHeight:Float = getVisibleListHeight();
@@ -160,12 +158,15 @@ class Dropdown extends Sprite {
         return _options;
     }
 
-    public var selectedItem(get, set):String;
-    public function get_selectedItem():String {
-        if (_options.length == 0 || _selectedIndex < 0 || _selectedIndex >= _options.length) return "";
-        return _options[_selectedIndex];
+    public function getOptions():Array<String> {
+        return _options;
     }
-    public function set_selectedItem(val:String):String {
+
+    public var options(get, set):Array<String>;
+    public function get_options():Array<String> { return getOptions(); }
+    public function set_options(newOptions:Array<String>):Array<String> { return setOptions(newOptions); }
+
+    public function setSelectedItem(val:String):String {
         if (val == null) return val;
         var idx:Int = _options.indexOf(val);
         if (idx != -1) {
@@ -174,6 +175,15 @@ class Dropdown extends Sprite {
         }
         return val;
     }
+
+    public function getSelectedItem():String {
+        if (_options.length == 0 || _selectedIndex < 0 || _selectedIndex >= _options.length) return "";
+        return _options[_selectedIndex];
+    }
+
+    public var selectedItem(get, set):String;
+    public function get_selectedItem():String { return getSelectedItem(); }
+    public function set_selectedItem(val:String):String { return setSelectedItem(val); }
 
     private function populateList(w:Float, h:Float):Void {
         while (_listContent.numChildren > 0) _listContent.removeChildAt(0);

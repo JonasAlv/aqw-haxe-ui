@@ -198,6 +198,7 @@ class ApiMenus {
                     if (confClass != "" && confClass != "Current" && AqwApi.inventory != null) {
                         AqwApi.inventory.equip(confClass);
                     }
+                    CombatEngine.smartClass = confClass;
                     if (AqwApi.combat != null) {
                         AqwApi.combat.mode = confMode;
                         AqwApi.combat.startSmart();

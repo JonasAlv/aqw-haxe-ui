@@ -236,22 +236,22 @@ class ApiPrompts {
             });
             ddMode.x = 220;
             ddMode.y = 80;
-            ddMode.selectedItem = selectedModeStr;
+            ddMode.setSelectedItem(selectedModeStr);
 
             var ddClass:Dropdown = null;
             ddClass = new Dropdown(180, 25, availableClasses, function(sel:String):Void {
                 selectedClassStr = sel;
                 var modes = CombatEngine.getAvailableModes(selectedClassStr);
                 if (modes == null || modes.length == 0) modes = ["Base"];
-                ddMode.options = modes;
+                ddMode.setOptions(modes);
                 if (modes.indexOf(selectedModeStr) == -1) {
                     selectedModeStr = modes[0];
                 }
-                ddMode.selectedItem = selectedModeStr;
+                ddMode.setSelectedItem(selectedModeStr);
             });
             ddClass.x = 20;
             ddClass.y = 80;
-            ddClass.selectedItem = selectedClassStr;
+            ddClass.setSelectedItem(selectedClassStr);
 
             dlg.addChild(ddMode);
             dlg.addChild(ddClass);
@@ -259,6 +259,7 @@ class ApiPrompts {
             var saveBtn = ApiPromptModal.createButton("Save & Apply", 160, 35, function():Void {
                 HelperSetting.setString("api_smart_class", selectedClassStr);
                 HelperSetting.setString("api_smart_mode", selectedModeStr);
+                CombatEngine.smartClass = selectedClassStr;
                 if (selectedClassStr != "" && selectedClassStr != "Current" && AqwApi.inventory != null) {
                     AqwApi.inventory.equip(selectedClassStr);
                 }
@@ -281,13 +282,14 @@ class ApiPrompts {
 
             ApiPromptModal.show(overlay, dlg);
         } catch (e:Dynamic) {
-            ApiLogger.error("Prompt", "Failed to show AutoCombat setup prompt: " + e);
-            ApiNotificationManager.notify("Error opening setup: " + e);
+            var stackTrace:String = "";
             #if flash
             if (Std.isOfType(e, flash.errors.Error)) {
-                trace((cast e : flash.errors.Error).getStackTrace());
+                stackTrace = "\n" + (cast e : flash.errors.Error).getStackTrace();
             }
             #end
+            ApiLogger.error("Prompt", "Failed to show AutoCombat setup prompt: " + e + stackTrace);
+            ApiNotificationManager.notify("Error opening setup: " + e);
         }
     }
 
@@ -332,13 +334,14 @@ class ApiPrompts {
 
             ApiPromptModal.show(overlay, dlg);
         } catch (e:Dynamic) {
-            ApiLogger.error("Prompt", "Failed to show Class Loadouts prompt: " + e);
-            ApiNotificationManager.notify("Error opening loadouts: " + e);
+            var stackTrace:String = "";
             #if flash
             if (Std.isOfType(e, flash.errors.Error)) {
-                trace((cast e : flash.errors.Error).getStackTrace());
+                stackTrace = "\n" + (cast e : flash.errors.Error).getStackTrace();
             }
             #end
+            ApiLogger.error("Prompt", "Failed to show Class Loadouts prompt: " + e + stackTrace);
+            ApiNotificationManager.notify("Error opening loadouts: " + e);
         }
     }
 
@@ -379,19 +382,19 @@ class ApiPrompts {
             HelperSetting.setString(classKey, sel);
             var nm = CombatEngine.getAvailableModes(curClass);
             if (nm == null || nm.length == 0) nm = ["Base"];
-            ddMode.options = nm;
+            ddMode.setOptions(nm);
             if (nm.indexOf(curMode) == -1) {
                 curMode = nm[0];
             }
-            ddMode.selectedItem = curMode;
+            ddMode.setSelectedItem(curMode);
             HelperSetting.setString(modeKey, curMode);
             if (onUpdate != null) onUpdate(curClass, curMode);
         });
         ddClass.x = 20;
         ddClass.y = ddY;
 
-        ddClass.selectedItem = curClass;
-        ddMode.selectedItem = curMode;
+        ddClass.setSelectedItem(curClass);
+        ddMode.setSelectedItem(curMode);
         dlg.addChild(ddMode);
         dlg.addChild(ddClass);
     }
