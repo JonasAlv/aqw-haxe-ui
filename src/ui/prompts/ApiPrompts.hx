@@ -567,7 +567,7 @@ class ApiPrompts {
             bWait.x = 434; bWait.y = 302; dlg.addChild(bWait);
 
             // Hint Text (y = 336)
-            var lblHint = ApiPromptModal.createLabel("Syntax: 3[!aura(self:Name)] > 1 > 2 > 4[mp < 20%]  |  & (AND), | (OR)", 510, 11);
+            var lblHint = ApiPromptModal.createLabel("Syntax: 3[!aura(self:Name)] > 1 > 2 > 4[mp < 20 | hp < 50%] (raw & %) | &, |", 510, 11);
             lblHint.x = 25;
             lblHint.y = 336;
             lblHint.textColor = 0x888888;
