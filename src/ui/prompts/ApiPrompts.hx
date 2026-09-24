@@ -519,36 +519,48 @@ class ApiPrompts {
             };
 
             // Quick Helper Row 1: Skills & basic operators (y = 272)
-            var b1 = ApiPromptModal.createButton("+1", 38, 24, function() appendSkill("1"), false);
+            var b1 = ApiPromptModal.createButton("+1", 32, 24, function() appendSkill("1"), false);
             b1.x = 25; b1.y = 272; dlg.addChild(b1);
 
-            var b2 = ApiPromptModal.createButton("+2", 38, 24, function() appendSkill("2"), false);
-            b2.x = 68; b2.y = 272; dlg.addChild(b2);
+            var b2 = ApiPromptModal.createButton("+2", 32, 24, function() appendSkill("2"), false);
+            b2.x = 61; b2.y = 272; dlg.addChild(b2);
 
-            var b3 = ApiPromptModal.createButton("+3", 38, 24, function() appendSkill("3"), false);
-            b3.x = 111; b3.y = 272; dlg.addChild(b3);
+            var b3 = ApiPromptModal.createButton("+3", 32, 24, function() appendSkill("3"), false);
+            b3.x = 97; b3.y = 272; dlg.addChild(b3);
 
-            var b4 = ApiPromptModal.createButton("+4", 38, 24, function() appendSkill("4"), false);
-            b4.x = 154; b4.y = 272; dlg.addChild(b4);
+            var b4 = ApiPromptModal.createButton("+4", 32, 24, function() appendSkill("4"), false);
+            b4.x = 133; b4.y = 272; dlg.addChild(b4);
 
-            var b5 = ApiPromptModal.createButton("+5", 38, 24, function() appendSkill("5"), false);
-            b5.x = 197; b5.y = 272; dlg.addChild(b5);
+            var b5 = ApiPromptModal.createButton("+5", 32, 24, function() appendSkill("5"), false);
+            b5.x = 169; b5.y = 272; dlg.addChild(b5);
 
-            var bArrow = ApiPromptModal.createButton("+ >", 40, 24, function():Void {
+            var bArrow = ApiPromptModal.createButton("+ >", 36, 24, function():Void {
                 var cur = StringTools.trim(inputCombo.text);
                 if (cur.length > 0 && !StringTools.endsWith(cur, ">")) {
                     inputCombo.text = cur + " >";
                 }
             }, false);
-            bArrow.x = 240; bArrow.y = 272; dlg.addChild(bArrow);
+            bArrow.x = 205; bArrow.y = 272; dlg.addChild(bArrow);
 
-            var bClear = ApiPromptModal.createButton("Clear", 50, 24, function():Void {
+            var b14 = ApiPromptModal.createButton("+ 1-4", 46, 24, function():Void {
+                var cur = StringTools.trim(inputCombo.text);
+                if (cur.length == 0) {
+                    inputCombo.text = "1 > 2 > 3 > 4";
+                } else if (StringTools.endsWith(cur, ">")) {
+                    inputCombo.text = cur + " 1 > 2 > 3 > 4";
+                } else {
+                    inputCombo.text = cur + " > 1 > 2 > 3 > 4";
+                }
+            }, false);
+            b14.x = 245; b14.y = 272; dlg.addChild(b14);
+
+            var bClear = ApiPromptModal.createButton("Clear", 45, 24, function():Void {
                 inputCombo.text = "";
             }, false);
-            bClear.x = 285; bClear.y = 272; dlg.addChild(bClear);
+            bClear.x = 295; bClear.y = 272; dlg.addChild(bClear);
 
             var bHp = ApiPromptModal.createButton("+[hp < 50%]", 95, 24, function() appendRule("[hp < 50%]"), false);
-            bHp.x = 342; bHp.y = 272; dlg.addChild(bHp);
+            bHp.x = 344; bHp.y = 272; dlg.addChild(bHp);
 
             var bMp = ApiPromptModal.createButton("+[mp < 20%]", 95, 24, function() appendRule("[mp < 20%]"), false);
             bMp.x = 442; bMp.y = 272; dlg.addChild(bMp);
