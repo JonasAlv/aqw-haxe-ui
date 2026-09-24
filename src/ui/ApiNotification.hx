@@ -30,17 +30,14 @@ class ApiNotification extends Sprite {
         this.id = id;
         this.sticky = sticky;
 
-        // Dark Background
         this.graphics.beginFill(0x111111, 0.92);
         this.graphics.drawRect(0, 0, NOTIF_WIDTH, NOTIF_HEIGHT);
         this.graphics.endFill();
 
-        // Blue accent bar on the left edge
         this.graphics.beginFill(0x4a9eff, 1);
         this.graphics.drawRect(0, 0, 4, NOTIF_HEIGHT);
         this.graphics.endFill();
 
-        // Message text
         _messageTxt = new TextField();
         var fmt = new TextFormat("_sans", 12, 0xEEEEEE, true);
         fmt.align = TextFormatAlign.LEFT;
@@ -54,7 +51,7 @@ class ApiNotification extends Sprite {
         _messageTxt.mouseEnabled = false;
         this.addChild(_messageTxt);
 
-        // Close button (vector drawn, no asset dependencies)
+        // Close button
         if (!sticky) {
             _closeBtn = new Sprite();
             _closeBtn.buttonMode = true;
@@ -93,7 +90,7 @@ class ApiNotification extends Sprite {
         _closeBtn.graphics.moveTo(cx + r, cy - r);
         _closeBtn.graphics.lineTo(cx - r, cy + r);
 
-        // Invisible hit area for easier clicking
+        // Hit area padding
         _closeBtn.graphics.beginFill(0x000000, 0);
         _closeBtn.graphics.drawRect(cx - r - 4, cy - r - 4, (r + 4) * 2, (r + 4) * 2);
         _closeBtn.graphics.endFill();

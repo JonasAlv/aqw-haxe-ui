@@ -75,7 +75,7 @@ class ApiMenus {
         apiMenus.push(enhancementMenu);
         apiMenus.push(settingsMenu);
 
-        // 4. Handle UI event delegation (Restore Anthony's menus when showPanelBtn is clicked)
+        // 4. Handle UI event delegation (restore host menus on showPanelBtn)
         overlay.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             if (overlay.currentFrameLabel == "Init" && overlay.showPanelBtn != null) {
                 var isShowPanelBtn:Bool = false;
@@ -100,23 +100,21 @@ class ApiMenus {
         var initialACState = HelperSetting.getBool("api_accept_ac_drops", false);
         if (AqwApi.drop != null) AqwApi.drop.acceptACs = initialACState;
 
-        // 6. Create the floating red "Menu" icon button
+        // 6. Floating menu button
         setupFloatingMenuButton(pocket, overlay);
 
-        // 7. Track menu selection and frame hooks
+        // 7. Menu tracking and frame hooks
         setupFrameHooks(pocket, overlay);
     }
 
     private static function buildScriptsMenu(pocket:Dynamic, overlay:Overlay):Menu {
         var opts = new Vector<Option>();
 
-        // Paste Script
         opts.push(new Button(null, "Paste Script", "Paste a raw text script.", "Paste", function(o:Dynamic):Void {
             overlay.gotoAndStop("Init");
             ApiPrompts.showPastePrompt(overlay);
         }));
 
-        // Desktop: File script loader
         #if air
         opts.push(new Button(null, "Load Script (File)", "Load a script from a text file.", "Load", function(o:Dynamic):Void {
             try {
@@ -140,7 +138,6 @@ class ApiMenus {
         }));
         #end
 
-        // Run Script Check
         var startScriptCheck = new Check(null, false, "Run Script", "Start or Stop the loaded script.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (c.state) {
@@ -158,14 +155,12 @@ class ApiMenus {
         });
         opts.push(startScriptCheck);
 
-        // Chat Logger
         var chatLogCheck = new Check(null, ApiLogger.printToChat, "Chat Logger", "Display bot and script logs in the in-game chat box.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             ApiLogger.printToChat = c.state;
         });
         opts.push(chatLogCheck);
 
-        // Class Loadouts
         var loadoutsBtn = new Button(null, "Class Loadouts", "Configure your default Farm, Solo, Boss and Dodge classes for script auto-swapping.", "Setup", function(o:Dynamic):Void {
             tryAction("Class Loadouts", function() {
                 overlay.gotoAndStop("Init");
@@ -180,7 +175,6 @@ class ApiMenus {
     private static function buildAutomationMenu(pocket:Dynamic, overlay:Overlay):Menu {
         var opts = new Vector<Option>();
 
-        // AutoCombat Setup
         opts.push(new Button(null, "AutoCombat (Setup)", "Configure class and mode for smart combat.", "Setup", function(o:Dynamic):Void {
             tryAction("AutoCombat (Setup)", function() {
                 overlay.gotoAndStop("Init");
@@ -188,7 +182,6 @@ class ApiMenus {
             });
         }));
 
-        // Combat Modes Editor
         opts.push(new Button(null, "Combat Modes (Editor)", "Create, edit, or delete class skill modes.", "Edit", function(o:Dynamic):Void {
             tryAction("Combat Modes (Editor)", function() {
                 overlay.gotoAndStop("Init");
@@ -196,7 +189,6 @@ class ApiMenus {
             });
         }));
 
-        // Smart Combat Check
         var smartCombatCheck = new Check(null, false, "AutoCombat (Smart)", "Start smart auto combat.", true, function(o:Dynamic):Void {
             tryAction("AutoCombat (Smart)", function() {
                 var c:Check = cast o;
@@ -224,7 +216,6 @@ class ApiMenus {
         });
         opts.push(smartCombatCheck);
 
-        // Custom Combat Check
         var customCombatCheck = new Check(null, false, "AutoCombat (Custom)", "Start custom combat sequence.", true, function(o:Dynamic):Void {
             tryAction("AutoCombat (Custom)", function() {
                 var c:Check = cast o;
@@ -244,7 +235,6 @@ class ApiMenus {
         });
         opts.push(customCombatCheck);
 
-        // Auto Quest Check
         var autoQuestCheck = new Check(null, false, "Auto Quest", "Start accepting and completing quests.", true, function(o:Dynamic):Void {
             tryAction("Auto Quest", function() {
                 var c:Check = cast o;
@@ -264,7 +254,6 @@ class ApiMenus {
         });
         opts.push(autoQuestCheck);
 
-        // Auto Leveling Check
         var autoLevelingCheck = new Check(null, false, "Auto Leveling", "Auto grind XP in shadowbattleon.", true, function(o:Dynamic):Void {
             tryAction("Auto Leveling", function() {
                 var c:Check = cast o;
@@ -336,18 +325,15 @@ class ApiMenus {
     private static function buildSettingsMenu(pocket:Dynamic, overlay:Overlay):Menu {
         var opts = new Vector<Option>();
 
-        // Load Shop
         opts.push(new Button(null, "Load Shop", "Load a shop by its ID.", "Load", function(o:Dynamic):Void {
             overlay.gotoAndStop("Init");
             ApiPrompts.showShopPrompt(overlay);
         }));
 
-        // Toggle Bank
         opts.push(new Button(null, "Toggle Bank", "Open or close your bank.", "Toggle", function(o:Dynamic):Void {
             if (AqwApi.inventory != null) AqwApi.inventory.toggleBank();
         }));
 
-        // Infinite Range
         opts.push(new Check("api_infinite_range", false, "Infinite Range", "Attack and use skills across the entire screen without range limits.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (AqwApi.combat != null) {
@@ -356,31 +342,26 @@ class ApiMenus {
             }
         }));
 
-        // Death Spawn
         opts.push(new Check("api_death_spawn", false, "Death Spawn (Same Room)", "Automatically sets your respawn point to your current room so you never walk back on death.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (AqwApi.map != null) AqwApi.map.autoDeathSpawn = c.state;
         }));
 
-        // Private Rooms
         opts.push(new Check("api_private_rooms", true, "Private Rooms", "Automatically join private rooms (e.g. map-100000). Uncheck to join public rooms.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (AqwApi.map != null) AqwApi.map.usePrivateRoom = c.state;
         }));
 
-        // Accept All Loot
         opts.push(new Check("api_accept_loot", false, "Accept All Loot", "Automatically accept all dropped items.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (AqwApi.drop != null) AqwApi.drop.acceptAll = c.state;
         }));
 
-        // Accept AC Drops
         opts.push(new Check("api_accept_ac_drops", false, "Accept AC Drops", "Automatically accept all AC-tagged (coin) drops.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             if (AqwApi.drop != null) AqwApi.drop.acceptACs = c.state;
         }));
 
-        // SWF RAM Cache
         opts.push(new Check(HelperSetting.OPTION_SWF_CACHE, false, "SWF RAM Cache", "Caches loaded maps and classes to RAM to eliminate reloading. (Requires more RAM)", true, function(o:Dynamic):Void {
             try {
                 pocket.config.option_swf_cache = (cast(o, Check)).state;
@@ -521,7 +502,7 @@ class ApiMenus {
                 }
             }
 
-            // Hide Anthony's branding when API menu is open
+            // Hide host UI branding when API menu is open
             if (overlay.currentFrameLabel == "Panel") {
                 for (i in 0...overlay.numChildren) {
                     var child = overlay.getChildAt(i);

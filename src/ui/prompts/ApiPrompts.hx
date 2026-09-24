@@ -328,19 +328,102 @@ class ApiPrompts {
 
     public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {
         try {
+            try { UserSkillsManager.ensureStorageInitialized(); } catch (_:Dynamic) {}
             var dlg = ApiPromptModal.createDialog(560, 440, "Combat Mode Editor");
 
-            // 1. Gather class options
-            var knownClasses = CombatEngine.getKnownClasses();
-            var classOptions:Array<String> = ["Current"].concat(knownClasses);
+            // Gather class options (Current + Inventory + Bank + Custom)
+            var getAllClassOptions = function():Array<String> {
+                var classMap:Map<String, String> = new Map<String, String>();
+                var opts:Array<String> = [];
 
+                var addOption = function(c:Dynamic):Void {
+                    if (c == null) return;
+                    var str = StringTools.trim(Std.string(c));
+                    if (str == "" || str == "null" || str.toLowerCase() == "current") return;
+                    var key = str.toLowerCase();
+                    if (!classMap.exists(key)) {
+                        classMap.set(key, str);
+                        opts.push(str);
+                    }
+                };
+
+                // Inventory & equipped classes
+                for (c in getAvailableClasses()) addOption(c);
+
+                // Bank classes (if loaded)
+                if (AqwApi.game != null && AqwApi.game.world != null) {
+                    var world:Dynamic = AqwApi.game.world;
+                    var checkItem = function(it:Dynamic):Void {
+                        if (it == null || it.sName == null) return;
+                        var isClass = false;
+                        var sTypeStr = (it.sType != null) ? Std.string(it.sType).toLowerCase() : "";
+                        if (sTypeStr == "class" || it.bClass == 1 || it.bClass == true || it.bClass == "1") {
+                            isClass = true;
+                        } else if (it.sES != null && Std.string(it.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
+                            if (CombatEngine.findClassConfig(it.sName) != null) isClass = true;
+                        }
+                        if (isClass) addOption(it.sName);
+                    };
+
+                    // Check world.bankinfo.items
+                    try {
+                        if (world.bankinfo != null && world.bankinfo.items != null) {
+                            var bItems:Dynamic = world.bankinfo.items;
+                            if (Std.isOfType(bItems, Array)) {
+                                for (it in (cast bItems : Array<Dynamic>)) checkItem(it);
+                            }
+                        }
+                    } catch (be1:Dynamic) {}
+
+                    // Check world.myAvatar.bank.items
+                    try {
+                        if (world.myAvatar != null && world.myAvatar.bank != null && world.myAvatar.bank.items != null) {
+                            var bItems:Dynamic = world.myAvatar.bank.items;
+                            if (Std.isOfType(bItems, Array)) {
+                                for (it in (cast bItems : Array<Dynamic>)) checkItem(it);
+                            }
+                        }
+                    } catch (be2:Dynamic) {}
+
+                    // Check world.bankTree
+                    try {
+                        if (world.bankTree != null) {
+                            for (k in Reflect.fields(world.bankTree)) {
+                                checkItem(Reflect.field(world.bankTree, k));
+                            }
+                        }
+                    } catch (be3:Dynamic) {}
+                }
+
+                // User custom classes from userSkills.txt
+                try {
+                    var userTxt = UserSkillsManager.readUserSkills();
+                    if (userTxt != null && userTxt.length > 0) {
+                        var parsed = com.aqwapi.utils.SkillDslParser.parse(userTxt);
+                        if (parsed != null) {
+                            for (cKey in Reflect.fields(parsed)) addOption(cKey);
+                        }
+                    }
+                } catch (ue:Dynamic) {}
+
+                opts.sort(function(a, b) {
+                    var la = a.toLowerCase();
+                    var lb = b.toLowerCase();
+                    if (la < lb) return -1;
+                    if (la > lb) return 1;
+                    return 0;
+                });
+
+                return ["Current"].concat(opts);
+            };
+
+            var classOptions:Array<String> = getAllClassOptions();
             var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : (curEquipped != "" ? curEquipped : (knownClasses.length > 0 ? knownClasses[0] : "Current"));
+            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : (curEquipped != "" ? curEquipped : (classOptions.length > 1 ? classOptions[1] : "Current"));
             if (selectedClass.toLowerCase() == "current" && curEquipped != "") {
                 selectedClass = curEquipped;
             }
 
-            // Labels and Inputs
             var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
             lblClass.x = 25;
             lblClass.y = 40;
@@ -490,7 +573,6 @@ class ApiPrompts {
             dlg.addChild(ddMode);
             dlg.addChild(ddClass);
 
-            // Helpers for combo insertion
             var appendSkill = function(sid:String):Void {
                 var cur = StringTools.trim(inputCombo.text);
                 if (cur.length == 0) {
@@ -518,7 +600,7 @@ class ApiPrompts {
                 }
             };
 
-            // Quick Helper Row 1: Skills & basic operators (y = 272)
+            // Quick helper row 1: skills and basic operators
             var b1 = ApiPromptModal.createButton("+1", 32, 24, function() appendSkill("1"), false);
             b1.x = 25; b1.y = 272; dlg.addChild(b1);
 
@@ -565,7 +647,7 @@ class ApiPrompts {
             var bMp = ApiPromptModal.createButton("+[mp < 20%]", 95, 24, function() appendRule("[mp < 20%]"), false);
             bMp.x = 442; bMp.y = 272; dlg.addChild(bMp);
 
-            // Quick Helper Row 2: Auras and conditions (y = 302)
+            // Quick helper row 2: auras and conditions
             var bAuraSelf = ApiPromptModal.createButton("+[!aura(self:Name)]", 132, 24, function() appendRule("[!aura(self:Name)]"), false);
             bAuraSelf.x = 25; bAuraSelf.y = 302; dlg.addChild(bAuraSelf);
 
@@ -578,15 +660,13 @@ class ApiPrompts {
             var bWait = ApiPromptModal.createButton("+[wait(500ms)]", 100, 24, function() appendRule("[wait(500ms)]"), false);
             bWait.x = 434; bWait.y = 302; dlg.addChild(bWait);
 
-            // Hint Text (y = 336)
             var lblHint = ApiPromptModal.createLabel("Syntax: 3[!aura(self:Name)] > 1 > 2 > 4[mp < 20 | hp < 50%] (raw & %) | &, |", 510, 11);
             lblHint.x = 25;
             lblHint.y = 336;
             lblHint.textColor = 0x888888;
             dlg.addChild(lblHint);
 
-            // Action Buttons (y = 370)
-            var saveBtn = ApiPromptModal.createButton("Save Mode", 130, 36, function():Void {
+            var saveBtn = ApiPromptModal.createButton("Save Mode", 100, 36, function():Void {
                 var cName = StringTools.trim(inputClass.text);
                 var mName = StringTools.trim(inputMode.text);
                 var execMode = ddExecMode.selectedItem;
@@ -608,26 +688,53 @@ class ApiPrompts {
 
                 var ok = UserSkillsManager.saveMode(cName, mName, execMode, timeout, combo);
                 if (ok) {
-                    ApiNotificationManager.notify("Saved [" + cName + " : " + mName + "] to userSkills.txt!");
-                    var freshKnown = CombatEngine.getKnownClasses();
-                    var freshClassOpts = ["Current"].concat(freshKnown);
+                    // Automatically activate for Smart Combat
+                    HelperSetting.setString("api_smart_class", cName);
+                    HelperSetting.setString("api_smart_mode", mName);
+                    CombatEngine.smartClass = cName;
+                    CombatEngine.skillMode = mName;
+                    if (AqwApi.combat != null) {
+                        AqwApi.combat.mode = mName;
+                    }
+
+                    ApiNotificationManager.notify("Saved & Activated [" + cName + " : " + mName + "]!");
+                    var freshClassOpts = getAllClassOptions();
                     ddClass.setOptions(freshClassOpts);
                     ddClass.setSelectedItem(cName);
 
                     var freshModes = getModeListForClass(cName);
                     ddMode.setOptions(freshModes);
                     ddMode.setSelectedItem(mName);
-                    lblBadge.text = "[Custom Mode]";
-                    lblBadge.textColor = 0x00D9FF;
+                    loadModeDetails(cName, mName);
                 } else {
                     ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
                 }
             }, true);
-            saveBtn.x = 25;
+            saveBtn.x = 20;
             saveBtn.y = 370;
             dlg.addChild(saveBtn);
 
-            var delBtn = ApiPromptModal.createButton("Delete Mode", 115, 36, function():Void {
+            var applyBtn = ApiPromptModal.createButton("Apply Mode", 100, 36, function():Void {
+                var cName = StringTools.trim(inputClass.text);
+                var mName = StringTools.trim(inputMode.text);
+                if (cName == "" || mName == "" || mName == "[+ New Mode]") {
+                    ApiNotificationManager.notify("Error: Select a valid class and mode to apply!");
+                    return;
+                }
+                HelperSetting.setString("api_smart_class", cName);
+                HelperSetting.setString("api_smart_mode", mName);
+                CombatEngine.smartClass = cName;
+                CombatEngine.skillMode = mName;
+                if (AqwApi.combat != null) {
+                    AqwApi.combat.mode = mName;
+                }
+                ApiNotificationManager.notify("Activated [" + cName + " : " + mName + "] for Smart Combat!");
+            }, true);
+            applyBtn.x = 125;
+            applyBtn.y = 370;
+            dlg.addChild(applyBtn);
+
+            var delBtn = ApiPromptModal.createButton("Delete Mode", 95, 36, function():Void {
                 var cName = StringTools.trim(inputClass.text);
                 var mName = StringTools.trim(inputMode.text);
 
@@ -644,6 +751,9 @@ class ApiPrompts {
                 var deleted = UserSkillsManager.deleteMode(cName, mName);
                 if (deleted) {
                     ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.txt!");
+                    var freshClassOpts = getAllClassOptions();
+                    ddClass.setOptions(freshClassOpts);
+                    ddClass.setSelectedItem(freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
                     var modes = getModeListForClass(cName);
                     ddMode.setOptions(modes);
                     var nextMode = (modes.length > 0) ? modes[0] : "[+ New Mode]";
@@ -653,22 +763,22 @@ class ApiPrompts {
                     ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
                 }
             }, false);
-            delBtn.x = 165;
+            delBtn.x = 230;
             delBtn.y = 370;
             dlg.addChild(delBtn);
 
-            var backBtn = ApiPromptModal.createButton("AutoCombat Setup", 155, 36, function():Void {
+            var backBtn = ApiPromptModal.createButton("AutoCombat Setup", 125, 36, function():Void {
                 ApiPromptModal.close();
                 showSmartCombatPrompt(overlay);
             }, false);
-            backBtn.x = 290;
+            backBtn.x = 330;
             backBtn.y = 370;
             dlg.addChild(backBtn);
 
-            var closeBtn = ApiPromptModal.createButton("Close", 80, 36, function():Void {
+            var closeBtn = ApiPromptModal.createButton("Close", 75, 36, function():Void {
                 ApiPromptModal.close();
             }, false);
-            closeBtn.x = 455;
+            closeBtn.x = 460;
             closeBtn.y = 370;
             dlg.addChild(closeBtn);
 
@@ -692,25 +802,21 @@ class ApiPrompts {
             var availableClasses = getAvailableClasses();
             if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-            // 1. Farm
             setupLoadoutRow(dlg, "FARM Loadout:", 45, 70, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
                 CombatEngine.farmClass = c;
                 CombatEngine.farmMode = m;
             });
 
-            // 2. Solo
             setupLoadoutRow(dlg, "SOLO Loadout:", 110, 135, availableClasses, "api_solo_class", "api_solo_mode", function(c:String, m:String):Void {
                 CombatEngine.soloClass = c;
                 CombatEngine.soloMode = m;
             });
 
-            // 3. Boss
             setupLoadoutRow(dlg, "BOSS Loadout:", 175, 200, availableClasses, "api_boss_class", "api_boss_mode", function(c:String, m:String):Void {
                 CombatEngine.bossClass = c;
                 CombatEngine.bossMode = m;
             });
 
-            // 4. Dodge
             setupLoadoutRow(dlg, "DODGE Loadout:", 240, 265, availableClasses, "api_dodge_class", "api_dodge_mode", function(c:String, m:String):Void {
                 CombatEngine.dodgeClass = c;
                 CombatEngine.dodgeMode = m;
@@ -807,7 +913,7 @@ class ApiPrompts {
             }
         };
 
-        // 1. Inventory armors/classes
+        // Inventory armors/classes
         if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null && AqwApi.game.world.myAvatar.items != null) {
             try {
                 var items:Dynamic = AqwApi.game.world.myAvatar.items;
@@ -827,13 +933,24 @@ class ApiPrompts {
             } catch (e:Dynamic) {}
         }
 
-        // 2. Currently equipped class (if not already captured from inventory)
+        // Currently equipped class
         try {
             var cur:String = getCurrentClass();
             if (cur != "" && cur.toLowerCase() != "current") {
                 addClass(cur);
             }
         } catch (e:Dynamic) {}
+
+        // Custom classes from userSkills.txt
+        try {
+            var userTxt = UserSkillsManager.readUserSkills();
+            if (userTxt != null && userTxt.length > 0) {
+                var parsed = com.aqwapi.utils.SkillDslParser.parse(userTxt);
+                if (parsed != null) {
+                    for (cKey in Reflect.fields(parsed)) addClass(cKey);
+                }
+            }
+        } catch (_:Dynamic) {}
 
         try {
             invClasses.sort(function(a, b) {
