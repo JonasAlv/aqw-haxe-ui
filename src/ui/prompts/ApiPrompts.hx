@@ -459,14 +459,29 @@ class ApiPrompts {
 
     private static function getCurrentClass():String {
         try {
-            if (AqwApi.player != null && AqwApi.player.className != null && AqwApi.player.className != "") {
-                return AqwApi.player.className;
-            }
             if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
-                var av = AqwApi.game.world.myAvatar;
+                var av:Dynamic = AqwApi.game.world.myAvatar;
                 if (av.objData != null && av.objData.strClassName != null) {
-                    var c = Std.string(av.objData.strClassName);
+                    var c:String = Std.string(av.objData.strClassName);
                     if (c != "" && c != "null") return c;
+                }
+                if (av.items != null) {
+                    try {
+                        var items:Array<Dynamic> = cast av.items;
+                        for (it in items) {
+                            if (it == null) continue;
+                            var equipped:Bool = (it.bEquip == 1 || it.bEquip == "1" || it.bEquip == true);
+                            if (!equipped) continue;
+                            var isClass:Bool = false;
+                            if (it.sType != null && Std.string(it.sType).toLowerCase() == "class") isClass = true;
+                            else if (it.bClass == 1 || it.bClass == true) isClass = true;
+                            else if (it.sES != null && Std.string(it.sES).toLowerCase() == "ar") isClass = true;
+                            if (isClass && it.sName != null) {
+                                var s:String = Std.string(it.sName);
+                                if (s != "" && s != "null") return s;
+                            }
+                        }
+                    } catch (ie:Dynamic) {}
                 }
             }
         } catch (e:Dynamic) {}
