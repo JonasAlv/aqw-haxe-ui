@@ -4,6 +4,7 @@ package ui.prompts;
 import com.aqwapi.AqwApi;
 import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
+import com.aqwapi.modules.UserSkillsManager;
 import com.aqwapi.utils.ApiLogger;
 import com.aqwapi.utils.AqwUtils;
 import flash.display.Sprite;
@@ -226,7 +227,7 @@ class ApiPrompts {
 
     public static function showSmartCombatPrompt(overlay:Dynamic):Void {
         try {
-            var dlg = ApiPromptModal.createDialog(400, 250, "AutoCombat Setup");
+            var dlg = ApiPromptModal.createDialog(420, 250, "AutoCombat Setup");
 
             var lblClass = ApiPromptModal.createLabel("Class:", 60);
             lblClass.x = 20;
@@ -280,7 +281,7 @@ class ApiPrompts {
             dlg.addChild(ddMode);
             dlg.addChild(ddClass);
 
-            var saveBtn = ApiPromptModal.createButton("Save & Apply", 160, 35, function():Void {
+            var saveBtn = ApiPromptModal.createButton("Save & Apply", 130, 35, function():Void {
                 HelperSetting.setString("api_smart_class", selectedClassStr);
                 HelperSetting.setString("api_smart_mode", selectedModeStr);
                 CombatEngine.smartClass = selectedClassStr;
@@ -293,14 +294,22 @@ class ApiPrompts {
                 ApiNotificationManager.notify("Smart Combat Config: " + selectedClassStr + " [" + selectedModeStr + "]");
                 ApiPromptModal.close();
             }, true);
-            saveBtn.x = 30;
+            saveBtn.x = 20;
             saveBtn.y = 190;
             dlg.addChild(saveBtn);
 
-            var cancelBtn = ApiPromptModal.createButton("Cancel", 140, 35, function():Void {
+            var editModesBtn = ApiPromptModal.createButton("Edit Modes", 120, 35, function():Void {
+                ApiPromptModal.close();
+                showCombatModeEditorPrompt(overlay, selectedClassStr, selectedModeStr);
+            }, false);
+            editModesBtn.x = 160;
+            editModesBtn.y = 190;
+            dlg.addChild(editModesBtn);
+
+            var cancelBtn = ApiPromptModal.createButton("Cancel", 100, 35, function():Void {
                 ApiPromptModal.close();
             }, false);
-            cancelBtn.x = 230;
+            cancelBtn.x = 295;
             cancelBtn.y = 190;
             dlg.addChild(cancelBtn);
 
@@ -314,6 +323,353 @@ class ApiPrompts {
             #end
             ApiLogger.error("Prompt", "Failed to show AutoCombat setup prompt: " + e + stackTrace);
             ApiNotificationManager.notify("Error opening setup: " + e);
+        }
+    }
+
+    public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {
+        try {
+            var dlg = ApiPromptModal.createDialog(560, 440, "Combat Mode Editor");
+
+            // 1. Gather class options
+            var knownClasses = CombatEngine.getKnownClasses();
+            var classOptions:Array<String> = ["Current"].concat(knownClasses);
+
+            var curEquipped = CombatEngine.getCurrentClassName();
+            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : (curEquipped != "" ? curEquipped : (knownClasses.length > 0 ? knownClasses[0] : "Current"));
+            if (selectedClass.toLowerCase() == "current" && curEquipped != "") {
+                selectedClass = curEquipped;
+            }
+
+            // Labels and Inputs
+            var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
+            lblClass.x = 25;
+            lblClass.y = 40;
+            dlg.addChild(lblClass);
+
+            var lblCustomClass = ApiPromptModal.createLabel("Class Name:", 120);
+            lblCustomClass.x = 265;
+            lblCustomClass.y = 40;
+            dlg.addChild(lblCustomClass);
+
+            var inputClass = ApiPromptModal.createInput(270, 24, selectedClass);
+            inputClass.x = 265;
+            inputClass.y = 60;
+            dlg.addChild(inputClass);
+
+            var lblMode = ApiPromptModal.createLabel("Select Mode:", 120);
+            lblMode.x = 25;
+            lblMode.y = 92;
+            dlg.addChild(lblMode);
+
+            var lblCustomMode = ApiPromptModal.createLabel("Mode Name:", 120);
+            lblCustomMode.x = 265;
+            lblCustomMode.y = 92;
+            dlg.addChild(lblCustomMode);
+
+            var inputMode = ApiPromptModal.createInput(270, 24, "Base");
+            inputMode.x = 265;
+            inputMode.y = 112;
+            dlg.addChild(inputMode);
+
+            var lblExecMode = ApiPromptModal.createLabel("Execution Mode:", 120);
+            lblExecMode.x = 25;
+            lblExecMode.y = 144;
+            dlg.addChild(lblExecMode);
+
+            var lblTimeout = ApiPromptModal.createLabel("Timeout (ms):", 90);
+            lblTimeout.x = 240;
+            lblTimeout.y = 144;
+            dlg.addChild(lblTimeout);
+
+            var inputTimeout = ApiPromptModal.createInput(80, 24, "100");
+            inputTimeout.x = 240;
+            inputTimeout.y = 164;
+            dlg.addChild(inputTimeout);
+
+            var lblBadge = ApiPromptModal.createLabel("[Bundled Mode]", 200, 13, true);
+            lblBadge.x = 340;
+            lblBadge.y = 166;
+            dlg.addChild(lblBadge);
+
+            var lblCombo = ApiPromptModal.createLabel("Skill Combo / Rotation (1-Liner DSL):", 300);
+            lblCombo.x = 25;
+            lblCombo.y = 196;
+            dlg.addChild(lblCombo);
+
+            var inputCombo = ApiPromptModal.createInput(510, 48, "", true);
+            inputCombo.x = 25;
+            inputCombo.y = 216;
+            dlg.addChild(inputCombo);
+
+            var ddExecMode:Dropdown = null;
+            var ddMode:Dropdown = null;
+            var ddClass:Dropdown = null;
+
+            var loadModeDetails = function(cName:String, mName:String):Void {
+                if (mName == "[+ New Mode]") {
+                    inputMode.text = "CustomMode";
+                    if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
+                    inputTimeout.text = "100";
+                    inputCombo.text = "";
+                    lblBadge.text = "[New Mode]";
+                    lblBadge.textColor = 0x55FF55;
+                    return;
+                }
+
+                inputMode.text = mName;
+                var details = UserSkillsManager.getModeDetails(cName, mName);
+                if (details != null) {
+                    if (ddExecMode != null) ddExecMode.setSelectedItem(details.skillUseMode);
+                    inputTimeout.text = Std.string(details.timeout);
+                    inputCombo.text = details.combo;
+                    if (details.isUser) {
+                        lblBadge.text = "[Custom Mode]";
+                        lblBadge.textColor = 0x00D9FF;
+                    } else {
+                        lblBadge.text = "[Bundled Mode]";
+                        lblBadge.textColor = 0xAAAAAA;
+                    }
+                } else {
+                    if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
+                    inputTimeout.text = "100";
+                    inputCombo.text = "";
+                    lblBadge.text = "[New Mode]";
+                    lblBadge.textColor = 0x55FF55;
+                }
+            };
+
+            var getModeListForClass = function(cName:String):Array<String> {
+                var modes = CombatEngine.getAvailableModes(cName);
+                var list:Array<String> = [];
+                if (modes != null) {
+                    for (m in modes) list.push(m);
+                }
+                list.push("[+ New Mode]");
+                return list;
+            };
+
+            ddExecMode = new Dropdown(200, 24, ["WaitForCooldown", "UseIfAvailable"], function(sel:String):Void {});
+            ddExecMode.x = 25;
+            ddExecMode.y = 164;
+            ddExecMode.setSelectedItem("WaitForCooldown");
+
+            var initialModes = getModeListForClass(selectedClass);
+            var initialSelMode = (initialMode != null && initialMode != "" && initialModes.indexOf(initialMode) != -1) ? initialMode : initialModes[0];
+
+            ddMode = new Dropdown(220, 24, initialModes, function(selMode:String):Void {
+                var currentClass = StringTools.trim(inputClass.text);
+                if (currentClass == "") currentClass = selectedClass;
+                loadModeDetails(currentClass, selMode);
+            });
+            ddMode.x = 25;
+            ddMode.y = 112;
+            ddMode.setSelectedItem(initialSelMode);
+
+            ddClass = new Dropdown(220, 24, classOptions, function(selClass:String):Void {
+                var resolvedClass = selClass;
+                if (resolvedClass.toLowerCase() == "current") {
+                    var cur = CombatEngine.getCurrentClassName();
+                    resolvedClass = (cur != "" ? cur : "Current");
+                }
+                selectedClass = resolvedClass;
+                inputClass.text = resolvedClass;
+
+                var modes = getModeListForClass(resolvedClass);
+                ddMode.setOptions(modes);
+                var firstMode = modes[0];
+                ddMode.setSelectedItem(firstMode);
+                loadModeDetails(resolvedClass, firstMode);
+            });
+            ddClass.x = 25;
+            ddClass.y = 60;
+            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : "Current");
+
+            loadModeDetails(selectedClass, initialSelMode);
+
+            dlg.addChild(ddExecMode);
+            dlg.addChild(ddMode);
+            dlg.addChild(ddClass);
+
+            // Helpers for combo insertion
+            var appendSkill = function(sid:String):Void {
+                var cur = StringTools.trim(inputCombo.text);
+                if (cur.length == 0) {
+                    inputCombo.text = sid;
+                } else if (StringTools.endsWith(cur, ">")) {
+                    inputCombo.text = cur + " " + sid;
+                } else {
+                    inputCombo.text = cur + " > " + sid;
+                }
+            };
+
+            var appendRule = function(rule:String):Void {
+                var cur = StringTools.trim(inputCombo.text);
+                if (cur.length == 0) {
+                    inputCombo.text = "1" + rule;
+                } else if (StringTools.endsWith(cur, ">")) {
+                    inputCombo.text = cur + " 1" + rule;
+                } else {
+                    if (StringTools.endsWith(cur, "]")) {
+                        var innerRule = rule.substring(1, rule.length - 1);
+                        inputCombo.text = cur.substring(0, cur.length - 1) + " & " + innerRule + "]";
+                    } else {
+                        inputCombo.text = cur + rule;
+                    }
+                }
+            };
+
+            // Quick Helper Row 1: Skills & basic operators (y = 272)
+            var b1 = ApiPromptModal.createButton("+1", 38, 24, function() appendSkill("1"), false);
+            b1.x = 25; b1.y = 272; dlg.addChild(b1);
+
+            var b2 = ApiPromptModal.createButton("+2", 38, 24, function() appendSkill("2"), false);
+            b2.x = 68; b2.y = 272; dlg.addChild(b2);
+
+            var b3 = ApiPromptModal.createButton("+3", 38, 24, function() appendSkill("3"), false);
+            b3.x = 111; b3.y = 272; dlg.addChild(b3);
+
+            var b4 = ApiPromptModal.createButton("+4", 38, 24, function() appendSkill("4"), false);
+            b4.x = 154; b4.y = 272; dlg.addChild(b4);
+
+            var b5 = ApiPromptModal.createButton("+5", 38, 24, function() appendSkill("5"), false);
+            b5.x = 197; b5.y = 272; dlg.addChild(b5);
+
+            var bArrow = ApiPromptModal.createButton("+ >", 40, 24, function():Void {
+                var cur = StringTools.trim(inputCombo.text);
+                if (cur.length > 0 && !StringTools.endsWith(cur, ">")) {
+                    inputCombo.text = cur + " >";
+                }
+            }, false);
+            bArrow.x = 240; bArrow.y = 272; dlg.addChild(bArrow);
+
+            var bClear = ApiPromptModal.createButton("Clear", 50, 24, function():Void {
+                inputCombo.text = "";
+            }, false);
+            bClear.x = 285; bClear.y = 272; dlg.addChild(bClear);
+
+            var bHp = ApiPromptModal.createButton("+[hp < 50%]", 95, 24, function() appendRule("[hp < 50%]"), false);
+            bHp.x = 342; bHp.y = 272; dlg.addChild(bHp);
+
+            var bMp = ApiPromptModal.createButton("+[mp < 20%]", 95, 24, function() appendRule("[mp < 20%]"), false);
+            bMp.x = 442; bMp.y = 272; dlg.addChild(bMp);
+
+            // Quick Helper Row 2: Auras and conditions (y = 302)
+            var bAuraSelf = ApiPromptModal.createButton("+[!aura(self:Name)]", 132, 24, function() appendRule("[!aura(self:Name)]"), false);
+            bAuraSelf.x = 25; bAuraSelf.y = 302; dlg.addChild(bAuraSelf);
+
+            var bAuraTgt = ApiPromptModal.createButton("+[aura(target:Name)]", 142, 24, function() appendRule("[aura(target:Name)]"), false);
+            bAuraTgt.x = 162; bAuraTgt.y = 302; dlg.addChild(bAuraTgt);
+
+            var bParty = ApiPromptModal.createButton("+[party:hp < 50%]", 120, 24, function() appendRule("[party:hp < 50%]"), false);
+            bParty.x = 309; bParty.y = 302; dlg.addChild(bParty);
+
+            var bWait = ApiPromptModal.createButton("+[wait(500ms)]", 100, 24, function() appendRule("[wait(500ms)]"), false);
+            bWait.x = 434; bWait.y = 302; dlg.addChild(bWait);
+
+            // Hint Text (y = 336)
+            var lblHint = ApiPromptModal.createLabel("Syntax: 3[!aura(self:Name)] > 1 > 2 > 4[mp < 20%]  |  & (AND), | (OR)", 510, 11);
+            lblHint.x = 25;
+            lblHint.y = 336;
+            lblHint.textColor = 0x888888;
+            dlg.addChild(lblHint);
+
+            // Action Buttons (y = 370)
+            var saveBtn = ApiPromptModal.createButton("Save Mode", 130, 36, function():Void {
+                var cName = StringTools.trim(inputClass.text);
+                var mName = StringTools.trim(inputMode.text);
+                var execMode = ddExecMode.selectedItem;
+                var timeout = AqwUtils.parseInt(StringTools.trim(inputTimeout.text), 100);
+                var combo = StringTools.trim(inputCombo.text);
+
+                if (cName == "") {
+                    ApiNotificationManager.notify("Error: Class name cannot be empty!");
+                    return;
+                }
+                if (mName == "" || mName == "[+ New Mode]") {
+                    ApiNotificationManager.notify("Error: Please provide a valid mode name!");
+                    return;
+                }
+                if (combo == "") {
+                    ApiNotificationManager.notify("Error: Skill combo rotation cannot be empty!");
+                    return;
+                }
+
+                var ok = UserSkillsManager.saveMode(cName, mName, execMode, timeout, combo);
+                if (ok) {
+                    ApiNotificationManager.notify("Saved [" + cName + " : " + mName + "] to userSkills.txt!");
+                    var freshKnown = CombatEngine.getKnownClasses();
+                    var freshClassOpts = ["Current"].concat(freshKnown);
+                    ddClass.setOptions(freshClassOpts);
+                    ddClass.setSelectedItem(cName);
+
+                    var freshModes = getModeListForClass(cName);
+                    ddMode.setOptions(freshModes);
+                    ddMode.setSelectedItem(mName);
+                    lblBadge.text = "[Custom Mode]";
+                    lblBadge.textColor = 0x00D9FF;
+                } else {
+                    ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
+                }
+            }, true);
+            saveBtn.x = 25;
+            saveBtn.y = 370;
+            dlg.addChild(saveBtn);
+
+            var delBtn = ApiPromptModal.createButton("Delete Mode", 115, 36, function():Void {
+                var cName = StringTools.trim(inputClass.text);
+                var mName = StringTools.trim(inputMode.text);
+
+                if (cName == "" || mName == "" || mName == "[+ New Mode]") {
+                    ApiNotificationManager.notify("Error: Select a valid mode to delete!");
+                    return;
+                }
+
+                if (!UserSkillsManager.isUserMode(cName, mName)) {
+                    ApiNotificationManager.notify("Cannot delete default bundled mode from skills.txt!");
+                    return;
+                }
+
+                var deleted = UserSkillsManager.deleteMode(cName, mName);
+                if (deleted) {
+                    ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.txt!");
+                    var modes = getModeListForClass(cName);
+                    ddMode.setOptions(modes);
+                    var nextMode = (modes.length > 0) ? modes[0] : "[+ New Mode]";
+                    ddMode.setSelectedItem(nextMode);
+                    loadModeDetails(cName, nextMode);
+                } else {
+                    ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
+                }
+            }, false);
+            delBtn.x = 165;
+            delBtn.y = 370;
+            dlg.addChild(delBtn);
+
+            var backBtn = ApiPromptModal.createButton("AutoCombat Setup", 155, 36, function():Void {
+                ApiPromptModal.close();
+                showSmartCombatPrompt(overlay);
+            }, false);
+            backBtn.x = 290;
+            backBtn.y = 370;
+            dlg.addChild(backBtn);
+
+            var closeBtn = ApiPromptModal.createButton("Close", 80, 36, function():Void {
+                ApiPromptModal.close();
+            }, false);
+            closeBtn.x = 455;
+            closeBtn.y = 370;
+            dlg.addChild(closeBtn);
+
+            ApiPromptModal.show(overlay, dlg);
+        } catch (e:Dynamic) {
+            var msg = Std.string(e);
+            #if flash
+            if (Std.isOfType(e, flash.errors.Error)) {
+                msg += "\n" + (cast e : flash.errors.Error).getStackTrace();
+            }
+            #end
+            ApiLogger.error("Prompt", "Failed to show Combat Mode Editor: " + msg);
+            ApiNotificationManager.notify("Error opening editor: " + e);
         }
     }
 
@@ -513,6 +869,8 @@ class ApiPrompts {
     }
 }
 #else
-class ApiPrompts {}
+class ApiPrompts {
+    public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {}
+}
 #end
 

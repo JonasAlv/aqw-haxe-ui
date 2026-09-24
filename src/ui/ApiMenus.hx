@@ -188,6 +188,14 @@ class ApiMenus {
             });
         }));
 
+        // Combat Modes Editor
+        opts.push(new Button(null, "Combat Modes (Editor)", "Create, edit, or delete class skill modes.", "Edit", function(o:Dynamic):Void {
+            tryAction("Combat Modes (Editor)", function() {
+                overlay.gotoAndStop("Init");
+                ApiPrompts.showCombatModeEditorPrompt(overlay);
+            });
+        }));
+
         // Smart Combat Check
         var smartCombatCheck = new Check(null, false, "AutoCombat (Smart)", "Start smart auto combat.", true, function(o:Dynamic):Void {
             tryAction("AutoCombat (Smart)", function() {
