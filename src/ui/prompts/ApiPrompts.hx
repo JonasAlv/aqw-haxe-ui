@@ -50,16 +50,40 @@ class ApiPrompts {
         ApiPromptModal.show(overlay, dlg);
     }
 
+    private static var _lastCombatMode:String = "sequence";
+
     public static function showCombatPrompt(overlay:Dynamic):Void {
-        var dlg = ApiPromptModal.createDialog(300, 160, "Enter Skills (e.g. 1,2,3,4):");
+        var dlg = ApiPromptModal.createDialog(300, 210, "AutoCombat (Custom)");
+
+        var lblSkills = ApiPromptModal.createLabel("Skills (e.g. 3,1,2,1,2,4):", 200);
+        lblSkills.x = 20;
+        lblSkills.y = 38;
+        dlg.addChild(lblSkills);
 
         var input = ApiPromptModal.createInput(260, 25, _lastCombat);
         input.x = 20;
-        input.y = 40;
+        input.y = 58;
         dlg.addChild(input);
+
+        var lblMode = ApiPromptModal.createLabel("Mode:", 60);
+        lblMode.x = 20;
+        lblMode.y = 98;
+        dlg.addChild(lblMode);
+
+        var modeOptions = ["Sequence (ordered)", "Priority (first ready)"];
+        var selectedMode = _lastCombatMode;
+
+        var ddMode = new Dropdown(220, 25, modeOptions, function(sel:String):Void {
+            selectedMode = (sel.indexOf("Sequence") != -1) ? "sequence" : "priority";
+        });
+        ddMode.x = 20;
+        ddMode.y = 118;
+        ddMode.setSelectedItem(selectedMode == "sequence" ? "Sequence (ordered)" : "Priority (first ready)");
+        dlg.addChild(ddMode);
 
         var startBtn = ApiPromptModal.createButton("Start", 120, 30, function():Void {
             _lastCombat = input.text;
+            _lastCombatMode = selectedMode;
             var seq = _lastCombat.split(",");
             var validSeq:Array<String> = [];
             for (s in seq) {
@@ -67,19 +91,19 @@ class ApiPrompts {
                 if (trimmed.length > 0) validSeq.push(trimmed);
             }
             if (validSeq.length > 0 && AqwApi.combat != null) {
-                AqwApi.combat.startCustom(validSeq.join(","));
+                AqwApi.combat.startCustom(validSeq.join(","), selectedMode);
             }
             ApiPromptModal.close();
         }, false);
         startBtn.x = 20;
-        startBtn.y = 80;
+        startBtn.y = 162;
         dlg.addChild(startBtn);
 
         var cancelBtn = ApiPromptModal.createButton("Cancel", 120, 30, function():Void {
             ApiPromptModal.close();
         }, false);
         cancelBtn.x = 160;
-        cancelBtn.y = 80;
+        cancelBtn.y = 162;
         dlg.addChild(cancelBtn);
 
         ApiPromptModal.show(overlay, dlg);
