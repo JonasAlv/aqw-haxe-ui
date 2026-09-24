@@ -4,6 +4,7 @@ package ui.prompts;
 import com.aqwapi.AqwApi;
 import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
+import com.aqwapi.utils.ApiLogger;
 import com.aqwapi.utils.AqwUtils;
 import flash.display.Sprite;
 import ui.ApiNotificationManager;
@@ -200,120 +201,145 @@ class ApiPrompts {
     }
 
     public static function showSmartCombatPrompt(overlay:Dynamic):Void {
-        var dlg = ApiPromptModal.createDialog(400, 250, "AutoCombat Setup");
+        try {
+            var dlg = ApiPromptModal.createDialog(400, 250, "AutoCombat Setup");
 
-        var lblClass = ApiPromptModal.createLabel("Class:", 60);
-        lblClass.x = 20;
-        lblClass.y = 50;
-        dlg.addChild(lblClass);
+            var lblClass = ApiPromptModal.createLabel("Class:", 60);
+            lblClass.x = 20;
+            lblClass.y = 50;
+            dlg.addChild(lblClass);
 
-        var lblMode = ApiPromptModal.createLabel("Mode:", 60);
-        lblMode.x = 220;
-        lblMode.y = 50;
-        dlg.addChild(lblMode);
+            var lblMode = ApiPromptModal.createLabel("Mode:", 60);
+            lblMode.x = 220;
+            lblMode.y = 50;
+            dlg.addChild(lblMode);
 
-        var availableClasses = getAvailableClasses();
+            var availableClasses = getAvailableClasses();
+            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-        var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
-        if (availableClasses.indexOf(selectedClassStr) == -1) {
-            selectedClassStr = "Current";
-        }
-
-        var availableModes = CombatEngine.getAvailableModes(selectedClassStr);
-        var selectedModeStr = HelperSetting.getString("api_smart_mode", "Base");
-        if (availableModes.indexOf(selectedModeStr) == -1) {
-            selectedModeStr = availableModes.length > 0 ? availableModes[0] : "Base";
-        }
-
-        var ddMode:Dropdown = null;
-        ddMode = new Dropdown(150, 25, availableModes, function(sel:String):Void {
-            selectedModeStr = sel;
-        });
-        ddMode.x = 220;
-        ddMode.y = 80;
-        ddMode.selectedItem = selectedModeStr;
-
-        var ddClass:Dropdown = null;
-        ddClass = new Dropdown(180, 25, availableClasses, function(sel:String):Void {
-            selectedClassStr = sel;
-            var modes = CombatEngine.getAvailableModes(selectedClassStr);
-            ddMode.options = modes;
-            if (modes.indexOf(selectedModeStr) == -1) {
-                selectedModeStr = modes.length > 0 ? modes[0] : "Base";
+            var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
+            if (availableClasses.indexOf(selectedClassStr) == -1) {
+                selectedClassStr = "Current";
             }
+
+            var availableModes = CombatEngine.getAvailableModes(selectedClassStr);
+            if (availableModes == null || availableModes.length == 0) availableModes = ["Base"];
+
+            var selectedModeStr = HelperSetting.getString("api_smart_mode", "Base");
+            if (availableModes.indexOf(selectedModeStr) == -1) {
+                selectedModeStr = availableModes.length > 0 ? availableModes[0] : "Base";
+            }
+
+            var ddMode:Dropdown = null;
+            ddMode = new Dropdown(150, 25, availableModes, function(sel:String):Void {
+                selectedModeStr = sel;
+            });
+            ddMode.x = 220;
+            ddMode.y = 80;
             ddMode.selectedItem = selectedModeStr;
-        });
-        ddClass.x = 20;
-        ddClass.y = 80;
-        ddClass.selectedItem = selectedClassStr;
 
-        dlg.addChild(ddMode);
-        dlg.addChild(ddClass);
+            var ddClass:Dropdown = null;
+            ddClass = new Dropdown(180, 25, availableClasses, function(sel:String):Void {
+                selectedClassStr = sel;
+                var modes = CombatEngine.getAvailableModes(selectedClassStr);
+                if (modes == null || modes.length == 0) modes = ["Base"];
+                ddMode.options = modes;
+                if (modes.indexOf(selectedModeStr) == -1) {
+                    selectedModeStr = modes[0];
+                }
+                ddMode.selectedItem = selectedModeStr;
+            });
+            ddClass.x = 20;
+            ddClass.y = 80;
+            ddClass.selectedItem = selectedClassStr;
 
-        var saveBtn = ApiPromptModal.createButton("Save & Apply", 160, 35, function():Void {
-            HelperSetting.setString("api_smart_class", selectedClassStr);
-            HelperSetting.setString("api_smart_mode", selectedModeStr);
-            if (selectedClassStr != "" && selectedClassStr != "Current" && AqwApi.inventory != null) {
-                AqwApi.inventory.equip(selectedClassStr);
+            dlg.addChild(ddMode);
+            dlg.addChild(ddClass);
+
+            var saveBtn = ApiPromptModal.createButton("Save & Apply", 160, 35, function():Void {
+                HelperSetting.setString("api_smart_class", selectedClassStr);
+                HelperSetting.setString("api_smart_mode", selectedModeStr);
+                if (selectedClassStr != "" && selectedClassStr != "Current" && AqwApi.inventory != null) {
+                    AqwApi.inventory.equip(selectedClassStr);
+                }
+                if (AqwApi.combat != null) {
+                    AqwApi.combat.mode = selectedModeStr;
+                }
+                ApiNotificationManager.notify("Smart Combat Config: " + selectedClassStr + " [" + selectedModeStr + "]");
+                ApiPromptModal.close();
+            }, true);
+            saveBtn.x = 30;
+            saveBtn.y = 190;
+            dlg.addChild(saveBtn);
+
+            var cancelBtn = ApiPromptModal.createButton("Cancel", 140, 35, function():Void {
+                ApiPromptModal.close();
+            }, false);
+            cancelBtn.x = 230;
+            cancelBtn.y = 190;
+            dlg.addChild(cancelBtn);
+
+            ApiPromptModal.show(overlay, dlg);
+        } catch (e:Dynamic) {
+            ApiLogger.error("Prompt", "Failed to show AutoCombat setup prompt: " + e);
+            ApiNotificationManager.notify("Error opening setup: " + e);
+            #if flash
+            if (Std.isOfType(e, flash.errors.Error)) {
+                trace((cast e : flash.errors.Error).getStackTrace());
             }
-            if (AqwApi.combat != null) {
-                AqwApi.combat.mode = selectedModeStr;
-            }
-            ApiNotificationManager.notify("Smart Combat Config: " + selectedClassStr + " [" + selectedModeStr + "]");
-            ApiPromptModal.close();
-        }, true);
-        saveBtn.x = 30;
-        saveBtn.y = 190;
-        dlg.addChild(saveBtn);
-
-        var cancelBtn = ApiPromptModal.createButton("Cancel", 140, 35, function():Void {
-            ApiPromptModal.close();
-        }, false);
-        cancelBtn.x = 230;
-        cancelBtn.y = 190;
-        dlg.addChild(cancelBtn);
-
-        ApiPromptModal.show(overlay, dlg);
+            #end
+        }
     }
 
     public static function showLoadoutsPrompt(overlay:Dynamic):Void {
-        var dlg = ApiPromptModal.createDialog(420, 390, "Class Loadouts (For Scripts)");
+        try {
+            var dlg = ApiPromptModal.createDialog(420, 390, "Class Loadouts (For Scripts)");
 
-        var availableClasses = getAvailableClasses();
+            var availableClasses = getAvailableClasses();
+            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-        // 1. Farm
-        setupLoadoutRow(dlg, "FARM Loadout:", 45, 70, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
-            CombatEngine.farmClass = c;
-            CombatEngine.farmMode = m;
-        });
+            // 1. Farm
+            setupLoadoutRow(dlg, "FARM Loadout:", 45, 70, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
+                CombatEngine.farmClass = c;
+                CombatEngine.farmMode = m;
+            });
 
-        // 2. Solo
-        setupLoadoutRow(dlg, "SOLO Loadout:", 110, 135, availableClasses, "api_solo_class", "api_solo_mode", function(c:String, m:String):Void {
-            CombatEngine.soloClass = c;
-            CombatEngine.soloMode = m;
-        });
+            // 2. Solo
+            setupLoadoutRow(dlg, "SOLO Loadout:", 110, 135, availableClasses, "api_solo_class", "api_solo_mode", function(c:String, m:String):Void {
+                CombatEngine.soloClass = c;
+                CombatEngine.soloMode = m;
+            });
 
-        // 3. Boss
-        setupLoadoutRow(dlg, "BOSS Loadout:", 175, 200, availableClasses, "api_boss_class", "api_boss_mode", function(c:String, m:String):Void {
-            CombatEngine.bossClass = c;
-            CombatEngine.bossMode = m;
-        });
+            // 3. Boss
+            setupLoadoutRow(dlg, "BOSS Loadout:", 175, 200, availableClasses, "api_boss_class", "api_boss_mode", function(c:String, m:String):Void {
+                CombatEngine.bossClass = c;
+                CombatEngine.bossMode = m;
+            });
 
-        // 4. Dodge
-        setupLoadoutRow(dlg, "DODGE Loadout:", 240, 265, availableClasses, "api_dodge_class", "api_dodge_mode", function(c:String, m:String):Void {
-            CombatEngine.dodgeClass = c;
-            CombatEngine.dodgeMode = m;
-        });
+            // 4. Dodge
+            setupLoadoutRow(dlg, "DODGE Loadout:", 240, 265, availableClasses, "api_dodge_class", "api_dodge_mode", function(c:String, m:String):Void {
+                CombatEngine.dodgeClass = c;
+                CombatEngine.dodgeMode = m;
+            });
 
-        var doneBtn = ApiPromptModal.createButton("Done", 140, 35, function():Void {
-            ApiPromptModal.close();
-            ApiNotificationManager.notify("Class Loadouts Saved!");
-        }, true);
-        doneBtn.x = 140;
-        doneBtn.y = 330;
-        dlg.addChild(doneBtn);
+            var doneBtn = ApiPromptModal.createButton("Done", 140, 35, function():Void {
+                ApiPromptModal.close();
+                ApiNotificationManager.notify("Class Loadouts Saved!");
+            }, true);
+            doneBtn.x = 140;
+            doneBtn.y = 330;
+            dlg.addChild(doneBtn);
 
-        ApiPromptModal.show(overlay, dlg);
+            ApiPromptModal.show(overlay, dlg);
+        } catch (e:Dynamic) {
+            ApiLogger.error("Prompt", "Failed to show Class Loadouts prompt: " + e);
+            ApiNotificationManager.notify("Error opening loadouts: " + e);
+            #if flash
+            if (Std.isOfType(e, flash.errors.Error)) {
+                trace((cast e : flash.errors.Error).getStackTrace());
+            }
+            #end
+        }
     }
 
     private static function setupLoadoutRow(
@@ -342,7 +368,7 @@ class ApiPrompts {
         ddMode = new Dropdown(120, 25, modes, function(sel:String):Void {
             curMode = sel;
             HelperSetting.setString(modeKey, sel);
-            onUpdate(curClass, curMode);
+            if (onUpdate != null) onUpdate(curClass, curMode);
         });
         ddMode.x = 280;
         ddMode.y = ddY;
@@ -359,7 +385,7 @@ class ApiPrompts {
             }
             ddMode.selectedItem = curMode;
             HelperSetting.setString(modeKey, curMode);
-            onUpdate(curClass, curMode);
+            if (onUpdate != null) onUpdate(curClass, curMode);
         });
         ddClass.x = 20;
         ddClass.y = ddY;
@@ -368,7 +394,6 @@ class ApiPrompts {
         ddMode.selectedItem = curMode;
         dlg.addChild(ddMode);
         dlg.addChild(ddClass);
-        onUpdate(curClass, curMode);
     }
 
     private static function getAvailableClasses():Array<String> {
@@ -395,9 +420,10 @@ class ApiPrompts {
                     for (item in (cast items : Array<Dynamic>)) {
                         if (item == null || item.sName == null) continue;
                         var isClass:Bool = false;
-                        if (item.sType != null && Std.string(item.sType).toLowerCase() == "class") {
+                        var sTypeStr:String = (item.sType != null) ? Std.string(item.sType).toLowerCase() : "";
+                        if (sTypeStr == "class" || item.bClass == 1 || item.bClass == true) {
                             isClass = true;
-                        } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar") {
+                        } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
                             if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
                         }
                         if (isClass) addClass(item.sName);
@@ -407,34 +433,40 @@ class ApiPrompts {
         }
 
         // 2. Currently equipped class (if not already captured from inventory)
-        var cur:String = getCurrentClass();
-        if (cur != "" && cur.toLowerCase() != "current") {
-            addClass(cur);
-        }
+        try {
+            var cur:String = getCurrentClass();
+            if (cur != "" && cur.toLowerCase() != "current") {
+                addClass(cur);
+            }
+        } catch (e:Dynamic) {}
 
-        invClasses.sort(function(a, b) {
-            var la:String = a.toLowerCase();
-            var lb:String = b.toLowerCase();
-            if (la < lb) return -1;
-            if (la > lb) return 1;
-            return 0;
-        });
+        try {
+            invClasses.sort(function(a, b) {
+                var la:String = a.toLowerCase();
+                var lb:String = b.toLowerCase();
+                if (la < lb) return -1;
+                if (la > lb) return 1;
+                return 0;
+            });
+        } catch (e:Dynamic) {}
 
         // Always put "Current" as the first option
         return ["Current"].concat(invClasses);
     }
 
     private static function getCurrentClass():String {
-        if (AqwApi.player != null && AqwApi.player.className != "") {
-            return AqwApi.player.className;
-        }
-        if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
-            var av = AqwApi.game.world.myAvatar;
-            if (av.objData != null && av.objData.strClassName != null) {
-                var c = Std.string(av.objData.strClassName);
-                if (c != "" && c != "null") return c;
+        try {
+            if (AqwApi.player != null && AqwApi.player.className != null && AqwApi.player.className != "") {
+                return AqwApi.player.className;
             }
-        }
+            if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
+                var av = AqwApi.game.world.myAvatar;
+                if (av.objData != null && av.objData.strClassName != null) {
+                    var c = Std.string(av.objData.strClassName);
+                    if (c != "" && c != "null") return c;
+                }
+            }
+        } catch (e:Dynamic) {}
         return "";
     }
 }

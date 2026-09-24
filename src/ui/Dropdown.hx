@@ -99,7 +99,7 @@ class Dropdown extends Sprite {
 
         populateList(width, height);
 
-        if (_options.length > 0) {
+        if (_options.length > 0 && _options[0] != null) {
             _btnText.text = _options[0];
         }
 
@@ -150,7 +150,7 @@ class Dropdown extends Sprite {
 
         populateList(_width, _height);
 
-        if (_options.length > 0) {
+        if (_options.length > 0 && _options[0] != null) {
             _selectedIndex = 0;
             _btnText.text = _options[0];
         } else {
@@ -166,6 +166,7 @@ class Dropdown extends Sprite {
         return _options[_selectedIndex];
     }
     public function set_selectedItem(val:String):String {
+        if (val == null) return val;
         var idx:Int = _options.indexOf(val);
         if (idx != -1) {
             _selectedIndex = idx;
@@ -186,7 +187,7 @@ class Dropdown extends Sprite {
 
             var optTxt = new TextField();
             optTxt.defaultTextFormat = new TextFormat("_sans", 12, 0xDDDDDD);
-            optTxt.text = _options[i];
+            optTxt.text = (_options[i] != null) ? _options[i] : "";
             optTxt.width = w - 16;
             optTxt.height = 20;
             optTxt.x = 6;

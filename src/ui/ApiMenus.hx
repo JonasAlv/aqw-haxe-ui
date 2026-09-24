@@ -167,7 +167,10 @@ class ApiMenus {
 
         // Class Loadouts
         var loadoutsBtn = new Button(null, "Class Loadouts", "Configure your default Farm, Solo, Boss and Dodge classes for script auto-swapping.", "Setup", function(o:Dynamic):Void {
-            ApiPrompts.showLoadoutsPrompt(overlay);
+            tryAction("Class Loadouts", function() {
+                overlay.gotoAndStop("Init");
+                ApiPrompts.showLoadoutsPrompt(overlay);
+            });
         });
         opts.push(loadoutsBtn);
 
@@ -179,7 +182,10 @@ class ApiMenus {
 
         // AutoCombat Setup
         opts.push(new Button(null, "AutoCombat (Setup)", "Configure class and mode for smart combat.", "Setup", function(o:Dynamic):Void {
-            ApiPrompts.showSmartCombatPrompt(overlay);
+            tryAction("AutoCombat (Setup)", function() {
+                overlay.gotoAndStop("Init");
+                ApiPrompts.showSmartCombatPrompt(overlay);
+            });
         }));
 
         // Smart Combat Check
