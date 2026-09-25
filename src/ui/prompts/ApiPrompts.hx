@@ -243,7 +243,7 @@ class ApiPrompts {
             if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
             var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
-            if (availableClasses.indexOf(selectedClassStr) == -1) {
+            if (selectedClassStr == null || selectedClassStr == "" || availableClasses.indexOf(selectedClassStr) == -1) {
                 selectedClassStr = "Current";
             }
 
@@ -251,7 +251,7 @@ class ApiPrompts {
             if (availableModes == null || availableModes.length == 0) availableModes = ["Base"];
 
             var selectedModeStr = HelperSetting.getString("api_smart_mode", "Base");
-            if (availableModes.indexOf(selectedModeStr) == -1) {
+            if (selectedModeStr == null || selectedModeStr == "" || availableModes.indexOf(selectedModeStr) == -1) {
                 selectedModeStr = availableModes.length > 0 ? availableModes[0] : "Base";
             }
 
@@ -407,6 +407,9 @@ class ApiPrompts {
                 } catch (ue:Dynamic) {}
 
                 opts.sort(function(a, b) {
+                    if (a == null && b == null) return 0;
+                    if (a == null) return -1;
+                    if (b == null) return 1;
                     var la = a.toLowerCase();
                     var lb = b.toLowerCase();
                     if (la < lb) return -1;
@@ -419,10 +422,11 @@ class ApiPrompts {
 
             var classOptions:Array<String> = getAllClassOptions();
             var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : (curEquipped != "" ? curEquipped : (classOptions.length > 1 ? classOptions[1] : "Current"));
-            if (selectedClass.toLowerCase() == "current" && curEquipped != "") {
+            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : ((curEquipped != null && curEquipped != "") ? curEquipped : (classOptions.length > 1 ? classOptions[1] : "Current"));
+            if (selectedClass != null && selectedClass.toLowerCase() == "current" && curEquipped != null && curEquipped != "") {
                 selectedClass = curEquipped;
             }
+            if (selectedClass == null || selectedClass == "") selectedClass = "Current";
 
             var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
             lblClass.x = 25;
@@ -489,44 +493,57 @@ class ApiPrompts {
             var ddClass:Dropdown = null;
 
             var loadModeDetails = function(cName:String, mName:String):Void {
-                if (mName == "[+ New Mode]") {
-                    inputMode.text = "CustomMode";
+                if (mName == null || mName == "" || mName == "[+ New Mode]") {
+                    if (inputMode != null) inputMode.text = "CustomMode";
                     if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    inputTimeout.text = "100";
-                    inputCombo.text = "";
-                    lblBadge.text = "[New Mode]";
-                    lblBadge.textColor = 0x55FF55;
+                    if (inputTimeout != null) inputTimeout.text = "100";
+                    if (inputCombo != null) inputCombo.text = "";
+                    if (lblBadge != null) {
+                        lblBadge.text = "[New Mode]";
+                        lblBadge.textColor = 0x55FF55;
+                    }
                     return;
                 }
 
-                inputMode.text = mName;
+                if (inputMode != null) inputMode.text = (mName != null) ? mName : "";
                 var details = UserSkillsManager.getModeDetails(cName, mName);
                 if (details != null) {
-                    if (ddExecMode != null) ddExecMode.setSelectedItem(details.skillUseMode);
-                    inputTimeout.text = Std.string(details.timeout);
-                    inputCombo.text = details.combo;
-                    if (details.isUser) {
-                        lblBadge.text = "[Custom Mode]";
-                        lblBadge.textColor = 0x00D9FF;
-                    } else {
-                        lblBadge.text = "[Bundled Mode]";
-                        lblBadge.textColor = 0xAAAAAA;
+                    if (ddExecMode != null) {
+                        var eMode:String = (details.skillUseMode != null && details.skillUseMode != "") ? details.skillUseMode : "WaitForCooldown";
+                        ddExecMode.setSelectedItem(eMode);
+                    }
+                    if (inputTimeout != null) inputTimeout.text = (details.timeout != null) ? Std.string(details.timeout) : "100";
+                    if (inputCombo != null) inputCombo.text = (details.combo != null) ? details.combo : "";
+                    if (lblBadge != null) {
+                        if (details.isUser == true) {
+                            lblBadge.text = "[Custom Mode]";
+                            lblBadge.textColor = 0x00D9FF;
+                        } else {
+                            lblBadge.text = "[Bundled Mode]";
+                            lblBadge.textColor = 0xAAAAAA;
+                        }
                     }
                 } else {
                     if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    inputTimeout.text = "100";
-                    inputCombo.text = "";
-                    lblBadge.text = "[New Mode]";
-                    lblBadge.textColor = 0x55FF55;
+                    if (inputTimeout != null) inputTimeout.text = "100";
+                    if (inputCombo != null) inputCombo.text = "";
+                    if (lblBadge != null) {
+                        lblBadge.text = "[New Mode]";
+                        lblBadge.textColor = 0x55FF55;
+                    }
                 }
             };
 
             var getModeListForClass = function(cName:String):Array<String> {
-                var modes = CombatEngine.getAvailableModes(cName);
                 var list:Array<String> = [];
-                if (modes != null) {
-                    for (m in modes) list.push(m);
-                }
+                try {
+                    var modes = CombatEngine.getAvailableModes(cName);
+                    if (modes != null) {
+                        for (m in modes) {
+                            if (m != null && m != "" && list.indexOf(m) == -1) list.push(m);
+                        }
+                    }
+                } catch (_:Dynamic) {}
                 list.push("[+ New Mode]");
                 return list;
             };
@@ -537,10 +554,10 @@ class ApiPrompts {
             ddExecMode.setSelectedItem("WaitForCooldown");
 
             var initialModes = getModeListForClass(selectedClass);
-            var initialSelMode = (initialMode != null && initialMode != "" && initialModes.indexOf(initialMode) != -1) ? initialMode : initialModes[0];
+            var initialSelMode = (initialMode != null && initialMode != "" && initialModes.indexOf(initialMode) != -1) ? initialMode : (initialModes.length > 0 ? initialModes[0] : "[+ New Mode]");
 
             ddMode = new Dropdown(220, 24, initialModes, function(selMode:String):Void {
-                var currentClass = StringTools.trim(inputClass.text);
+                var currentClass = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
                 if (currentClass == "") currentClass = selectedClass;
                 loadModeDetails(currentClass, selMode);
             });
@@ -550,22 +567,22 @@ class ApiPrompts {
 
             ddClass = new Dropdown(220, 24, classOptions, function(selClass:String):Void {
                 var resolvedClass = selClass;
-                if (resolvedClass.toLowerCase() == "current") {
+                if (resolvedClass == null || resolvedClass == "" || resolvedClass.toLowerCase() == "current") {
                     var cur = CombatEngine.getCurrentClassName();
-                    resolvedClass = (cur != "" ? cur : "Current");
+                    resolvedClass = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "Current";
                 }
                 selectedClass = resolvedClass;
-                inputClass.text = resolvedClass;
+                if (inputClass != null) inputClass.text = resolvedClass;
 
                 var modes = getModeListForClass(resolvedClass);
-                ddMode.setOptions(modes);
-                var firstMode = modes[0];
-                ddMode.setSelectedItem(firstMode);
+                if (ddMode != null) ddMode.setOptions(modes);
+                var firstMode = (modes.length > 0 && modes[0] != null) ? modes[0] : "[+ New Mode]";
+                if (ddMode != null) ddMode.setSelectedItem(firstMode);
                 loadModeDetails(resolvedClass, firstMode);
             });
             ddClass.x = 25;
             ddClass.y = 60;
-            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : "Current");
+            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : (classOptions.length > 0 ? classOptions[0] : "Current"));
 
             loadModeDetails(selectedClass, initialSelMode);
 
