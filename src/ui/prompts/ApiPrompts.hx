@@ -400,12 +400,7 @@ class ApiPrompts {
                 try {
                     var userObj = UserSkillsManager.readUserSkillsObject();
                     if (userObj != null) {
-                        for (cKey in Reflect.fields(userObj)) {
-                            var cVal = Reflect.field(userObj, cKey);
-                            if (cVal != null && Reflect.fields(cVal).length > 0) {
-                                addOption(cKey);
-                            }
-                        }
+                        for (cKey in Reflect.fields(userObj)) addOption(cKey);
                     }
                 } catch (ue:Dynamic) {}
 
@@ -841,19 +836,6 @@ class ApiPrompts {
                     var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
                     var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
 
-                    if (cName == "" || cName.toLowerCase() == "current") {
-                        var cur = CombatEngine.getCurrentClassName();
-                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                            cName = cur;
-                        } else if (CombatEngine.smartClass != null && CombatEngine.smartClass != "" && CombatEngine.smartClass.toLowerCase() != "current") {
-                            cName = CombatEngine.smartClass;
-                        }
-                    }
-
-                    if (mName == "" && ddMode != null && ddMode.selectedItem != null) {
-                        mName = StringTools.trim(ddMode.selectedItem);
-                    }
-
                     if (cName == "" || mName == "" || mName == "[+ New Mode]") {
                         ApiNotificationManager.notify("Error: Select a valid mode to delete!");
                         return;
@@ -868,27 +850,17 @@ class ApiPrompts {
                     if (deleted) {
                         ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.json!");
                         try {
-                            // If active smart mode was the one deleted, fall back
-                            if (CombatEngine.skillMode != null && CombatEngine.skillMode.toLowerCase() == mName.toLowerCase()) {
-                                var remainingModes = CombatEngine.getAvailableModes(cName);
-                                var fallbackMode = (remainingModes.length > 0 && remainingModes[0] != "[+ New Mode]") ? remainingModes[0] : "Base";
-                                CombatEngine.skillMode = fallbackMode;
-                                try { HelperSetting.setString("api_smart_mode", fallbackMode); } catch (_:Dynamic) {}
-                                try { if (AqwApi.combat != null) AqwApi.combat.mode = fallbackMode; } catch (_:Dynamic) {}
-                            }
-
                             var freshClassOpts = getAllClassOptions();
-                            var classToSelect = (ddClass != null && ddClass.selectedItem == "Current") ? "Current" : (freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
                             if (ddClass != null) {
                                 ddClass.setOptions(freshClassOpts);
-                                ddClass.setSelectedItem(classToSelect);
+                                ddClass.setSelectedItem(freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
                             }
-                            var modes = getModeListForClass(classToSelect);
+                            var modes = getModeListForClass(cName);
                             if (ddMode != null) {
                                 ddMode.setOptions(modes);
-                                var nextMode = (modes.length > 0 && modes[0] != "[+ New Mode]") ? modes[0] : (modes.length > 1 ? modes[0] : "[+ New Mode]");
+                                var nextMode = (modes.length > 0) ? modes[0] : "[+ New Mode]";
                                 ddMode.setSelectedItem(nextMode);
-                                loadModeDetails(classToSelect, nextMode);
+                                loadModeDetails(cName, nextMode);
                             }
                         } catch (de:Dynamic) {}
                     } else {
@@ -1095,12 +1067,7 @@ class ApiPrompts {
         try {
             var userObj = UserSkillsManager.readUserSkillsObject();
             if (userObj != null) {
-                for (cKey in Reflect.fields(userObj)) {
-                    var cVal = Reflect.field(userObj, cKey);
-                    if (cVal != null && Reflect.fields(cVal).length > 0) {
-                        addClass(cKey);
-                    }
-                }
+                for (cKey in Reflect.fields(userObj)) addClass(cKey);
             }
         } catch (_:Dynamic) {}
 
