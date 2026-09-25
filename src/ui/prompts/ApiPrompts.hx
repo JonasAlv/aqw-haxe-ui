@@ -757,7 +757,7 @@ class ApiPrompts {
                             loadModeDetails(cName, mName);
                         } catch (ue:Dynamic) {}
                     } else {
-                        ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
+                        ApiNotificationManager.notify("Error: Failed to write to userSkills.json!");
                     }
                 } catch (e:Dynamic) {
                     var errDetail:String = Std.string(e);
@@ -842,13 +842,13 @@ class ApiPrompts {
                     }
 
                     if (!UserSkillsManager.isUserMode(cName, mName)) {
-                        ApiNotificationManager.notify("Cannot delete default bundled mode from skills.txt!");
+                        ApiNotificationManager.notify("Cannot delete default bundled mode from skills.json!");
                         return;
                     }
 
                     var deleted = UserSkillsManager.deleteMode(cName, mName);
                     if (deleted) {
-                        ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.txt!");
+                        ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.json!");
                         try {
                             var freshClassOpts = getAllClassOptions();
                             if (ddClass != null) {
@@ -864,7 +864,7 @@ class ApiPrompts {
                             }
                         } catch (de:Dynamic) {}
                     } else {
-                        ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
+                        ApiNotificationManager.notify("Mode was not found in userSkills.json!");
                     }
                 } catch (e:Dynamic) {
                     var errDetail:String = Std.string(e);
