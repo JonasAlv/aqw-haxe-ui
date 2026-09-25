@@ -407,11 +407,6 @@ class ApiPrompts {
                     }
                 } catch (ue:Dynamic) {}
 
-                // Built-in classes from skills.txt
-                try {
-                    for (k in CombatEngine.getKnownClasses()) addOption(k);
-                } catch (_:Dynamic) {}
-
                 opts.sort(function(a, b) {
                     if (a == null && b == null) return 0;
                     if (a == null) return -1;
@@ -1077,10 +1072,6 @@ class ApiPrompts {
             }
         } catch (_:Dynamic) {}
 
-        // Built-in classes from skills.txt
-        try {
-            for (k in CombatEngine.getKnownClasses()) addClass(k);
-        } catch (_:Dynamic) {}
 
         try {
             invClasses.sort(function(a, b) {
