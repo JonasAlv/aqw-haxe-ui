@@ -285,6 +285,7 @@ class ApiPrompts {
                 HelperSetting.setString("api_smart_class", selectedClassStr);
                 HelperSetting.setString("api_smart_mode", selectedModeStr);
                 CombatEngine.smartClass = selectedClassStr;
+                CombatEngine.skillMode = selectedModeStr;
                 if (selectedClassStr != "" && selectedClassStr != "Current" && AqwApi.inventory != null) {
                     AqwApi.inventory.equip(selectedClassStr);
                 }
@@ -406,6 +407,11 @@ class ApiPrompts {
                     }
                 } catch (ue:Dynamic) {}
 
+                // Built-in classes from skills.txt
+                try {
+                    for (k in CombatEngine.getKnownClasses()) addOption(k);
+                } catch (_:Dynamic) {}
+
                 opts.sort(function(a, b) {
                     if (a == null && b == null) return 0;
                     if (a == null) return -1;
@@ -505,8 +511,19 @@ class ApiPrompts {
                     return;
                 }
 
+                var effectiveClass = cName;
+                if (effectiveClass == null || effectiveClass == "" || effectiveClass.toLowerCase() == "current") {
+                    var cur = CombatEngine.getCurrentClassName();
+                    if (cur != null && cur != "" && cur.toLowerCase() != "current") {
+                        effectiveClass = cur;
+                    }
+                }
+
                 if (inputMode != null) inputMode.text = (mName != null) ? mName : "";
-                var details = UserSkillsManager.getModeDetails(cName, mName);
+                var details = UserSkillsManager.getModeDetails(effectiveClass, mName);
+                if (details == null && effectiveClass != cName) {
+                    details = UserSkillsManager.getModeDetails(cName, mName);
+                }
                 if (details != null) {
                     if (ddExecMode != null) {
                         var eMode:String = (details.skillUseMode != null && details.skillUseMode != "") ? details.skillUseMode : "WaitForCooldown";
@@ -692,9 +709,15 @@ class ApiPrompts {
                     var timeout = AqwUtils.parseInt(timeoutStr, 100);
                     var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
 
-                    if (cName == "") {
-                        ApiNotificationManager.notify("Error: Class name cannot be empty!");
-                        return;
+                    if (cName == "" || cName.toLowerCase() == "current") {
+                        var cur = CombatEngine.getCurrentClassName();
+                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
+                            cName = cur;
+                            if (inputClass != null) inputClass.text = cur;
+                        } else {
+                            ApiNotificationManager.notify("Error: Please provide a specific class name (cannot save under 'Current')!");
+                            return;
+                        }
                     }
                     if (mName == "" || mName == "[+ New Mode]") {
                         ApiNotificationManager.notify("Error: Please provide a valid mode name!");
@@ -769,6 +792,12 @@ class ApiPrompts {
                     if (cName == "" || mName == "" || mName == "[+ New Mode]") {
                         ApiNotificationManager.notify("Error: Select a valid class and mode to apply!");
                         return;
+                    }
+                    if (cName.toLowerCase() == "current") {
+                        var cur = CombatEngine.getCurrentClassName();
+                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
+                            cName = cur;
+                        }
                     }
                     try {
                         HelperSetting.setString("api_smart_class", cName);
@@ -1046,6 +1075,11 @@ class ApiPrompts {
                     for (cKey in Reflect.fields(parsed)) addClass(cKey);
                 }
             }
+        } catch (_:Dynamic) {}
+
+        // Built-in classes from skills.txt
+        try {
+            for (k in CombatEngine.getKnownClasses()) addClass(k);
         } catch (_:Dynamic) {}
 
         try {
