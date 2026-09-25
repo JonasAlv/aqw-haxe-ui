@@ -396,14 +396,11 @@ class ApiPrompts {
                     } catch (be3:Dynamic) {}
                 }
 
-                // User custom classes from userSkills.txt
+                // User custom classes from userSkills.json
                 try {
-                    var userTxt = UserSkillsManager.readUserSkills();
-                    if (userTxt != null && userTxt.length > 0) {
-                        var parsed = com.aqwapi.utils.SkillDslParser.parse(userTxt);
-                        if (parsed != null) {
-                            for (cKey in Reflect.fields(parsed)) addOption(cKey);
-                        }
+                    var userObj = UserSkillsManager.readUserSkillsObject();
+                    if (userObj != null) {
+                        for (cKey in Reflect.fields(userObj)) addOption(cKey);
                     }
                 } catch (ue:Dynamic) {}
 
@@ -1061,17 +1058,13 @@ class ApiPrompts {
             }
         } catch (e:Dynamic) {}
 
-        // Custom classes from userSkills.txt
+        // Custom classes from userSkills.json
         try {
-            var userTxt = UserSkillsManager.readUserSkills();
-            if (userTxt != null && userTxt.length > 0) {
-                var parsed = com.aqwapi.utils.SkillDslParser.parse(userTxt);
-                if (parsed != null) {
-                    for (cKey in Reflect.fields(parsed)) addClass(cKey);
-                }
+            var userObj = UserSkillsManager.readUserSkillsObject();
+            if (userObj != null) {
+                for (cKey in Reflect.fields(userObj)) addClass(cKey);
             }
         } catch (_:Dynamic) {}
-
 
         try {
             invClasses.sort(function(a, b) {
@@ -1089,29 +1082,13 @@ class ApiPrompts {
 
     private static function getCurrentClass():String {
         try {
+            var cur:String = CombatEngine.getCurrentClassName();
+            if (cur != "" && cur.toLowerCase() != "current") return cur;
             if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
                 var av:Dynamic = AqwApi.game.world.myAvatar;
                 if (av.objData != null && av.objData.strClassName != null) {
                     var c:String = Std.string(av.objData.strClassName);
                     if (c != "" && c != "null") return c;
-                }
-                if (av.items != null) {
-                    try {
-                        var items:Array<Dynamic> = cast av.items;
-                        for (it in items) {
-                            if (it == null) continue;
-                            var equipped:Bool = (it.bEquip == 1 || it.bEquip == "1" || it.bEquip == true);
-                            if (!equipped) continue;
-                            var isClass:Bool = false;
-                            if (it.sType != null && Std.string(it.sType).toLowerCase() == "class") isClass = true;
-                            else if (it.bClass == 1 || it.bClass == true) isClass = true;
-                            else if (it.sES != null && Std.string(it.sES).toLowerCase() == "ar") isClass = true;
-                            if (isClass && it.sName != null) {
-                                var s:String = Std.string(it.sName);
-                                if (s != "" && s != "null") return s;
-                            }
-                        }
-                    } catch (ie:Dynamic) {}
                 }
             }
         } catch (e:Dynamic) {}
