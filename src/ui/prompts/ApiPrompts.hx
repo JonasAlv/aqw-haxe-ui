@@ -714,9 +714,11 @@ class ApiPrompts {
                         } catch (se:Dynamic) {}
                         CombatEngine.smartClass = cName;
                         CombatEngine.skillMode = mName;
-                        if (AqwApi.combat != null) {
-                            AqwApi.combat.mode = mName;
-                        }
+                        try {
+                            if (AqwApi.combat != null) {
+                                AqwApi.combat.mode = mName;
+                            }
+                        } catch (_:Dynamic) {}
 
                         ApiNotificationManager.notify("Saved & Activated [" + cName + " : " + mName + "]!");
 
@@ -738,7 +740,22 @@ class ApiPrompts {
                         ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
                     }
                 } catch (e:Dynamic) {
-                    ApiNotificationManager.notify("Save error: " + e);
+                    var errDetail:String = Std.string(e);
+                    #if flash
+                    try {
+                        if (Std.isOfType(e, flash.errors.Error)) {
+                            var fe:flash.errors.Error = cast e;
+                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
+                            var st:String = fe.getStackTrace();
+                            if (st != null && st != "") {
+                                var lines = st.split("\n");
+                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
+                            }
+                        }
+                    } catch (_:Dynamic) {}
+                    #end
+                    ApiLogger.error("Prompt", "Save error: " + errDetail);
+                    ApiNotificationManager.notify("Save error: " + errDetail);
                 }
             }, true);
             saveBtn.x = 20;
@@ -759,12 +776,29 @@ class ApiPrompts {
                     } catch (se:Dynamic) {}
                     CombatEngine.smartClass = cName;
                     CombatEngine.skillMode = mName;
-                    if (AqwApi.combat != null) {
-                        AqwApi.combat.mode = mName;
-                    }
+                    try {
+                        if (AqwApi.combat != null) {
+                            AqwApi.combat.mode = mName;
+                        }
+                    } catch (_:Dynamic) {}
                     ApiNotificationManager.notify("Activated [" + cName + " : " + mName + "] for Smart Combat!");
                 } catch (e:Dynamic) {
-                    ApiNotificationManager.notify("Apply error: " + e);
+                    var errDetail:String = Std.string(e);
+                    #if flash
+                    try {
+                        if (Std.isOfType(e, flash.errors.Error)) {
+                            var fe:flash.errors.Error = cast e;
+                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
+                            var st:String = fe.getStackTrace();
+                            if (st != null && st != "") {
+                                var lines = st.split("\n");
+                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
+                            }
+                        }
+                    } catch (_:Dynamic) {}
+                    #end
+                    ApiLogger.error("Prompt", "Apply error: " + errDetail);
+                    ApiNotificationManager.notify("Apply error: " + errDetail);
                 }
             }, true);
             applyBtn.x = 125;
@@ -807,7 +841,22 @@ class ApiPrompts {
                         ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
                     }
                 } catch (e:Dynamic) {
-                    ApiNotificationManager.notify("Delete error: " + e);
+                    var errDetail:String = Std.string(e);
+                    #if flash
+                    try {
+                        if (Std.isOfType(e, flash.errors.Error)) {
+                            var fe:flash.errors.Error = cast e;
+                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
+                            var st:String = fe.getStackTrace();
+                            if (st != null && st != "") {
+                                var lines = st.split("\n");
+                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
+                            }
+                        }
+                    } catch (_:Dynamic) {}
+                    #end
+                    ApiLogger.error("Prompt", "Delete error: " + errDetail);
+                    ApiNotificationManager.notify("Delete error: " + errDetail);
                 }
             }, false);
             delBtn.x = 230;
