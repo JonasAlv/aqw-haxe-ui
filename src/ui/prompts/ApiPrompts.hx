@@ -420,11 +420,16 @@ class ApiPrompts {
 
             var classOptions:Array<String> = getAllClassOptions();
             var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClass = (initialClass != null && initialClass != "") ? initialClass : ((curEquipped != null && curEquipped != "") ? curEquipped : (classOptions.length > 1 ? classOptions[1] : "Current"));
-            if (selectedClass != null && selectedClass.toLowerCase() == "current" && curEquipped != null && curEquipped != "") {
-                selectedClass = curEquipped;
+            var selectedClass = (initialClass != null && initialClass != "" && initialClass.toLowerCase() != "current")
+                ? initialClass
+                : ((curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") ? curEquipped : (classOptions.length > 1 ? classOptions[1] : ""));
+            if (selectedClass == null || selectedClass == "" || selectedClass.toLowerCase() == "current") {
+                if (curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") {
+                    selectedClass = curEquipped;
+                } else if (classOptions.length > 1) {
+                    selectedClass = classOptions[1];
+                }
             }
-            if (selectedClass == null || selectedClass == "") selectedClass = "Current";
 
             var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
             lblClass.x = 25;
@@ -578,10 +583,10 @@ class ApiPrompts {
                 var resolvedClass = selClass;
                 if (resolvedClass == null || resolvedClass == "" || resolvedClass.toLowerCase() == "current") {
                     var cur = CombatEngine.getCurrentClassName();
-                    resolvedClass = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "Current";
+                    resolvedClass = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "";
                 }
-                selectedClass = resolvedClass;
-                if (inputClass != null) inputClass.text = resolvedClass;
+                selectedClass = (resolvedClass != "") ? resolvedClass : "Current";
+                if (inputClass != null) inputClass.text = (resolvedClass != "") ? resolvedClass : "";
 
                 var modes = getModeListForClass(resolvedClass);
                 if (ddMode != null) ddMode.setOptions(modes);
