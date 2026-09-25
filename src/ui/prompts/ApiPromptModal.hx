@@ -57,6 +57,7 @@ class ApiPromptModal {
         btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
         btn.graphics.endFill();
         btn.buttonMode = true;
+        btn.mouseChildren = false;
 
         var txt = new TextField();
         var fmt = new TextFormat("_sans", 12, textColor, true);
@@ -87,9 +88,37 @@ class ApiPromptModal {
             txt.textColor = textColor;
         });
 
+        var lastTriggerTime:Float = 0;
+        var handleAction = function():Void {
+            var now = haxe.Timer.stamp();
+            if (now - lastTriggerTime < 0.25) return;
+            lastTriggerTime = now;
+            if (onClick != null) {
+                try {
+                    onClick();
+                } catch (e:Dynamic) {
+                    ui.ApiNotificationManager.notify("Action error: " + e);
+                }
+            }
+        };
+
         btn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            if (onClick != null) onClick();
+            handleAction();
         });
+
+        try {
+            var touchEventCls:Dynamic = untyped __global__["flash.events.TouchEvent"];
+            var touchTap:String = (touchEventCls != null && touchEventCls.TOUCH_TAP != null) ? touchEventCls.TOUCH_TAP : "touchTap";
+            btn.addEventListener(touchTap, function(e:Dynamic):Void {
+                handleAction();
+            });
+        } catch (_:Dynamic) {
+            try {
+                btn.addEventListener("touchTap", function(e:Dynamic):Void {
+                    handleAction();
+                });
+            } catch (_:Dynamic) {}
+        }
 
         return btn;
     }

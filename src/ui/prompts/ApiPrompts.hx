@@ -684,47 +684,61 @@ class ApiPrompts {
             dlg.addChild(lblHint);
 
             var saveBtn = ApiPromptModal.createButton("Save Mode", 100, 36, function():Void {
-                var cName = StringTools.trim(inputClass.text);
-                var mName = StringTools.trim(inputMode.text);
-                var execMode = ddExecMode.selectedItem;
-                var timeout = AqwUtils.parseInt(StringTools.trim(inputTimeout.text), 100);
-                var combo = StringTools.trim(inputCombo.text);
+                try {
+                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
+                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
+                    var execMode = (ddExecMode != null && ddExecMode.selectedItem != null && ddExecMode.selectedItem != "") ? ddExecMode.selectedItem : "WaitForCooldown";
+                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "100";
+                    var timeout = AqwUtils.parseInt(timeoutStr, 100);
+                    var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
 
-                if (cName == "") {
-                    ApiNotificationManager.notify("Error: Class name cannot be empty!");
-                    return;
-                }
-                if (mName == "" || mName == "[+ New Mode]") {
-                    ApiNotificationManager.notify("Error: Please provide a valid mode name!");
-                    return;
-                }
-                if (combo == "") {
-                    ApiNotificationManager.notify("Error: Skill combo rotation cannot be empty!");
-                    return;
-                }
-
-                var ok = UserSkillsManager.saveMode(cName, mName, execMode, timeout, combo);
-                if (ok) {
-                    // Automatically activate for Smart Combat
-                    HelperSetting.setString("api_smart_class", cName);
-                    HelperSetting.setString("api_smart_mode", mName);
-                    CombatEngine.smartClass = cName;
-                    CombatEngine.skillMode = mName;
-                    if (AqwApi.combat != null) {
-                        AqwApi.combat.mode = mName;
+                    if (cName == "") {
+                        ApiNotificationManager.notify("Error: Class name cannot be empty!");
+                        return;
+                    }
+                    if (mName == "" || mName == "[+ New Mode]") {
+                        ApiNotificationManager.notify("Error: Please provide a valid mode name!");
+                        return;
+                    }
+                    if (combo == "") {
+                        ApiNotificationManager.notify("Error: Skill combo rotation cannot be empty!");
+                        return;
                     }
 
-                    ApiNotificationManager.notify("Saved & Activated [" + cName + " : " + mName + "]!");
-                    var freshClassOpts = getAllClassOptions();
-                    ddClass.setOptions(freshClassOpts);
-                    ddClass.setSelectedItem(cName);
+                    var ok = UserSkillsManager.saveMode(cName, mName, execMode, timeout, combo);
+                    if (ok) {
+                        // Automatically activate for Smart Combat
+                        try {
+                            HelperSetting.setString("api_smart_class", cName);
+                            HelperSetting.setString("api_smart_mode", mName);
+                        } catch (se:Dynamic) {}
+                        CombatEngine.smartClass = cName;
+                        CombatEngine.skillMode = mName;
+                        if (AqwApi.combat != null) {
+                            AqwApi.combat.mode = mName;
+                        }
 
-                    var freshModes = getModeListForClass(cName);
-                    ddMode.setOptions(freshModes);
-                    ddMode.setSelectedItem(mName);
-                    loadModeDetails(cName, mName);
-                } else {
-                    ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
+                        ApiNotificationManager.notify("Saved & Activated [" + cName + " : " + mName + "]!");
+
+                        try {
+                            var freshClassOpts = getAllClassOptions();
+                            if (ddClass != null) {
+                                ddClass.setOptions(freshClassOpts);
+                                ddClass.setSelectedItem(cName);
+                            }
+
+                            var freshModes = getModeListForClass(cName);
+                            if (ddMode != null) {
+                                ddMode.setOptions(freshModes);
+                                ddMode.setSelectedItem(mName);
+                            }
+                            loadModeDetails(cName, mName);
+                        } catch (ue:Dynamic) {}
+                    } else {
+                        ApiNotificationManager.notify("Error: Failed to write to userSkills.txt!");
+                    }
+                } catch (e:Dynamic) {
+                    ApiNotificationManager.notify("Save error: " + e);
                 }
             }, true);
             saveBtn.x = 20;
@@ -732,52 +746,68 @@ class ApiPrompts {
             dlg.addChild(saveBtn);
 
             var applyBtn = ApiPromptModal.createButton("Apply Mode", 100, 36, function():Void {
-                var cName = StringTools.trim(inputClass.text);
-                var mName = StringTools.trim(inputMode.text);
-                if (cName == "" || mName == "" || mName == "[+ New Mode]") {
-                    ApiNotificationManager.notify("Error: Select a valid class and mode to apply!");
-                    return;
+                try {
+                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
+                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
+                    if (cName == "" || mName == "" || mName == "[+ New Mode]") {
+                        ApiNotificationManager.notify("Error: Select a valid class and mode to apply!");
+                        return;
+                    }
+                    try {
+                        HelperSetting.setString("api_smart_class", cName);
+                        HelperSetting.setString("api_smart_mode", mName);
+                    } catch (se:Dynamic) {}
+                    CombatEngine.smartClass = cName;
+                    CombatEngine.skillMode = mName;
+                    if (AqwApi.combat != null) {
+                        AqwApi.combat.mode = mName;
+                    }
+                    ApiNotificationManager.notify("Activated [" + cName + " : " + mName + "] for Smart Combat!");
+                } catch (e:Dynamic) {
+                    ApiNotificationManager.notify("Apply error: " + e);
                 }
-                HelperSetting.setString("api_smart_class", cName);
-                HelperSetting.setString("api_smart_mode", mName);
-                CombatEngine.smartClass = cName;
-                CombatEngine.skillMode = mName;
-                if (AqwApi.combat != null) {
-                    AqwApi.combat.mode = mName;
-                }
-                ApiNotificationManager.notify("Activated [" + cName + " : " + mName + "] for Smart Combat!");
             }, true);
             applyBtn.x = 125;
             applyBtn.y = 370;
             dlg.addChild(applyBtn);
 
             var delBtn = ApiPromptModal.createButton("Delete Mode", 95, 36, function():Void {
-                var cName = StringTools.trim(inputClass.text);
-                var mName = StringTools.trim(inputMode.text);
+                try {
+                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
+                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
 
-                if (cName == "" || mName == "" || mName == "[+ New Mode]") {
-                    ApiNotificationManager.notify("Error: Select a valid mode to delete!");
-                    return;
-                }
+                    if (cName == "" || mName == "" || mName == "[+ New Mode]") {
+                        ApiNotificationManager.notify("Error: Select a valid mode to delete!");
+                        return;
+                    }
 
-                if (!UserSkillsManager.isUserMode(cName, mName)) {
-                    ApiNotificationManager.notify("Cannot delete default bundled mode from skills.txt!");
-                    return;
-                }
+                    if (!UserSkillsManager.isUserMode(cName, mName)) {
+                        ApiNotificationManager.notify("Cannot delete default bundled mode from skills.txt!");
+                        return;
+                    }
 
-                var deleted = UserSkillsManager.deleteMode(cName, mName);
-                if (deleted) {
-                    ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.txt!");
-                    var freshClassOpts = getAllClassOptions();
-                    ddClass.setOptions(freshClassOpts);
-                    ddClass.setSelectedItem(freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
-                    var modes = getModeListForClass(cName);
-                    ddMode.setOptions(modes);
-                    var nextMode = (modes.length > 0) ? modes[0] : "[+ New Mode]";
-                    ddMode.setSelectedItem(nextMode);
-                    loadModeDetails(cName, nextMode);
-                } else {
-                    ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
+                    var deleted = UserSkillsManager.deleteMode(cName, mName);
+                    if (deleted) {
+                        ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.txt!");
+                        try {
+                            var freshClassOpts = getAllClassOptions();
+                            if (ddClass != null) {
+                                ddClass.setOptions(freshClassOpts);
+                                ddClass.setSelectedItem(freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
+                            }
+                            var modes = getModeListForClass(cName);
+                            if (ddMode != null) {
+                                ddMode.setOptions(modes);
+                                var nextMode = (modes.length > 0) ? modes[0] : "[+ New Mode]";
+                                ddMode.setSelectedItem(nextMode);
+                                loadModeDetails(cName, nextMode);
+                            }
+                        } catch (de:Dynamic) {}
+                    } else {
+                        ApiNotificationManager.notify("Mode was not found in userSkills.txt!");
+                    }
+                } catch (e:Dynamic) {
+                    ApiNotificationManager.notify("Delete error: " + e);
                 }
             }, false);
             delBtn.x = 230;

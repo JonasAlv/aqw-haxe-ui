@@ -48,6 +48,7 @@ class Dropdown extends Sprite {
         _btn.graphics.drawRoundRect(0, 0, width, height, 4, 4);
         _btn.graphics.endFill();
         _btn.buttonMode = true;
+        _btn.mouseChildren = false;
         addChild(_btn);
 
         _btnText = new TextField();
@@ -99,11 +100,23 @@ class Dropdown extends Sprite {
 
         populateList(width, height);
 
-        if (_options.length > 0 && _options[0] != null) {
-            _btnText.text = _options[0];
+        var lastBtnClick:Float = 0;
+        var handleBtnClick = function(e:Dynamic):Void {
+            var now = haxe.Timer.stamp();
+            if (now - lastBtnClick < 0.25) return;
+            lastBtnClick = now;
+            onBtnClick(null);
+        };
+        _btn.addEventListener(MouseEvent.CLICK, handleBtnClick);
+        try {
+            var touchEventCls:Dynamic = untyped __global__["flash.events.TouchEvent"];
+            var touchTap:String = (touchEventCls != null && touchEventCls.TOUCH_TAP != null) ? touchEventCls.TOUCH_TAP : "touchTap";
+            _btn.addEventListener(touchTap, handleBtnClick);
+        } catch (_:Dynamic) {
+            try {
+                _btn.addEventListener("touchTap", handleBtnClick);
+            } catch (_:Dynamic) {}
         }
-
-        _btn.addEventListener(MouseEvent.CLICK, onBtnClick);
 
         // Touch & mouse drag scrolling on listContainer
         _listContainer.addEventListener(MouseEvent.MOUSE_DOWN, onListMouseDown);
@@ -194,14 +207,17 @@ class Dropdown extends Sprite {
             optBtn.graphics.endFill();
             optBtn.y = i * h;
             optBtn.buttonMode = true;
+            optBtn.mouseChildren = false;
 
             var optTxt = new TextField();
-            optTxt.defaultTextFormat = new TextFormat("_sans", 12, 0xDDDDDD);
+            var fmt = new TextFormat("_sans", 12, 0xDDDDDD);
+            optTxt.defaultTextFormat = fmt;
             optTxt.text = (_options[i] != null) ? _options[i] : "";
             optTxt.width = w - 16;
             optTxt.height = 20;
             optTxt.x = 6;
             optTxt.y = (h - 20) / 2;
+            optTxt.selectable = false;
             optTxt.mouseEnabled = false;
             optBtn.addChild(optTxt);
 
@@ -222,15 +238,38 @@ class Dropdown extends Sprite {
                 tg.graphics.endFill();
                 (cast(tg.getChildAt(0), TextField)).textColor = 0xDDDDDD;
             });
-            optBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+
+            var lastOptClick:Float = 0;
+            var handleOptClick = function(e:Dynamic):Void {
+                var now = haxe.Timer.stamp();
+                if (now - lastOptClick < 0.25) return;
+                lastOptClick = now;
                 if (_isDragging || _hasMovedBeyondThreshold) return;
                 var clickedTarget:Sprite = cast e.currentTarget;
                 var clickIndex:Int = _listContent.getChildIndex(clickedTarget);
-                _selectedIndex = clickIndex;
-                _btnText.text = _options[clickIndex];
-                close();
-                if (_onSelect != null) _onSelect(_options[clickIndex]);
-            });
+                if (clickIndex >= 0 && clickIndex < _options.length) {
+                    _selectedIndex = clickIndex;
+                    _btnText.text = _options[clickIndex];
+                    close();
+                    if (_onSelect != null) {
+                        try {
+                            _onSelect(_options[clickIndex]);
+                        } catch (err:Dynamic) {
+                            trace("Dropdown onSelect error: " + err);
+                        }
+                    }
+                }
+            };
+            optBtn.addEventListener(MouseEvent.CLICK, handleOptClick);
+            try {
+                var touchEventCls:Dynamic = untyped __global__["flash.events.TouchEvent"];
+                var touchTap:String = (touchEventCls != null && touchEventCls.TOUCH_TAP != null) ? touchEventCls.TOUCH_TAP : "touchTap";
+                optBtn.addEventListener(touchTap, handleOptClick);
+            } catch (_:Dynamic) {
+                try {
+                    optBtn.addEventListener("touchTap", handleOptClick);
+                } catch (_:Dynamic) {}
+            }
             _listContent.addChild(optBtn);
         }
         updateScrollbar();
