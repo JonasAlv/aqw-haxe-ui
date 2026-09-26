@@ -58,6 +58,13 @@ class Dropdown extends Sprite {
         _btnText.x = 6;
         _btnText.y = (height - 20) / 2;
         _btnText.mouseEnabled = false;
+        if (_options.length > 0 && _options[0] != null) {
+            _selectedIndex = 0;
+            _btnText.text = _options[0];
+        } else {
+            _selectedIndex = -1;
+            _btnText.text = "";
+        }
         _btn.addChild(_btnText);
 
         _arrowText = new TextField();
@@ -185,6 +192,9 @@ class Dropdown extends Sprite {
         if (idx != -1) {
             _selectedIndex = idx;
             _btnText.text = val;
+        } else if (_options.length > 0 && _options[0] != null) {
+            _selectedIndex = 0;
+            _btnText.text = _options[0];
         }
         return val;
     }
