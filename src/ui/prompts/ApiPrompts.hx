@@ -841,6 +841,10 @@ class ApiPrompts {
                     var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
                     var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
 
+                    if (cName == "" && ddClass != null && ddClass.selectedItem != null) {
+                        cName = StringTools.trim(ddClass.selectedItem);
+                    }
+
                     if (cName == "" || cName.toLowerCase() == "current") {
                         var cur = CombatEngine.getCurrentClassName();
                         if (cur != null && cur != "" && cur.toLowerCase() != "current") {
