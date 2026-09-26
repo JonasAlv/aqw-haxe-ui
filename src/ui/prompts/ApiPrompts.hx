@@ -240,11 +240,16 @@ class ApiPrompts {
             dlg.addChild(lblMode);
 
             var availableClasses = getAvailableClasses();
-            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
+            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["No Classes Found"];
 
-            var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
-            if (selectedClassStr == null || selectedClassStr == "" || availableClasses.indexOf(selectedClassStr) == -1) {
-                selectedClassStr = "Current";
+            var curEquipped = CombatEngine.getCurrentClassName();
+            var selectedClassStr = HelperSetting.getString("api_smart_class", "");
+            if (selectedClassStr == "" || selectedClassStr.toLowerCase() == "current" || availableClasses.indexOf(selectedClassStr) == -1) {
+                if (curEquipped != null && curEquipped != "" && availableClasses.indexOf(curEquipped) != -1) {
+                    selectedClassStr = curEquipped;
+                } else if (availableClasses.length > 0) {
+                    selectedClassStr = availableClasses[0];
+                }
             }
 
             var availableModes = CombatEngine.getAvailableModes(selectedClassStr);
@@ -333,6 +338,7 @@ class ApiPrompts {
             var dlg = ApiPromptModal.createDialog(560, 440, "Combat Mode Editor");
 
             // Gather class options (Current + Inventory + Bank + Custom)
+            // Gather class options (Strictly classes currently in inventory)
             var getAllClassOptions = function():Array<String> {
                 var classMap:Map<String, String> = new Map<String, String>();
                 var opts:Array<String> = [];
@@ -340,7 +346,7 @@ class ApiPrompts {
                 var addOption = function(c:Dynamic):Void {
                     if (c == null) return;
                     var str = StringTools.trim(Std.string(c));
-                    if (str == "" || str == "null" || str.toLowerCase() == "current") return;
+                    if (str == "" || str == "null" || str == "No Classes Found" || str.toLowerCase() == "current") return;
                     var key = str.toLowerCase();
                     if (!classMap.exists(key)) {
                         classMap.set(key, str);
@@ -348,71 +354,29 @@ class ApiPrompts {
                     }
                 };
 
-                // Inventory & equipped classes
-                for (c in getAvailableClasses()) addOption(c);
-
-                // Bank classes (if loaded)
-                if (AqwApi.game != null && AqwApi.game.world != null) {
-                    var world:Dynamic = AqwApi.game.world;
-                    var checkItem = function(it:Dynamic):Void {
-                        if (it == null || it.sName == null) return;
-                        var isClass = false;
-                        var sTypeStr = (it.sType != null) ? Std.string(it.sType).toLowerCase() : "";
-                        if (sTypeStr == "class" || it.bClass == 1 || it.bClass == true || it.bClass == "1") {
-                            isClass = true;
-                        } else if (it.sES != null && Std.string(it.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
-                            if (CombatEngine.findClassConfig(it.sName) != null) isClass = true;
-                        }
-                        if (isClass) addOption(it.sName);
-                    };
-
-                    // Check world.bankinfo.items
-                    try {
-                        if (world.bankinfo != null && world.bankinfo.items != null) {
-                            var bItems:Dynamic = world.bankinfo.items;
-                            if (Std.isOfType(bItems, Array)) {
-                                for (it in (cast bItems : Array<Dynamic>)) checkItem(it);
-                            }
-                        }
-                    } catch (be1:Dynamic) {}
-
-                    // Check world.myAvatar.bank.items
-                    try {
-                        if (world.myAvatar != null && world.myAvatar.bank != null && world.myAvatar.bank.items != null) {
-                            var bItems:Dynamic = world.myAvatar.bank.items;
-                            if (Std.isOfType(bItems, Array)) {
-                                for (it in (cast bItems : Array<Dynamic>)) checkItem(it);
-                            }
-                        }
-                    } catch (be2:Dynamic) {}
-
-                    // Check world.bankTree
-                    try {
-                        if (world.bankTree != null) {
-                            for (k in Reflect.fields(world.bankTree)) {
-                                checkItem(Reflect.field(world.bankTree, k));
-                            }
-                        }
-                    } catch (be3:Dynamic) {}
-                }
-
-                // User custom classes from userSkills.json
-                try {
-                    var userObj = UserSkillsManager.readUserSkillsObject();
-                    if (userObj != null) {
-                        for (cKey in Reflect.fields(userObj)) {
-                            var cVal = Reflect.field(userObj, cKey);
-                            if (cVal != null && Reflect.fields(cVal).length > 0) {
-                                addOption(cKey);
+                // ONLY classes currently in player's inventory
+                if (AqwApi.game != null && AqwApi.game.world != null && AqwApi.game.world.myAvatar != null) {
+                    var av:Dynamic = AqwApi.game.world.myAvatar;
+                    if (av.items != null && Std.isOfType(av.items, Array)) {
+                        var items:Array<Dynamic> = cast av.items;
+                        for (it in items) {
+                            if (it == null || it.sName == null) continue;
+                            var sTypeStr = (it.sType != null) ? Std.string(it.sType).toLowerCase() : "";
+                            var isClass = (sTypeStr == "class" || it.bClass == 1 || it.bClass == true || it.bClass == "1");
+                            if (isClass) {
+                                addOption(it.sName);
                             }
                         }
                     }
-                } catch (ue:Dynamic) {}
+                }
+
+                // If equipped class is not yet in list (fallback)
+                var cur = CombatEngine.getCurrentClassName();
+                if (cur != null && cur != "" && cur.toLowerCase() != "current") {
+                    addOption(cur);
+                }
 
                 opts.sort(function(a, b) {
-                    if (a == null && b == null) return 0;
-                    if (a == null) return -1;
-                    if (b == null) return 1;
                     var la = a.toLowerCase();
                     var lb = b.toLowerCase();
                     if (la < lb) return -1;
@@ -420,20 +384,20 @@ class ApiPrompts {
                     return 0;
                 });
 
-                return ["Current"].concat(opts);
+                if (opts.length == 0) {
+                    opts.push("No Classes Found");
+                }
+
+                return opts;
             };
 
             var classOptions:Array<String> = getAllClassOptions();
             var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClass = (initialClass != null && initialClass != "" && initialClass.toLowerCase() != "current")
+            var selectedClass = (initialClass != null && initialClass != "" && classOptions.indexOf(initialClass) != -1)
                 ? initialClass
-                : ((curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") ? curEquipped : (classOptions.length > 1 ? classOptions[1] : ""));
-            if (selectedClass == null || selectedClass == "" || selectedClass.toLowerCase() == "current") {
-                if (curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") {
-                    selectedClass = curEquipped;
-                } else if (classOptions.length > 1) {
-                    selectedClass = classOptions[1];
-                }
+                : ((curEquipped != null && curEquipped != "" && classOptions.indexOf(curEquipped) != -1) ? curEquipped : classOptions[0]);
+            if (selectedClass == null || selectedClass == "") {
+                selectedClass = classOptions[0];
             }
 
             var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
@@ -585,23 +549,18 @@ class ApiPrompts {
             ddMode.setSelectedItem(initialSelMode);
 
             ddClass = new Dropdown(220, 24, classOptions, function(selClass:String):Void {
-                var resolvedClass = selClass;
-                if (resolvedClass == null || resolvedClass == "" || resolvedClass.toLowerCase() == "current") {
-                    var cur = CombatEngine.getCurrentClassName();
-                    resolvedClass = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "";
-                }
-                selectedClass = (resolvedClass != "") ? resolvedClass : "Current";
-                if (inputClass != null) inputClass.text = (resolvedClass != "") ? resolvedClass : "";
+                selectedClass = selClass;
+                if (inputClass != null) inputClass.text = selClass;
 
-                var modes = getModeListForClass(resolvedClass);
+                var modes = getModeListForClass(selClass);
                 if (ddMode != null) ddMode.setOptions(modes);
                 var firstMode = (modes.length > 0 && modes[0] != null) ? modes[0] : "[+ New Mode]";
                 if (ddMode != null) ddMode.setSelectedItem(firstMode);
-                loadModeDetails(resolvedClass, firstMode);
+                loadModeDetails(selClass, firstMode);
             });
             ddClass.x = 25;
             ddClass.y = 60;
-            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : (classOptions.length > 0 ? classOptions[0] : "Current"));
+            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : (classOptions.length > 0 ? classOptions[0] : ""));
 
             loadModeDetails(selectedClass, initialSelMode);
 
@@ -882,7 +841,7 @@ class ApiPrompts {
                             }
 
                             var freshClassOpts = getAllClassOptions();
-                            var classToSelect = (ddClass != null && ddClass.selectedItem == "Current") ? "Current" : (freshClassOpts.indexOf(cName) != -1 ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "Current"));
+                            var classToSelect = (freshClassOpts.indexOf(cName) != -1) ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "");
                             if (ddClass != null) {
                                 ddClass.setOptions(freshClassOpts);
                                 ddClass.setSelectedItem(classToSelect);
@@ -1095,18 +1054,7 @@ class ApiPrompts {
             }
         } catch (e:Dynamic) {}
 
-        // Custom classes from userSkills.json
-        try {
-            var userObj = UserSkillsManager.readUserSkillsObject();
-            if (userObj != null) {
-                for (cKey in Reflect.fields(userObj)) {
-                    var cVal = Reflect.field(userObj, cKey);
-                    if (cVal != null && Reflect.fields(cVal).length > 0) {
-                        addClass(cKey);
-                    }
-                }
-            }
-        } catch (_:Dynamic) {}
+
 
         try {
             invClasses.sort(function(a, b) {
@@ -1118,8 +1066,10 @@ class ApiPrompts {
             });
         } catch (e:Dynamic) {}
 
-        // Always put "Current" as the first option
-        return ["Current"].concat(invClasses);
+        if (invClasses.length == 0) {
+            invClasses.push("No Classes Found");
+        }
+        return invClasses;
     }
 
     private static function getCurrentClass():String {
