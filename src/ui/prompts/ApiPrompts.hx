@@ -6,7 +6,6 @@ import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.modules.UserSkillsManager;
 import com.aqwapi.utils.ApiLogger;
-import com.aqwapi.utils.AqwUtils;
 import flash.display.Sprite;
 import ui.ApiNotificationManager;
 import ui.Dropdown;
@@ -29,7 +28,8 @@ class ApiPrompts {
             var ids = _lastQuests.split(",");
             var validIds:Array<Int> = [];
             for (idStr in ids) {
-                var qid = AqwUtils.parseInt(StringTools.trim(idStr), 0);
+                var pQid:Null<Int> = Std.parseInt(StringTools.trim(idStr));
+                var qid = (pQid != null) ? pQid : 0;
                 if (qid > 0) validIds.push(qid);
             }
             if (validIds.length > 0 && AqwApi.quest != null) {
@@ -119,7 +119,8 @@ class ApiPrompts {
         dlg.addChild(input);
 
         var loadBtn = ApiPromptModal.createButton("Load", 120, 30, function():Void {
-            var shopId = AqwUtils.parseInt(StringTools.trim(input.text), 0);
+            var pShopId:Null<Int> = Std.parseInt(StringTools.trim(input.text));
+            var shopId = (pShopId != null) ? pShopId : 0;
             ApiPromptModal.close();
             if (shopId > 0 && AqwApi.shop != null) {
                 AqwApi.shop.loadShop(shopId);
@@ -240,16 +241,11 @@ class ApiPrompts {
             dlg.addChild(lblMode);
 
             var availableClasses = getAvailableClasses();
-            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["No Classes Found"];
+            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-            var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClassStr = HelperSetting.getString("api_smart_class", "");
-            if (selectedClassStr == "" || selectedClassStr.toLowerCase() == "current" || availableClasses.indexOf(selectedClassStr) == -1) {
-                if (curEquipped != null && curEquipped != "" && availableClasses.indexOf(curEquipped) != -1) {
-                    selectedClassStr = curEquipped;
-                } else if (availableClasses.length > 0) {
-                    selectedClassStr = availableClasses[0];
-                }
+            var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
+            if (selectedClassStr == "" || availableClasses.indexOf(selectedClassStr) == -1) {
+                selectedClassStr = "Current";
             }
 
             var availableModes = CombatEngine.getAvailableModes(selectedClassStr);
@@ -388,16 +384,25 @@ class ApiPrompts {
                     opts.push("No Classes Found");
                 }
 
-                return opts;
+                var result:Array<String> = ["Current"];
+                for (o in opts) {
+                    result.push(o);
+                }
+                return result;
             };
 
             var classOptions:Array<String> = getAllClassOptions();
             var curEquipped = CombatEngine.getCurrentClassName();
             var selectedClass = (initialClass != null && initialClass != "" && classOptions.indexOf(initialClass) != -1)
                 ? initialClass
-                : ((curEquipped != null && curEquipped != "" && classOptions.indexOf(curEquipped) != -1) ? curEquipped : classOptions[0]);
-            if (selectedClass == null || selectedClass == "") {
-                selectedClass = classOptions[0];
+                : "Current";
+            if (selectedClass == null || selectedClass == "" || classOptions.indexOf(selectedClass) == -1) {
+                selectedClass = classOptions.length > 0 ? classOptions[0] : "Current";
+            }
+
+            var initialInputClass = selectedClass;
+            if (selectedClass.toLowerCase() == "current" && curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") {
+                initialInputClass = curEquipped;
             }
 
             var lblClass = ApiPromptModal.createLabel("Select Class:", 120);
@@ -410,7 +415,7 @@ class ApiPrompts {
             lblCustomClass.y = 40;
             dlg.addChild(lblCustomClass);
 
-            var inputClass = ApiPromptModal.createInput(270, 24, selectedClass);
+            var inputClass = ApiPromptModal.createInput(270, 24, initialInputClass);
             inputClass.x = 265;
             inputClass.y = 60;
             dlg.addChild(inputClass);
@@ -550,7 +555,14 @@ class ApiPrompts {
 
             ddClass = new Dropdown(220, 24, classOptions, function(selClass:String):Void {
                 selectedClass = selClass;
-                if (inputClass != null) inputClass.text = selClass;
+                if (inputClass != null) {
+                    if (selClass.toLowerCase() == "current") {
+                        var cur = CombatEngine.getCurrentClassName();
+                        inputClass.text = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "";
+                    } else {
+                        inputClass.text = selClass;
+                    }
+                }
 
                 var modes = getModeListForClass(selClass);
                 if (ddMode != null) ddMode.setOptions(modes);
@@ -667,7 +679,8 @@ class ApiPrompts {
                     var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
                     var execMode = (ddExecMode != null && ddExecMode.selectedItem != null && ddExecMode.selectedItem != "") ? ddExecMode.selectedItem : "WaitForCooldown";
                     var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "100";
-                    var timeout = AqwUtils.parseInt(timeoutStr, 100);
+                    var pTimeout:Null<Int> = Std.parseInt(timeoutStr);
+                    var timeout = (pTimeout != null) ? pTimeout : 100;
                     var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
 
                     if (cName == "" || cName.toLowerCase() == "current") {
@@ -813,7 +826,7 @@ class ApiPrompts {
                         }
                     }
 
-                    if (mName == "" && ddMode != null && ddMode.selectedItem != null) {
+                    if ((mName == "" || mName == "[+ New Mode]") && ddMode != null && ddMode.selectedItem != null && ddMode.selectedItem != "[+ New Mode]") {
                         mName = StringTools.trim(ddMode.selectedItem);
                     }
 
@@ -1069,7 +1082,12 @@ class ApiPrompts {
         if (invClasses.length == 0) {
             invClasses.push("No Classes Found");
         }
-        return invClasses;
+
+        var result:Array<String> = ["Current"];
+        for (c in invClasses) {
+            result.push(c);
+        }
+        return result;
     }
 
     private static function getCurrentClass():String {
