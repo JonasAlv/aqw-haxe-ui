@@ -1,0 +1,9 @@
+# Build output
+bin/
+*.swc
+
+# Tooling / IDE
+.haxelib
+.DS_Store
+.vscode/settings.json
+*.iml
