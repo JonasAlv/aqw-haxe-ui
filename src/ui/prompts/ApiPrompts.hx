@@ -12,6 +12,7 @@ import flash.events.MouseEvent;
 import flash.text.TextField;
 import flash.text.TextFieldType;
 import ui.Dropdown;
+import ui.EnhancementColors;
 import util.HelperSetting;
 
 class ApiPrompts {
@@ -489,18 +490,17 @@ class ApiPrompts {
 
     public static function showCustomEnhancePrompt(overlay:Dynamic):Void {
         try {
-            var dlg = ApiPromptModal.createDialog(460, 320, "Custom Enhancement Setup");
+            var dlg = ApiPromptModal.createDialog(460, 305, "Custom Enhancement Setup");
 
             var curClass:String = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "Equipped Class";
             var rec = (Api.enhancement != null) ? Api.enhancement.getRecommendation(curClass) : null;
 
             var recSummary:String = "Equipped: " + curClass;
             if (rec != null) {
-                recSummary += "  (Optimal: " + rec.type;
+                recSummary += "  |  Optimal: " + rec.type;
                 if (rec.weapon != null && rec.weapon != "" && rec.weapon != "None") recSummary += " + " + rec.weapon;
-                if (rec.helm != null && rec.helm != "" && rec.helm != "None") recSummary += " | " + rec.helm;
-                if (rec.cape != null && rec.cape != "" && rec.cape != "None") recSummary += " | " + rec.cape;
-                recSummary += ")";
+                if (rec.helm != null && rec.helm != "" && rec.helm != "None") recSummary += " / " + rec.helm;
+                if (rec.cape != null && rec.cape != "" && rec.cape != "None") recSummary += " / " + rec.cape;
             }
 
             var lblSummary = ApiPromptModal.createLabel(recSummary, 420, 11, false);
@@ -508,20 +508,31 @@ class ApiPrompts {
             lblSummary.y = 38;
             dlg.addChild(lblSummary);
 
-            // Row 1: Base Type & Weapon Trait
-            var lblBase = ApiPromptModal.createLabel("Base Type (All Gear):", 190, 12, true);
-            lblBase.x = 25;
+            // Left Column (x=24, w=195): Class Armor & Helm Slot
+            var lblBase = ApiPromptModal.createLabel("Class Armor (Base Type):", 195, 12, true);
+            lblBase.x = 24;
             lblBase.y = 65;
             dlg.addChild(lblBase);
 
-            var lblWeapon = ApiPromptModal.createLabel("Weapon Special Trait:", 190, 12, true);
-            lblWeapon.x = 245;
+            var lblHelm = ApiPromptModal.createLabel("Helm Slot (Trait / Base):", 195, 12, true);
+            lblHelm.x = 24;
+            lblHelm.y = 125;
+            dlg.addChild(lblHelm);
+
+            // Right Column (x=240, w=195): Weapon Slot & Cape Slot
+            var lblWeapon = ApiPromptModal.createLabel("Weapon Slot (Trait / Special):", 195, 12, true);
+            lblWeapon.x = 240;
             lblWeapon.y = 65;
             dlg.addChild(lblWeapon);
 
+            var lblCape = ApiPromptModal.createLabel("Cape Slot (Trait / Base):", 195, 12, true);
+            lblCape.x = 240;
+            lblCape.y = 125;
+            dlg.addChild(lblCape);
+
             var baseOptions = ["Lucky", "Wizard", "Fighter", "Thief", "Healer", "Hybrid", "Spellbreaker"];
-            var weaponOptions = ["None", "Spiral Carve", "Awe Blast", "Health Vamp", "Mana Vamp", "Powerword Die", "Smite", "Valiance", "Arcana's Concerto", "Elysium", "Acheron", "Dauntless", "Praxis"];
-            var helmOptions = ["None", "Forge", "Vim", "Examen", "Anima", "Pneuma"];
+            var weaponOptions = ["None", "Spiral Carve", "Awe Blast", "Health Vamp", "Mana Vamp", "Powerword Die", "Smite", "Valiance", "Arcana's Concerto", "Elysium", "Acheron", "Dauntless", "Praxis", "Ravenous", "Lacerate"];
+            var helmOptions = ["None", "Forge", "Vim", "Examen", "Anima", "Pneuma", "Hearty"];
             var capeOptions = ["None", "Forge", "Absolution", "Vainglory", "Avarice", "Penitence", "Lament"];
 
             var selectedBase:String = (rec != null && rec.type != null) ? rec.type : "Lucky";
@@ -529,42 +540,51 @@ class ApiPrompts {
             var selectedHelm:String = (rec != null && rec.helm != null) ? rec.helm : "None";
             var selectedCape:String = (rec != null && rec.cape != null) ? rec.cape : "None";
 
-            var ddBase = new Dropdown(190, 26, baseOptions, function(sel:String):Void {
+            var ddBase:Dropdown = null;
+            var ddWeapon:Dropdown = null;
+            var ddHelm:Dropdown = null;
+            var ddCape:Dropdown = null;
+
+            ddBase = new Dropdown(195, 26, baseOptions, function(sel:String):Void {
                 selectedBase = sel;
+                if (ddWeapon != null) ddWeapon.updateBtnDisplay();
+                if (ddHelm != null) ddHelm.updateBtnDisplay();
+                if (ddCape != null) ddCape.updateBtnDisplay();
             });
-            ddBase.x = 25;
+            ddBase.itemColorCallback = function(opt:String):Null<Int> {
+                return EnhancementColors.getColor(opt);
+            };
+            ddBase.x = 24;
             ddBase.y = 85;
             ddBase.setSelectedItem(selectedBase);
 
-            var ddWeapon = new Dropdown(190, 26, weaponOptions, function(sel:String):Void {
+            ddWeapon = new Dropdown(195, 26, weaponOptions, function(sel:String):Void {
                 selectedWeapon = sel;
             });
-            ddWeapon.x = 245;
+            ddWeapon.itemColorCallback = function(opt:String):Null<Int> {
+                return EnhancementColors.getColor(opt, selectedBase);
+            };
+            ddWeapon.x = 240;
             ddWeapon.y = 85;
             ddWeapon.setSelectedItem(selectedWeapon);
 
-            // Row 2: Helm Trait & Cape Trait
-            var lblHelm = ApiPromptModal.createLabel("Helm Special Trait:", 190, 12, true);
-            lblHelm.x = 25;
-            lblHelm.y = 125;
-            dlg.addChild(lblHelm);
-
-            var lblCape = ApiPromptModal.createLabel("Cape Special Trait:", 190, 12, true);
-            lblCape.x = 245;
-            lblCape.y = 125;
-            dlg.addChild(lblCape);
-
-            var ddHelm = new Dropdown(190, 26, helmOptions, function(sel:String):Void {
+            ddHelm = new Dropdown(195, 26, helmOptions, function(sel:String):Void {
                 selectedHelm = sel;
             });
-            ddHelm.x = 25;
+            ddHelm.itemColorCallback = function(opt:String):Null<Int> {
+                return EnhancementColors.getColor(opt, selectedBase);
+            };
+            ddHelm.x = 24;
             ddHelm.y = 145;
             ddHelm.setSelectedItem(selectedHelm);
 
-            var ddCape = new Dropdown(190, 26, capeOptions, function(sel:String):Void {
+            ddCape = new Dropdown(195, 26, capeOptions, function(sel:String):Void {
                 selectedCape = sel;
             });
-            ddCape.x = 245;
+            ddCape.itemColorCallback = function(opt:String):Null<Int> {
+                return EnhancementColors.getColor(opt, selectedBase);
+            };
+            ddCape.x = 240;
             ddCape.y = 145;
             ddCape.setSelectedItem(selectedCape);
 
@@ -573,8 +593,8 @@ class ApiPrompts {
             dlg.addChild(ddHelm);
             dlg.addChild(ddCape);
 
-            // Quick Shortcut: Apply Recommended
-            var bestBtn = ApiPromptModal.createButton("Apply Recommended", 145, 26, function():Void {
+            // Quick Shortcut: Apply Recommended & Base Only (No Forge)
+            var bestBtn = ApiPromptModal.createButton("Apply Recommended", 150, 26, function():Void {
                 var c = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "";
                 var r = (Api.enhancement != null) ? Api.enhancement.getRecommendation(c) : null;
                 if (r != null) {
@@ -589,11 +609,11 @@ class ApiPrompts {
                     ApiNotificationManager.notify("Applied recommendation: " + r.type);
                 }
             }, false);
-            bestBtn.x = 25;
-            bestBtn.y = 195;
+            bestBtn.x = 65;
+            bestBtn.y = 192;
             dlg.addChild(bestBtn);
 
-            var resetBtn = ApiPromptModal.createButton("Base Only (No Forge)", 140, 26, function():Void {
+            var resetBtn = ApiPromptModal.createButton("Base Only (No Forge)", 150, 26, function():Void {
                 selectedWeapon = "None";
                 selectedHelm = "None";
                 selectedCape = "None";
@@ -602,12 +622,12 @@ class ApiPrompts {
                 ddCape.setSelectedItem("None");
                 ApiNotificationManager.notify("Cleared special traits (Base only)");
             }, false);
-            resetBtn.x = 180;
-            resetBtn.y = 195;
+            resetBtn.x = 235;
+            resetBtn.y = 192;
             dlg.addChild(resetBtn);
 
-            // Bottom Action Buttons
-            var enhanceBtn = ApiPromptModal.createButton("Enhance Equipped", 150, 36, function():Void {
+            // Bottom Action Buttons: Enhance Equipped (Primary Red) & Cancel (Neutral)
+            var enhanceBtn = ApiPromptModal.createButton("Enhance Equipped", 180, 36, function():Void {
                 ApiPromptModal.close();
                 if (Api.enhancement != null) {
                     if (Api.enhancement.isBusy) {
@@ -620,33 +640,15 @@ class ApiPrompts {
                     });
                 }
             }, true);
-            enhanceBtn.x = 25;
-            enhanceBtn.y = 255;
+            enhanceBtn.x = 75;
+            enhanceBtn.y = 245;
             dlg.addChild(enhanceBtn);
 
-            var smartBtn = ApiPromptModal.createButton("Smart Auto", 120, 36, function():Void {
-                ApiPromptModal.close();
-                if (Api.enhancement != null) {
-                    if (Api.enhancement.isBusy) {
-                        ApiNotificationManager.notify("Enhancement queue is currently busy!");
-                        return;
-                    }
-                    var c = (Api.player != null) ? Api.player.className : "Equipped";
-                    ApiNotificationManager.notify("SmartEnhancing " + c + "...");
-                    Api.enhancement.smartEnhance(null, function():Void {
-                        ApiNotificationManager.notify("SmartEnhance finished!");
-                    });
-                }
-            }, false);
-            smartBtn.x = 190;
-            smartBtn.y = 255;
-            dlg.addChild(smartBtn);
-
-            var cancelBtn = ApiPromptModal.createButton("Cancel", 100, 36, function():Void {
+            var cancelBtn = ApiPromptModal.createButton("Cancel", 110, 36, function():Void {
                 ApiPromptModal.close();
             }, false);
-            cancelBtn.x = 325;
-            cancelBtn.y = 255;
+            cancelBtn.x = 275;
+            cancelBtn.y = 245;
             dlg.addChild(cancelBtn);
 
             ApiPromptModal.show(overlay, dlg);
@@ -658,25 +660,25 @@ class ApiPrompts {
 
     public static function showSmartCombatPrompt(overlay:Dynamic):Void {
         try {
-            var dlg = ApiPromptModal.createDialog(420, 260, "Smart Combat Setup (Standalone)");
+            var dlg = ApiPromptModal.createDialog(460, 230, "Smart Combat Setup (Standalone)");
             var curEquipped = CombatEngine.getCurrentClassName();
             var subText = (curEquipped != "")
                 ? "Active class: " + curEquipped + " (For scripts, use Loadouts in Scripts tab)"
                 : "Standalone setup. For scripts, use Loadouts in Scripts tab.";
-            var lblSub = ApiPromptModal.createLabel(subText, 380, 11);
-            lblSub.x = 20;
+            var lblSub = ApiPromptModal.createLabel(subText, 412, 11);
+            lblSub.x = 24;
             lblSub.y = 38;
             lblSub.textColor = 0x888888;
             dlg.addChild(lblSub);
 
-            var lblClass = ApiPromptModal.createLabel("Class:", 60);
-            lblClass.x = 20;
-            lblClass.y = 65;
+            var lblClass = ApiPromptModal.createLabel("Class:", 196, 12, true);
+            lblClass.x = 24;
+            lblClass.y = 66;
             dlg.addChild(lblClass);
 
-            var lblMode = ApiPromptModal.createLabel("Mode:", 60);
-            lblMode.x = 220;
-            lblMode.y = 65;
+            var lblMode = ApiPromptModal.createLabel("Mode:", 196, 12, true);
+            lblMode.x = 240;
+            lblMode.y = 66;
             dlg.addChild(lblMode);
 
             var availableClasses = getAvailableClasses();
@@ -719,15 +721,15 @@ class ApiPrompts {
             }
 
             var ddMode:Dropdown = null;
-            ddMode = new Dropdown(150, 25, availableModes, function(sel:String):Void {
+            ddMode = new Dropdown(196, 26, availableModes, function(sel:String):Void {
                 selectedModeStr = sel;
             });
-            ddMode.x = 220;
-            ddMode.y = 95;
+            ddMode.x = 240;
+            ddMode.y = 88;
             ddMode.setSelectedItem(selectedModeStr);
 
             var ddClass:Dropdown = null;
-            ddClass = new Dropdown(180, 25, availableClasses, function(sel:String):Void {
+            ddClass = new Dropdown(196, 26, availableClasses, function(sel:String):Void {
                 selectedClassStr = sel;
                 var modes = getModesForClass(selectedClassStr);
                 ddMode.setOptions(modes);
@@ -736,8 +738,8 @@ class ApiPrompts {
                 }
                 ddMode.setSelectedItem(selectedModeStr);
             });
-            ddClass.x = 20;
-            ddClass.y = 95;
+            ddClass.x = 24;
+            ddClass.y = 88;
             ddClass.setSelectedItem(selectedClassStr);
 
             dlg.addChild(ddMode);
@@ -755,23 +757,23 @@ class ApiPrompts {
                 ApiNotificationManager.notify("Smart Combat Config: " + selectedClassStr + " [" + saveModeVal + "]");
                 ApiPromptModal.close();
             }, true);
-            saveBtn.x = 25;
-            saveBtn.y = 200;
+            saveBtn.x = 26;
+            saveBtn.y = 165;
             dlg.addChild(saveBtn);
 
-            var editModesBtn = ApiPromptModal.createButton("Edit Modes", 120, 35, function():Void {
+            var editModesBtn = ApiPromptModal.createButton("Edit Modes", 130, 35, function():Void {
                 ApiPromptModal.close();
                 showCombatModeEditorPrompt(overlay, selectedClassStr, selectedModeStr);
             }, false);
-            editModesBtn.x = 160;
-            editModesBtn.y = 200;
+            editModesBtn.x = 175;
+            editModesBtn.y = 165;
             dlg.addChild(editModesBtn);
 
-            var cancelBtn = ApiPromptModal.createButton("Cancel", 100, 35, function():Void {
+            var cancelBtn = ApiPromptModal.createButton("Cancel", 110, 35, function():Void {
                 ApiPromptModal.close();
             }, false);
-            cancelBtn.x = 295;
-            cancelBtn.y = 200;
+            cancelBtn.x = 324;
+            cancelBtn.y = 165;
             dlg.addChild(cancelBtn);
 
             ApiPromptModal.show(overlay, dlg);
@@ -1528,19 +1530,19 @@ class ApiPrompts {
 
     public static function showLoadoutsPrompt(overlay:Dynamic):Void {
         try {
-            var dlg = ApiPromptModal.createDialog(420, 390, "Class Loadouts (For Scripts)");
+            var dlg = ApiPromptModal.createDialog(460, 390, "Class Loadouts (For Scripts)");
 
             var availableClasses = getAvailableClasses();
             if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-            var lblClassHdr = ApiPromptModal.createLabel("Class:", 150, 11, true);
-            lblClassHdr.x = 20;
+            var lblClassHdr = ApiPromptModal.createLabel("Class:", 210, 11, true);
+            lblClassHdr.x = 24;
             lblClassHdr.y = 34;
             lblClassHdr.textColor = 0x888888;
             dlg.addChild(lblClassHdr);
 
-            var lblModeHdr = ApiPromptModal.createLabel("Combat Mode:", 120, 11, true);
-            lblModeHdr.x = 280;
+            var lblModeHdr = ApiPromptModal.createLabel("Combat Mode:", 188, 11, true);
+            lblModeHdr.x = 248;
             lblModeHdr.y = 34;
             lblModeHdr.textColor = 0x888888;
             dlg.addChild(lblModeHdr);
@@ -1565,11 +1567,11 @@ class ApiPrompts {
                 CombatEngine.dodgeMode = m;
             });
 
-            var doneBtn = ApiPromptModal.createButton("Done", 140, 35, function():Void {
+            var doneBtn = ApiPromptModal.createButton("Done", 150, 35, function():Void {
                 ApiPromptModal.close();
                 ApiNotificationManager.notify("Class Loadouts Saved!");
             }, true);
-            doneBtn.x = 140;
+            doneBtn.x = 155;
             doneBtn.y = 335;
             dlg.addChild(doneBtn);
 
@@ -1596,8 +1598,8 @@ class ApiPrompts {
         modeKey:String,
         onUpdate:String->String->Void
     ):Void {
-        var lbl = ApiPromptModal.createLabel(title, 150, 14, true);
-        lbl.x = 20;
+        var lbl = ApiPromptModal.createLabel(title, 210, 14, true);
+        lbl.x = 24;
         lbl.y = lblY;
         dlg.addChild(lbl);
 
@@ -1636,17 +1638,17 @@ class ApiPrompts {
         }
 
         var ddMode:Dropdown = null;
-        ddMode = new Dropdown(120, 25, modes, function(sel:String):Void {
+        ddMode = new Dropdown(188, 25, modes, function(sel:String):Void {
             curMode = sel;
             var saveMode = (sel == "Auto (First Available)") ? "Auto" : sel;
             HelperSetting.setString(modeKey, saveMode);
             if (onUpdate != null) onUpdate(curClass, saveMode);
         });
-        ddMode.x = 280;
+        ddMode.x = 248;
         ddMode.y = ddY;
 
         var ddClass:Dropdown = null;
-        ddClass = new Dropdown(240, 25, classes, function(sel:String):Void {
+        ddClass = new Dropdown(215, 25, classes, function(sel:String):Void {
             curClass = sel;
             HelperSetting.setString(classKey, sel);
             var nm:Array<String> = getModesForClass(curClass);
@@ -1661,7 +1663,7 @@ class ApiPrompts {
             HelperSetting.setString(modeKey, saveMode);
             if (onUpdate != null) onUpdate(curClass, saveMode);
         });
-        ddClass.x = 20;
+        ddClass.x = 24;
         ddClass.y = ddY;
 
         ddClass.setSelectedItem(curClass);
@@ -1778,10 +1780,15 @@ class ApiPrompts {
             inputName.y = 56;
             dlg.addChild(inputName);
 
-            // Live Status Label
-            var lblStatus = ApiPromptModal.createLabel("Status: STOPPED", 580, 13, true);
-            lblStatus.x = 20;
-            lblStatus.y = 90;
+            // Live Status Indicator (Native vector LED dot + ASCII label)
+            var statusDot = new flash.display.Shape();
+            statusDot.x = 28;
+            statusDot.y = 96;
+            dlg.addChild(statusDot);
+
+            var lblStatus = ApiPromptModal.createLabel("STATUS: STOPPED", 540, 12, true);
+            lblStatus.x = 38;
+            lblStatus.y = 89;
             lblStatus.textColor = 0x888888;
             dlg.addChild(lblStatus);
 
@@ -1870,13 +1877,25 @@ class ApiPrompts {
 
             var updateStatusDisplay = function():Void {
                 var running = ScriptManager.SINGLETON.isRunning;
+                statusDot.graphics.clear();
                 if (running) {
                     var actName = ScriptManager.SINGLETON.activeScriptName;
-                    lblStatus.text = "● RUNNING: " + (actName != null ? actName : "Custom Script");
+                    statusDot.graphics.beginFill(0x2ECC71, 0.35);
+                    statusDot.graphics.drawCircle(0, 0, 4.5);
+                    statusDot.graphics.endFill();
+                    statusDot.graphics.beginFill(0x00E676, 1.0);
+                    statusDot.graphics.drawCircle(0, 0, 2.5);
+                    statusDot.graphics.endFill();
+
+                    lblStatus.text = "STATUS: RUNNING (" + (actName != null ? actName : "Custom Script") + ")";
                     lblStatus.textColor = 0x55FF55;
                     if (runBtnTxt != null) runBtnTxt.text = "Stop Script";
                 } else {
-                    lblStatus.text = "○ STOPPED";
+                    statusDot.graphics.beginFill(0x555555, 0.9);
+                    statusDot.graphics.drawCircle(0, 0, 2.5);
+                    statusDot.graphics.endFill();
+
+                    lblStatus.text = "STATUS: STOPPED";
                     lblStatus.textColor = 0x888888;
                     if (runBtnTxt != null) runBtnTxt.text = "Start Script";
                 }
@@ -1985,7 +2004,7 @@ class ApiPrompts {
                 }
                 updateStatusDisplay();
             }, false);
-            runBtn.x = 20;
+            runBtn.x = 24;
             runBtn.y = 445;
             for (i in 0...runBtn.numChildren) {
                 if (Std.isOfType(runBtn.getChildAt(i), TextField)) {
@@ -1995,7 +2014,7 @@ class ApiPrompts {
             }
             dlg.addChild(runBtn);
 
-            saveBtn = ApiPromptModal.createButton("Save Script", 120, 32, function():Void {
+            saveBtn = ApiPromptModal.createButton("Save Script", 130, 32, function():Void {
                 var sName = StringTools.trim(inputName.text);
                 if (StringTools.endsWith(sName.toLowerCase(), ".hxs")) {
                     sName = sName.substring(0, sName.length - 4);
@@ -2020,11 +2039,11 @@ class ApiPrompts {
                     ApiNotificationManager.notify("Failed to save script.");
                 }
             }, false);
-            saveBtn.x = 165;
+            saveBtn.x = 178;
             saveBtn.y = 445;
             dlg.addChild(saveBtn);
 
-            deleteBtn = ApiPromptModal.createButton("Delete Script", 120, 32, function():Void {
+            deleteBtn = ApiPromptModal.createButton("Delete Script", 130, 32, function():Void {
                 if (isBundled || ScriptManager.SINGLETON.isBundledScript(currentScriptName)) {
                     ApiNotificationManager.notify("Cannot delete bundled scripts!");
                     return;
@@ -2043,15 +2062,15 @@ class ApiPrompts {
                     ApiNotificationManager.notify("Failed to delete script.");
                 }
             }, false);
-            deleteBtn.x = 300;
+            deleteBtn.x = 332;
             deleteBtn.y = 445;
             dlg.addChild(deleteBtn);
             setDeleteEnabled(!isBundled && currentScriptName != "MyScript" && currentScriptName != "");
 
-            var closeBtn = ApiPromptModal.createButton("Close", 100, 32, function():Void {
+            var closeBtn = ApiPromptModal.createButton("Close", 110, 32, function():Void {
                 ApiPromptModal.close();
             }, false);
-            closeBtn.x = 500;
+            closeBtn.x = 486;
             closeBtn.y = 445;
             dlg.addChild(closeBtn);
 

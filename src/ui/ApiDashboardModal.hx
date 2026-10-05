@@ -441,17 +441,17 @@ class ApiDashboardModal extends Sprite {
 
         var sbW:Float = 6;
         _scrollbarTrack.graphics.clear();
-        _scrollbarTrack.graphics.beginFill(0x1E1E1E, 0.8);
+        _scrollbarTrack.graphics.beginFill(0x181818, 0.85);
         _scrollbarTrack.graphics.drawRoundRect(0, 0, sbW, CONTENT_HEIGHT, 3, 3);
         _scrollbarTrack.graphics.endFill();
 
         var viewRatio = CONTENT_HEIGHT / totalH;
-        var thumbH = Math.max(20, CONTENT_HEIGHT * viewRatio);
+        var thumbH = Math.max(24, CONTENT_HEIGHT * viewRatio);
         var scrollRatio = -_contentContainer.y / (totalH - CONTENT_HEIGHT);
         var thumbY = scrollRatio * (CONTENT_HEIGHT - thumbH);
 
         _scrollbarThumb.graphics.clear();
-        _scrollbarThumb.graphics.beginFill(0x555555, 0.9);
+        _scrollbarThumb.graphics.beginFill(0x666666, 0.95);
         _scrollbarThumb.graphics.drawRoundRect(0, thumbY, sbW, thumbH, 3, 3);
         _scrollbarThumb.graphics.endFill();
     }
@@ -622,6 +622,7 @@ class ApiDashboardModal extends Sprite {
         });
 
         // Snap vertically directly below previous card
+        card.cacheAsBitmap = true;
         card.x = 0;
         card.y = _totalContentHeight;
         _contentContainer.addChild(card);
@@ -963,8 +964,132 @@ class ApiDashboardModal extends Sprite {
         );
     }
 
+    private function addEnhancementLoadoutCard():Void {
+        var rowW:Float = CONTENT_WIDTH - 20;
+        var cardH:Float = 88;
+        var card = new Sprite();
+
+        var curClass = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "Equipped Class";
+        var playerLvl:Int = (Api.player != null) ? Api.player.level : 100;
+        var slots = (Api.enhancement != null) ? Api.enhancement.getEquippedSlots() : null;
+        var rec = (Api.enhancement != null) ? Api.enhancement.getRecommendation(curClass) : null;
+
+        var wItem = (slots != null) ? slots.weapon : null;
+        var wBase = (wItem != null && Api.enhancement != null) ? Api.enhancement.patternIdToName(wItem.enhPatternId) : "None";
+        var wSpec = (Api.enhancement != null) ? Api.enhancement.currentWeaponSpecial() : "None";
+        var wName = (wSpec != "None" && wSpec != "") ? wSpec : wBase;
+        var wLvl:Int = (wItem != null) ? wItem.enhLevel : 0;
+
+        var cTarget = (slots != null) ? ((slots.classItem != null) ? slots.classItem : slots.armor) : null;
+        var cEnh = (Api.enhancement != null) ? Api.enhancement.currentClassEnh() : "None";
+        var cLvl:Int = (cTarget != null) ? cTarget.enhLevel : 0;
+
+        var hItem = (slots != null) ? slots.helm : null;
+        var hBase = (hItem != null && Api.enhancement != null) ? Api.enhancement.patternIdToName(hItem.enhPatternId) : "None";
+        var hSpec = (Api.enhancement != null) ? Api.enhancement.currentHelmSpecial() : "None";
+        var hName = (hSpec != "None" && hSpec != "") ? hSpec : hBase;
+        var hLvl:Int = (hItem != null) ? hItem.enhLevel : 0;
+
+        var capeItem = (slots != null) ? slots.cape : null;
+        var capeBase = (capeItem != null && Api.enhancement != null) ? Api.enhancement.patternIdToName(capeItem.enhPatternId) : "None";
+        var capeSpec = (Api.enhancement != null) ? Api.enhancement.currentCapeSpecial() : "None";
+        var capeName = (capeSpec != "None" && capeSpec != "") ? capeSpec : capeBase;
+        var capeLvl:Int = (capeItem != null) ? capeItem.enhLevel : 0;
+
+        var isOptimal:Bool = false;
+        if (rec != null && slots != null) {
+            var wMatches = (rec.weapon == "None" || rec.weapon == wSpec) && (wLvl >= playerLvl);
+            var cMatches = (rec.type == cEnh) && (cLvl >= playerLvl);
+            var hMatches = (rec.helm == "None" || rec.helm == hSpec) && (hLvl >= playerLvl);
+            var capeMatches = (rec.cape == "None" || rec.cape == capeSpec) && (capeLvl >= playerLvl);
+            isOptimal = (wMatches && cMatches && hMatches && capeMatches);
+        }
+
+        card.graphics.beginFill(0x161616, 1);
+        card.graphics.lineStyle(1, 0x262626);
+        card.graphics.drawRoundRect(0, 0, rowW, cardH, 6, 6);
+
+        card.graphics.lineStyle(1, 0x222222);
+        card.graphics.moveTo(12, 28);
+        card.graphics.lineTo(rowW - 12, 28);
+        card.graphics.endFill();
+
+        var titleTxt = new TextField();
+        var titleFmt = new TextFormat("_sans", 12, 0xE0E0E0, true);
+        titleTxt.defaultTextFormat = titleFmt;
+        titleTxt.text = "Active Loadout: " + curClass + " (Lvl " + playerLvl + ")";
+        titleTxt.x = 12;
+        titleTxt.y = 7;
+        titleTxt.width = rowW - 150;
+        titleTxt.height = 18;
+        titleTxt.selectable = false;
+        titleTxt.mouseEnabled = false;
+        card.addChild(titleTxt);
+
+        var tagTxt = new TextField();
+        var tagColor:Int = isOptimal ? 0x4CAF50 : 0xFFA726;
+        var tagFmt = new TextFormat("_sans", 11, tagColor, true);
+        tagFmt.align = TextFormatAlign.RIGHT;
+        tagTxt.defaultTextFormat = tagFmt;
+        tagTxt.text = isOptimal ? "[Optimal]" : "[Upgrade Available]";
+        tagTxt.x = rowW - 145;
+        tagTxt.y = 7;
+        tagTxt.width = 135;
+        tagTxt.height = 18;
+        tagTxt.selectable = false;
+        tagTxt.mouseEnabled = false;
+        card.addChild(tagTxt);
+
+        var drawSlotEntry = function(label:String, val:String, lvl:Int, dotColor:Null<Int>, sx:Float, sy:Float, maxW:Float):Void {
+            var dot = new Shape();
+            dot.graphics.beginFill(dotColor != null ? dotColor : 0x666666, 1);
+            dot.graphics.drawCircle(sx + 4, sy + 7, 3.5);
+            dot.graphics.endFill();
+            card.addChild(dot);
+
+            var sTxt = new TextField();
+            var sFmt = new TextFormat("_sans", 11, 0xCCCCCC, false);
+            sTxt.defaultTextFormat = sFmt;
+            var lvlStr = (lvl > 0) ? " (Lvl " + lvl + ")" : "";
+            sTxt.text = label + ": " + val + lvlStr;
+            sTxt.x = sx + 12;
+            sTxt.y = sy;
+            sTxt.width = maxW - 14;
+            sTxt.height = 18;
+            sTxt.selectable = false;
+            sTxt.mouseEnabled = false;
+            card.addChild(sTxt);
+        };
+
+        var halfW:Float = (rowW - 24) / 2;
+        var col1X:Float = 12;
+        var col2X:Float = 12 + halfW + 6;
+
+        var wCol = EnhancementColors.getColor(wName, wBase);
+        drawSlotEntry("Weapon", wName, wLvl, wCol, col1X, 36, halfW);
+
+        var cCol = EnhancementColors.getColor(cEnh);
+        drawSlotEntry("Class", cEnh, cLvl, cCol, col2X, 36, halfW);
+
+        var hCol = EnhancementColors.getColor(hName, hBase);
+        drawSlotEntry("Helm", hName, hLvl, hCol, col1X, 58, halfW);
+
+        var capeCol = EnhancementColors.getColor(capeName, capeBase);
+        drawSlotEntry("Cape", capeName, capeLvl, capeCol, col2X, 58, halfW);
+
+        card.cacheAsBitmap = true;
+        card.x = 0;
+        card.y = _totalContentHeight;
+        _contentContainer.addChild(card);
+
+        _totalContentHeight += cardH + 10;
+        updateScrollbar();
+    }
+
     private function renderEnhancementsTab():Void {
         var curClass = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "Equipped Class";
+
+        addEnhancementLoadoutCard();
 
         addSectionHeader("Auto-Enhance");
 

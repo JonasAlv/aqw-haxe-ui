@@ -405,42 +405,59 @@ class ApiMenus {
     }
 
     private static function setupFloatingMenuButton(pocket:Dynamic, overlay:Overlay):Void {
-        var btnW:Float = 70;
-        var btnH:Float = 32;
+        var btnW:Float = 74;
+        var btnH:Float = 30;
 
         var icon = new Sprite();
-        icon.graphics.beginFill(0x161616, 0.95);
-        icon.graphics.lineStyle(1, 0x333333);
-        icon.graphics.drawRoundRect(0, 0, btnW, btnH, 6, 6);
-        icon.graphics.endFill();
-
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 12, 0xEEEEEE, true);
+        var fmt = new TextFormat("_sans", 11, 0xEEEEEE, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.text = "Menu";
-        txt.width = btnW;
+        txt.x = 4;
         txt.y = 6;
+        txt.width = btnW - 4;
+        txt.height = 20;
         txt.selectable = false;
         txt.mouseEnabled = false;
         icon.addChild(txt);
 
-        icon.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+        var renderBtn = function(isHover:Bool):Void {
             icon.graphics.clear();
-            icon.graphics.beginFill(0x252525, 0.98);
-            icon.graphics.lineStyle(1, 0x880000);
-            icon.graphics.drawRoundRect(0, 0, btnW, btnH, 6, 6);
+            var bg:Int = isHover ? 0x242424 : 0x161616;
+            var border:Int = isHover ? 0xC82333 : 0x2E2E2E;
+
+            // Plate fill
+            icon.graphics.beginFill(bg, 0.94);
+            icon.graphics.lineStyle(1, border);
+            icon.graphics.drawRoundRect(0, 0, btnW, btnH, 5, 5);
             icon.graphics.endFill();
-            txt.textColor = 0xFFFFFF;
+
+            // Subtle top highlight line for crisp glass bevel look
+            icon.graphics.lineStyle(1, isHover ? 0x882222 : 0x383838, 0.55);
+            icon.graphics.moveTo(3, 1);
+            icon.graphics.lineTo(btnW - 3, 1);
+
+            // Sleek red accent bar on the left (matches AQW crimson aesthetic)
+            icon.graphics.lineStyle(0, 0, 0);
+            icon.graphics.beginFill(isHover ? 0xE53935 : 0xC82333, 1.0);
+            icon.graphics.drawRoundRect(2, 4, 3, btnH - 8, 2, 2);
+            icon.graphics.endFill();
+
+            txt.textColor = isHover ? 0xFFFFFF : 0xEEEEEE;
+        };
+
+        renderBtn(false);
+
+        icon.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+            renderBtn(true);
         });
         icon.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            icon.graphics.clear();
-            icon.graphics.beginFill(0x161616, 0.95);
-            icon.graphics.lineStyle(1, 0x333333);
-            icon.graphics.drawRoundRect(0, 0, btnW, btnH, 6, 6);
-            icon.graphics.endFill();
-            txt.textColor = 0xEEEEEE;
+            renderBtn(false);
         });
+
+        // Fast bitmap caching for Flash AIR rendering performance
+        icon.cacheAsBitmap = true;
 
         _floatingMenuBtn = icon;
         var savedMenuX = HelperSetting.getInt("api_floating_menu_x", -1);
@@ -468,6 +485,7 @@ class ApiMenus {
         icon.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
             isDragging = true;
             hasDragged = false;
+            icon.cacheAsBitmap = false;
             dragStartX = e.stageX - icon.x;
             dragStartY = e.stageY - icon.y;
         });
@@ -476,8 +494,8 @@ class ApiMenus {
             theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
                 if (isDragging) {
                     hasDragged = true;
-                    var nx:Float = e.stageX - dragStartX;
-                    var ny:Float = e.stageY - dragStartY;
+                    var nx:Float = Math.round(e.stageX - dragStartX);
+                    var ny:Float = Math.round(e.stageY - dragStartY);
                     var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
                     var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 500;
                     if (nx < 0) nx = 0;
@@ -489,9 +507,12 @@ class ApiMenus {
                 }
             });
             theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
-                if (isDragging && hasDragged) {
-                    HelperSetting.setInt("api_floating_menu_x", Math.round(icon.x));
-                    HelperSetting.setInt("api_floating_menu_y", Math.round(icon.y));
+                if (isDragging) {
+                    icon.cacheAsBitmap = true;
+                    if (hasDragged) {
+                        HelperSetting.setInt("api_floating_menu_x", Math.round(icon.x));
+                        HelperSetting.setInt("api_floating_menu_y", Math.round(icon.y));
+                    }
                 }
                 isDragging = false;
             });

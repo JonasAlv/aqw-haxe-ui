@@ -23,11 +23,20 @@ class Dropdown extends Sprite {
     private var _scrollbarThumb:Shape;
     private var _btn:Sprite;
     private var _btnText:TextField;
+    private var _btnDot:Shape;
     private var _arrowIcon:Sprite;
     private var _isOpen:Bool = false;
     private var _onSelect:String->Void;
     private var _width:Float;
     private var _height:Float;
+
+    public var itemColorCallback(default, set):String->Null<Int> = null;
+    public function set_itemColorCallback(cb:String->Null<Int>):String->Null<Int> {
+        itemColorCallback = cb;
+        populateList(_width, _height);
+        updateBtnDisplay();
+        return cb;
+    }
 
     // Drag / Touch Scrolling state
     private var _isDragging:Bool = false;
@@ -51,6 +60,9 @@ class Dropdown extends Sprite {
         _btn.mouseChildren = false;
         addChild(_btn);
 
+        _btnDot = new Shape();
+        _btn.addChild(_btnDot);
+
         _btnText = new TextField();
         _btnText.defaultTextFormat = new TextFormat("_sans", 12, 0xFFFFFF);
         _btnText.width = width - 25;
@@ -73,6 +85,8 @@ class Dropdown extends Sprite {
         _arrowIcon.y = (height - 5) / 2;
         drawArrow(false);
         _btn.addChild(_arrowIcon);
+
+        updateBtnDisplay();
 
         _listContainer = new Sprite();
         _listContainer.visible = false;
@@ -167,11 +181,10 @@ class Dropdown extends Sprite {
 
         if (_options.length > 0 && _options[0] != null) {
             _selectedIndex = 0;
-            _btnText.text = _options[0];
         } else {
             _selectedIndex = -1;
-            _btnText.text = "";
         }
+        updateBtnDisplay();
         return _options;
     }
 
@@ -188,11 +201,10 @@ class Dropdown extends Sprite {
         var idx:Int = _options.indexOf(val);
         if (idx != -1) {
             _selectedIndex = idx;
-            _btnText.text = val;
         } else if (_options.length > 0 && _options[0] != null) {
             _selectedIndex = 0;
-            _btnText.text = _options[0];
         }
+        updateBtnDisplay();
         return val;
     }
 
@@ -205,6 +217,31 @@ class Dropdown extends Sprite {
     public function get_selectedItem():String { return getSelectedItem(); }
     public function set_selectedItem(val:String):String { return setSelectedItem(val); }
 
+    public function updateBtnDisplay():Void {
+        var selText = (_selectedIndex >= 0 && _selectedIndex < _options.length) ? _options[_selectedIndex] : "";
+        if (_btnText != null) _btnText.text = selText;
+        if (_btnDot != null) {
+            _btnDot.graphics.clear();
+            var col:Null<Int> = (itemColorCallback != null) ? itemColorCallback(selText) : null;
+            if (col != null) {
+                _btnDot.graphics.beginFill(col, 1);
+                _btnDot.graphics.drawCircle(11, Math.round(_height / 2), 3.5);
+                _btnDot.graphics.endFill();
+                _btnDot.visible = true;
+                if (_btnText != null) {
+                    _btnText.x = 20;
+                    _btnText.width = _width - 38;
+                }
+            } else {
+                _btnDot.visible = false;
+                if (_btnText != null) {
+                    _btnText.x = 6;
+                    _btnText.width = _width - 25;
+                }
+            }
+        }
+    }
+
     private function populateList(w:Float, h:Float):Void {
         while (_listContent.numChildren > 0) _listContent.removeChildAt(0);
         for (i in 0..._options.length) {
@@ -216,13 +253,22 @@ class Dropdown extends Sprite {
             optBtn.buttonMode = true;
             optBtn.mouseChildren = false;
 
+            var col:Null<Int> = (itemColorCallback != null) ? itemColorCallback(_options[i]) : null;
+            if (col != null) {
+                var dot = new Shape();
+                dot.graphics.beginFill(col, 1);
+                dot.graphics.drawCircle(11, Math.round(h / 2), 3.5);
+                dot.graphics.endFill();
+                optBtn.addChild(dot);
+            }
+
             var optTxt = new TextField();
             var fmt = new TextFormat("_sans", 12, 0xDDDDDD);
             optTxt.defaultTextFormat = fmt;
             optTxt.text = (_options[i] != null) ? _options[i] : "";
-            optTxt.width = w - 16;
             optTxt.height = 20;
-            optTxt.x = 6;
+            optTxt.x = (col != null) ? 20 : 6;
+            optTxt.width = (col != null) ? (w - 30) : (w - 16);
             optTxt.y = (h - 20) / 2;
             optTxt.selectable = false;
             optTxt.mouseEnabled = false;
@@ -234,7 +280,10 @@ class Dropdown extends Sprite {
                 tg.graphics.beginFill(0x3a3a3a, 1);
                 tg.graphics.drawRect(0, 0, w, h);
                 tg.graphics.endFill();
-                (cast(tg.getChildAt(0), TextField)).textColor = 0xFFFFFF;
+                for (ci in 0...tg.numChildren) {
+                    var ch = tg.getChildAt(ci);
+                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = 0xFFFFFF;
+                }
             });
             optBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
                 var tg:Sprite = cast e.currentTarget;
@@ -243,7 +292,10 @@ class Dropdown extends Sprite {
                 tg.graphics.beginFill(idx % 2 == 0 ? 0x1e1e1e : 0x262626, 1);
                 tg.graphics.drawRect(0, 0, w, h);
                 tg.graphics.endFill();
-                (cast(tg.getChildAt(0), TextField)).textColor = 0xDDDDDD;
+                for (ci in 0...tg.numChildren) {
+                    var ch = tg.getChildAt(ci);
+                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = 0xDDDDDD;
+                }
             });
 
             var lastOptClick:Float = 0;
@@ -256,7 +308,7 @@ class Dropdown extends Sprite {
                 var clickIndex:Int = _listContent.getChildIndex(clickedTarget);
                 if (clickIndex >= 0 && clickIndex < _options.length) {
                     _selectedIndex = clickIndex;
-                    _btnText.text = _options[clickIndex];
+                    updateBtnDisplay();
                     close();
                     if (_onSelect != null) {
                         try {
