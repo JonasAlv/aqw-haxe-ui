@@ -130,9 +130,10 @@ class ApiPromptModal {
         txt.mouseEnabled = false;
         btn.addChild(txt);
 
-        var dynamicTextColor:Null<Int> = null;
+        var prevTextColor:Int = textColor;
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+            prevTextColor = txt.textColor;
             btn.graphics.clear();
             btn.graphics.beginFill(hoverBg, 1);
             btn.graphics.lineStyle(1, hoverBorder);
@@ -147,13 +148,8 @@ class ApiPromptModal {
             btn.graphics.lineStyle(1, border);
             btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
             btn.graphics.endFill();
-            txt.textColor = dynamicTextColor != null ? dynamicTextColor : textColor;
+            txt.textColor = prevTextColor;
         });
-
-        untyped btn.setCustomTextColor = function(c:Int):Void {
-            dynamicTextColor = c;
-            txt.textColor = c;
-        };
 
         var lastTriggerTime:Float = 0;
         var handleAction = function():Void {

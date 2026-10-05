@@ -885,10 +885,8 @@ class ApiPrompts {
                 var txt = (btnResetTarget.numChildren > 0 && Std.isOfType(btnResetTarget.getChildAt(0), flash.text.TextField))
                     ? cast(btnResetTarget.getChildAt(0), flash.text.TextField)
                     : null;
-                if (txt != null) txt.text = targetText;
-                if (untyped btnResetTarget.setCustomTextColor != null) {
-                    untyped btnResetTarget.setCustomTextColor(targetColor);
-                } else if (txt != null) {
+                if (txt != null) {
+                    txt.text = targetText;
                     txt.textColor = targetColor;
                 }
             };
@@ -924,10 +922,8 @@ class ApiPrompts {
                 var txt = (btnAutoAttack.numChildren > 0 && Std.isOfType(btnAutoAttack.getChildAt(0), flash.text.TextField))
                     ? cast(btnAutoAttack.getChildAt(0), flash.text.TextField)
                     : null;
-                if (txt != null) txt.text = targetText;
-                if (untyped btnAutoAttack.setCustomTextColor != null) {
-                    untyped btnAutoAttack.setCustomTextColor(targetColor);
-                } else if (txt != null) {
+                if (txt != null) {
+                    txt.text = targetText;
                     txt.textColor = targetColor;
                 }
             };
