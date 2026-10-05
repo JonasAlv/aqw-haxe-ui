@@ -16,7 +16,6 @@ import flash.text.TextFieldAutoSize;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import flash.ui.Keyboard;
-import ui.ApiNotificationManager;
 import ui.Overlay;
 import ui.prompts.ApiPrompts;
 import util.HelperSetting;

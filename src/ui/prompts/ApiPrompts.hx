@@ -11,7 +11,6 @@ import flash.events.Event;
 import flash.events.MouseEvent;
 import flash.text.TextField;
 import flash.text.TextFieldType;
-import ui.ApiNotificationManager;
 import ui.Dropdown;
 import util.HelperSetting;
 

@@ -12,7 +12,6 @@ import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import ui.ApiDashboardModal;
-import ui.ApiNotificationManager;
 import ui.Overlay;
 import util.HelperSetting;
 

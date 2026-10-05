@@ -9,7 +9,9 @@ import flash.display.Sprite;
 
 class ApiNotificationManager {
     /** Ceiling on simultaneously visible cards. */
-    private static inline var MAX_VISIBLE:Int = 6;
+    // Cap and repeat folding are policy and live in the API (com.aqwapi.feedback.ApiFeedback);
+    // this class is rendering only.
+    private static inline function maxVisible():Int { return com.aqwapi.feedback.ApiFeedback.MAX_VISIBLE; }
     /** Same ceiling for messages buffered before `init()` runs. */
     private static inline var MAX_PENDING:Int = 8;
     /** Gap between the card stack and the right/top stage edges. */
@@ -27,9 +29,9 @@ class ApiNotificationManager {
     public static function notify(message:String):Void {
         if (message == null || message == "") return;
         if (instance._initialized) {
-            instance.showNotification(null, message, false);
+            instance.showNotification(null, message, false, 1);
         } else {
-            instance._pendingMessages.push({ id: null, message: message, sticky: false });
+            instance._pendingMessages.push({ id: null, message: message, sticky: false, repeat: 1 });
         }
     }
 
@@ -38,7 +40,7 @@ class ApiNotificationManager {
     private var _notifications:Array<ApiNotification> = [];
     #end
     private var _initialized:Bool = false;
-    private var _pendingMessages:Array<{ id:String, message:String, sticky:Bool }> = [];
+    private var _pendingMessages:Array<{ id:String, message:String, sticky:Bool, repeat:Int }> = [];
 
     public function new() {
         Api.dispatcher.addEventListener(ApiEvent.NOTIFICATION, onApiNotification);
@@ -55,7 +57,7 @@ class ApiNotificationManager {
         _initialized = true;
         _container = container;
         for (item in _pendingMessages) {
-            showNotification(item.id, item.message, item.sticky);
+            showNotification(item.id, item.message, item.sticky, item.repeat);
         }
         _pendingMessages = [];
     }
@@ -67,10 +69,12 @@ class ApiNotificationManager {
 
     private function onApiNotification(e:ApiEvent):Void {
         if (e == null || e.message == null || e.message == "") return;
+        // Identity and repeat count are decided by ApiFeedback in the API; this only draws the number.
+        var repeat:Int = (e.data != null && Reflect.hasField(e.data, "repeat")) ? Std.int(Reflect.field(e.data, "repeat")) : 1;
         if (_initialized) {
-            showNotification(null, e.message, false);
+            showNotification(null, e.message, false, repeat);
         } else {
-            enqueue({ id: null, message: e.message, sticky: false });
+            enqueue({ id: null, message: e.message, sticky: false, repeat: repeat });
         }
     }
 
@@ -79,12 +83,12 @@ class ApiNotificationManager {
         if (_initialized) {
             createSticky(id, e.message);
         } else {
-            enqueue({ id: id, message: e.message, sticky: true });
+            enqueue({ id: id, message: e.message, sticky: true, repeat: 1 });
         }
     }
 
     /** Buffers a pre-init message, keeping only the newest few so a burst cannot replay on init. */
-    private function enqueue(item:{ id:String, message:String, sticky:Bool }):Void {
+    private function enqueue(item:{ id:String, message:String, sticky:Bool, repeat:Int }):Void {
         _pendingMessages.push(item);
         while (_pendingMessages.length > MAX_PENDING) {
             var drop:Int = 0;
@@ -133,7 +137,7 @@ class ApiNotificationManager {
         #end
     }
 
-    private function showNotification(id:String, message:String, sticky:Bool):Void {
+    private function showNotification(id:String, message:String, sticky:Bool, repeat:Int = 1):Void {
         #if flash
         if (_container == null) return;
         if (!sticky) {
@@ -150,6 +154,8 @@ class ApiNotificationManager {
             }
         }
         var notif = new ApiNotification(id, message, sticky);
+        // The API owns fold policy, so adopt its count rather than only counting locally.
+        if (repeat > 1) notif.setRepeatCount(repeat);
         notif.setOnDismiss(onDismiss);
         _notifications.push(notif);
         _container.addChild(notif);
@@ -166,7 +172,7 @@ class ApiNotificationManager {
      * dropped when nothing else is left to make room.
      */
     private function enforceLimit():Void {
-        while (_notifications.length > MAX_VISIBLE) {
+        while (_notifications.length > maxVisible()) {
             var victim:ApiNotification = null;
             for (n in _notifications) {
                 if (!n.sticky) { victim = n; break; }

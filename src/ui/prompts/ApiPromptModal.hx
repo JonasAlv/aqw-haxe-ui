@@ -147,7 +147,7 @@ class ApiPromptModal {
                 try {
                     onClick();
                 } catch (e:Dynamic) {
-                    ui.ApiNotificationManager.notify("Action error: " + e);
+                    ApiNotificationManager.notify("Action error: " + e);
                 }
             }
         };

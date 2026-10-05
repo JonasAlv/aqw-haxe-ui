@@ -174,6 +174,21 @@ class ApiNotification extends Sprite {
         }
     }
 
+    /**
+     * Adopts the repeat count decided upstream instead of only counting locally.
+     *
+     * `ApiFeedback` in the API owns the fold policy (identity window and total), so the count it
+     * sends is authoritative. Local counting alone drifts whenever a card is created after the
+     * message was first requested, which is exactly what the pre-init queue causes.
+     */
+    public function setRepeatCount(count:Int):Void {
+        if (count < 1) count = 1;
+        if (count == _repeatCount) return;
+        _repeatCount = count;
+        this.renderMessage();
+        this.layout();
+    }
+
     /** Repaints the close icon; hover feedback shares the geometry set by layout(). */
     private function drawCloseIcon(color:Int):Void {
         if (_closeBtn == null) return;
