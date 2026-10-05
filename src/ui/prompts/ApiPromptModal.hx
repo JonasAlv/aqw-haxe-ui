@@ -93,14 +93,24 @@ class ApiPromptModal {
         w:Float,
         h:Float,
         onClick:Void->Void,
-        isPrimary:Bool = false
+        isPrimary:Bool = false,
+        customBg:Null<Int> = null,
+        customBorder:Null<Int> = null,
+        fontSize:Int = 12
     ):Sprite {
+        var lightenColor = function(c:Int, amount:Int = 0x18):Int {
+            var r = Math.min(255, ((c >> 16) & 0xFF) + amount);
+            var g = Math.min(255, ((c >> 8) & 0xFF) + amount);
+            var b = Math.min(255, (c & 0xFF) + amount);
+            return (Std.int(r) << 16) | (Std.int(g) << 8) | Std.int(b);
+        };
+
         var btn = new Sprite();
-        var bg = isPrimary ? 0x990000 : 0x1E1E1E;
-        var border = isPrimary ? 0xCC0000 : 0x3A3A3A;
-        var hoverBg = isPrimary ? 0xBB0000 : 0x333333;
-        var hoverBorder = isPrimary ? 0xFF0000 : 0x555555;
-        var textColor = isPrimary ? 0xFFFFFF : 0xCCCCCC;
+        var bg = customBg != null ? customBg : (isPrimary ? 0x990000 : 0x1E1E1E);
+        var border = customBorder != null ? customBorder : (isPrimary ? 0xCC0000 : 0x3A3A3A);
+        var hoverBg = customBg != null ? lightenColor(customBg, 0x18) : (isPrimary ? 0xBB0000 : 0x333333);
+        var hoverBorder = customBorder != null ? lightenColor(customBorder, 0x22) : (isPrimary ? 0xFF0000 : 0x555555);
+        var textColor = (customBg != null || isPrimary) ? 0xFFFFFF : 0xCCCCCC;
 
         btn.graphics.beginFill(bg, 1);
         btn.graphics.lineStyle(1, border);
@@ -110,15 +120,17 @@ class ApiPromptModal {
         btn.mouseChildren = false;
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 12, textColor, true);
+        var fmt = new TextFormat("_sans", fontSize, textColor, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.text = label;
         txt.width = w;
-        txt.y = (h - 20) / 2;
+        txt.y = (h - (fontSize + 8)) / 2;
         txt.selectable = false;
         txt.mouseEnabled = false;
         btn.addChild(txt);
+
+        var dynamicTextColor:Null<Int> = null;
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             btn.graphics.clear();
@@ -135,8 +147,13 @@ class ApiPromptModal {
             btn.graphics.lineStyle(1, border);
             btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
             btn.graphics.endFill();
-            txt.textColor = textColor;
+            txt.textColor = dynamicTextColor != null ? dynamicTextColor : textColor;
         });
+
+        untyped btn.setCustomTextColor = function(c:Int):Void {
+            dynamicTextColor = c;
+            txt.textColor = c;
+        };
 
         var lastTriggerTime:Float = 0;
         var handleAction = function():Void {
