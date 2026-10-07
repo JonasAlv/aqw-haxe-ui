@@ -999,10 +999,15 @@ class ApiDashboardModal extends Sprite {
 
         var isOptimal:Bool = false;
         if (rec != null && slots != null) {
-            var wMatches = (rec.weapon == "None" || rec.weapon == wSpec) && (wLvl >= playerLvl);
-            var cMatches = (rec.type == cEnh) && (cLvl >= playerLvl);
-            var hMatches = (rec.helm == "None" || rec.helm == hSpec) && (hLvl >= playerLvl);
-            var capeMatches = (rec.cape == "None" || rec.cape == capeSpec) && (capeLvl >= playerLvl);
+            var wMaxLvl = (Api.enhancement != null) ? Api.enhancement.getMaxAvailableLevel("Weapon", rec.type, rec.weapon) : playerLvl;
+            var cMaxLvl = (Api.enhancement != null) ? Api.enhancement.getMaxAvailableLevel("ar", rec.type, "None") : playerLvl;
+            var hMaxLvl = (Api.enhancement != null) ? Api.enhancement.getMaxAvailableLevel("he", rec.type, rec.helm) : playerLvl;
+            var capeMaxLvl = (Api.enhancement != null) ? Api.enhancement.getMaxAvailableLevel("ba", rec.type, rec.cape) : playerLvl;
+
+            var wMatches = (rec.weapon == "None" || rec.weapon == wSpec) && (wLvl >= wMaxLvl);
+            var cMatches = (rec.type == cEnh) && (cLvl >= cMaxLvl);
+            var hMatches = (rec.helm == "None" || rec.helm == hSpec) && (hLvl >= hMaxLvl);
+            var capeMatches = (rec.cape == "None" || rec.cape == capeSpec) && (capeLvl >= capeMaxLvl);
             isOptimal = (wMatches && cMatches && hMatches && capeMatches);
         }
 
