@@ -274,9 +274,16 @@ class ApiCombatWidget {
 
     public static function refreshClassOptions():Void {
         if (_ddClass == null) return;
-        var classes = ApiPrompts.getAvailableClasses();
+        var classes = ApiPrompts.getAvailableClasses(false);
         if (classes == null || classes.length == 0) classes = ["Current"];
         _ddClass.setOptions(classes, true);
+        if (_selectedClass != "" && classes.indexOf(_selectedClass) != -1) {
+            _ddClass.setSelectedItem(_selectedClass);
+        } else if (_selectedClass != "" && _selectedClass != "Current" && classes.indexOf(_selectedClass) == -1) {
+            _selectedClass = "Current";
+            _ddClass.setSelectedItem("Current");
+            HelperSetting.setString("api_smart_class", "Current");
+        }
     }
 
     public static function refreshModeOptions():Void {
@@ -291,13 +298,18 @@ class ApiCombatWidget {
     }
 
     private static function setupDropdownsAndInputs():Void {
-        // Dropdown options
-        var availableClasses = ApiPrompts.getAvailableClasses();
+        // Dropdown options (only show inventory classes and Current)
+        var availableClasses = ApiPrompts.getAvailableClasses(false);
         if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
         _selectedClass = HelperSetting.getString("api_smart_class", "Current");
-        if (_selectedClass == "" || availableClasses.indexOf(_selectedClass) == -1) {
-            _selectedClass = "Current";
+        if (_selectedClass == "") _selectedClass = "Current";
+        if (_selectedClass != "Current" && availableClasses.indexOf(_selectedClass) == -1) {
+            if (availableClasses.length > 1) {
+                _selectedClass = "Current";
+            } else {
+                availableClasses.push(_selectedClass);
+            }
         }
 
         var availableModes = getModesForClass(_selectedClass);
@@ -319,6 +331,13 @@ class ApiCombatWidget {
             }
             if (Api.combat != null && Api.combat.isRunning()) {
                 Api.combat.startSmartStandalone(_selectedClass, _selectedMode);
+            } else if (sel != "Current" && Api.inventory != null) {
+                try {
+                    var curClass = CombatEngine.getCurrentClassName();
+                    if (curClass == "" || curClass.toLowerCase() != sel.toLowerCase()) {
+                        Api.inventory.equip(sel);
+                    }
+                } catch (_:Dynamic) {}
             }
             ApiNotificationManager.notify("Combat Class: " + sel);
         });

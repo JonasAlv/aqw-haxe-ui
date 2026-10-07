@@ -1680,7 +1680,7 @@ class ApiPrompts {
 
     public static var lastInventoryClassKeys:Map<String, Bool> = new Map<String, Bool>();
 
-    public static function getAvailableClasses():Array<String> {
+    public static function getAvailableClasses(includeAllKnown:Bool = true):Array<String> {
         var classMap:Map<String, String> = new Map<String, String>();
         var invClasses:Array<String> = [];
         var otherClasses:Array<String> = [];
@@ -1712,34 +1712,48 @@ class ApiPrompts {
         } catch (e:Dynamic) {}
 
         // 2. Inventory classes
-        if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.items != null) {
+        try {
+            var rawItems:Array<Dynamic> = null;
+            if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.items != null) {
+                if (Std.isOfType(Api.game.world.myAvatar.items, Array)) {
+                    rawItems = cast Api.game.world.myAvatar.items;
+                }
+            }
+            if (rawItems == null && Api.inventory != null) {
+                var dtoList = Api.inventory.getItems();
+                if (dtoList != null && dtoList.length > 0) {
+                    rawItems = [];
+                    for (d in dtoList) {
+                        if (d != null && d.raw != null) rawItems.push(d.raw);
+                    }
+                }
+            }
+            if (rawItems != null) {
+                for (item in rawItems) {
+                    if (item == null || item.sName == null) continue;
+                    var isClass:Bool = false;
+                    var sTypeStr:String = (item.sType != null) ? Std.string(item.sType).toLowerCase() : "";
+                    if (sTypeStr == "class" || item.bClass == 1 || item.bClass == true || item.bClass == "1") {
+                        isClass = true;
+                    } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
+                        if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
+                    }
+                    if (isClass) addClass(item.sName, true);
+                }
+            }
+        } catch (e:Dynamic) {}
+
+        // 3. All known built-in classes from CombatEngine (only when requested)
+        if (includeAllKnown) {
             try {
-                var items:Dynamic = Api.game.world.myAvatar.items;
-                if (Std.isOfType(items, Array)) {
-                    for (item in (cast items : Array<Dynamic>)) {
-                        if (item == null || item.sName == null) continue;
-                        var isClass:Bool = false;
-                        var sTypeStr:String = (item.sType != null) ? Std.string(item.sType).toLowerCase() : "";
-                        if (sTypeStr == "class" || item.bClass == 1 || item.bClass == true || item.bClass == "1") {
-                            isClass = true;
-                        } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
-                            if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
-                        }
-                        if (isClass) addClass(item.sName, true);
+                var known = CombatEngine.getKnownClasses();
+                if (known != null) {
+                    for (kc in known) {
+                        addClass(kc, false);
                     }
                 }
             } catch (e:Dynamic) {}
         }
-
-        // 3. All known built-in classes from CombatEngine
-        try {
-            var known = CombatEngine.getKnownClasses();
-            if (known != null) {
-                for (kc in known) {
-                    addClass(kc, false);
-                }
-            }
-        } catch (e:Dynamic) {}
 
         try {
             invClasses.sort(function(a, b) {
@@ -1749,21 +1763,25 @@ class ApiPrompts {
                 if (la > lb) return 1;
                 return 0;
             });
-            otherClasses.sort(function(a, b) {
-                var la:String = a.toLowerCase();
-                var lb:String = b.toLowerCase();
-                if (la < lb) return -1;
-                if (la > lb) return 1;
-                return 0;
-            });
+            if (includeAllKnown) {
+                otherClasses.sort(function(a, b) {
+                    var la:String = a.toLowerCase();
+                    var lb:String = b.toLowerCase();
+                    if (la < lb) return -1;
+                    if (la > lb) return 1;
+                    return 0;
+                });
+            }
         } catch (e:Dynamic) {}
 
         var result:Array<String> = ["Current"];
         for (c in invClasses) {
             result.push(c);
         }
-        for (c in otherClasses) {
-            result.push(c);
+        if (includeAllKnown) {
+            for (c in otherClasses) {
+                result.push(c);
+            }
         }
         return result;
     }
