@@ -1678,7 +1678,7 @@ class ApiPrompts {
         dlg.addChild(ddClass);
     }
 
-    private static function getAvailableClasses():Array<String> {
+    public static function getAvailableClasses():Array<String> {
         var classMap:Map<String, String> = new Map<String, String>();
         var invClasses:Array<String> = [];
 

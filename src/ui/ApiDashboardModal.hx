@@ -1202,6 +1202,24 @@ class ApiDashboardModal extends Sprite {
 
         addSectionHeader("Combat & Scripts");
 
+        // 0. HUD: Combat & Hunt Widget
+        addItemRow(
+            "HUD: Combat & Hunt Widget",
+            "Compact on-screen widget featuring Atk / Hunt buttons, on-the-fly Class and Mode dropdowns, and target hunting input.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiCombatWidget.isWidgetEnabled();
+                var next = !cur;
+                ApiCombatWidget.setWidgetEnabled(next);
+                ApiNotificationManager.notify("Combat Widget: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return ApiCombatWidget.isWidgetEnabled();
+            }
+        );
+
         // 1. HUD: Smart Combat Button
         addItemRow(
             "HUD: Smart Combat Button",
