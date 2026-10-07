@@ -1,6 +1,7 @@
 package ui.prompts;
 
 #if flash
+import flash.display.Shape;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.KeyboardEvent;
@@ -22,9 +23,21 @@ class ApiPromptModal {
         _dialogHeight = h;
 
         var container = new Sprite();
-        container.graphics.beginFill(0x121212, 0.95);
-        container.graphics.lineStyle(1, 0x2A2A2A);
-        container.graphics.drawRoundRect(0, 0, w, h, 8, 8);
+        // Modern glass plate
+        container.graphics.beginFill(0x161616, 0.96);
+        container.graphics.lineStyle(1, 0x2E2E2E);
+        container.graphics.drawRoundRect(0, 0, w, h, 6, 6);
+        container.graphics.endFill();
+
+        // Top glass bevel highlight
+        container.graphics.lineStyle(1, 0x383838, 0.55);
+        container.graphics.moveTo(3, 1);
+        container.graphics.lineTo(w - 3, 1);
+
+        // Crimson accent pill on top left
+        container.graphics.lineStyle(0, 0, 0);
+        container.graphics.beginFill(0xC82333, 1.0);
+        container.graphics.drawRoundRect(14, 12, 3.5, 16, 1, 1);
         container.graphics.endFill();
 
         container.x = (960 - w) / 2;
@@ -33,39 +46,48 @@ class ApiPromptModal {
         if (container.y < 0) container.y = 0;
 
         var title = new TextField();
-        var fmt = new TextFormat("_sans", 16, 0xE0E0E0, true);
-        fmt.align = TextFormatAlign.CENTER;
+        var fmt = new TextFormat("_sans", 13, 0xEEEEEE, true);
+        fmt.align = TextFormatAlign.LEFT;
         title.defaultTextFormat = fmt;
         title.text = titleText;
-        title.width = w;
+        title.x = 24;
         title.y = 10;
+        title.width = w - 60;
+        title.height = 22;
         title.selectable = false;
         title.mouseEnabled = false;
         container.addChild(title);
 
+        // Divider below header
+        var div = new Shape();
+        div.graphics.lineStyle(1, 0x262626, 0.9);
+        div.graphics.moveTo(12, 34);
+        div.graphics.lineTo(w - 12, 34);
+        container.addChild(div);
+
         // Vector Close Button (✕) in top-right corner
         var closeBtn = new Sprite();
-        var cbW:Float = 26;
-        var cbH:Float = 22;
+        var cbW:Float = 22;
+        var cbH:Float = 20;
         closeBtn.buttonMode = true;
-        closeBtn.x = w - cbW - 8;
+        closeBtn.x = w - cbW - 10;
         closeBtn.y = 8;
 
         var renderCloseBtn = function(isHover:Bool):Void {
             closeBtn.graphics.clear();
-            var bg = isHover ? 0x990000 : 0x1E1E1E;
-            var border = isHover ? 0xCC0000 : 0x333333;
-            var xColor = isHover ? 0xFFFFFF : 0xAAAAAA;
+            var bg = isHover ? 0x2A2A2A : 0x1A1A1A;
+            var border = isHover ? 0xC82333 : 0x282828;
+            var xColor = isHover ? 0xFF5555 : 0x999999;
 
-            closeBtn.graphics.beginFill(bg, 1);
+            closeBtn.graphics.beginFill(bg, 0.9);
             closeBtn.graphics.lineStyle(1, border);
             closeBtn.graphics.drawRoundRect(0, 0, cbW, cbH, 4, 4);
             closeBtn.graphics.endFill();
 
             var cx:Float = cbW / 2;
             var cy:Float = cbH / 2;
-            var size:Float = 3.5;
-            closeBtn.graphics.lineStyle(2, xColor, 1);
+            var size:Float = 3.2;
+            closeBtn.graphics.lineStyle(1.8, xColor, 1);
             closeBtn.graphics.moveTo(cx - size, cy - size);
             closeBtn.graphics.lineTo(cx + size, cy + size);
             closeBtn.graphics.moveTo(cx + size, cy - size);
@@ -73,15 +95,9 @@ class ApiPromptModal {
         };
         renderCloseBtn(false);
 
-        closeBtn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            renderCloseBtn(true);
-        });
-        closeBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            renderCloseBtn(false);
-        });
-        closeBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            close();
-        });
+        closeBtn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void renderCloseBtn(true));
+        closeBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void renderCloseBtn(false));
+        closeBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void close());
         container.addChild(closeBtn);
 
         _currentContainer = container;
@@ -96,26 +112,28 @@ class ApiPromptModal {
         isPrimary:Bool = false,
         customBg:Null<Int> = null,
         customBorder:Null<Int> = null,
-        fontSize:Int = 12
+        fontSize:Int = 11
     ):Sprite {
-        var lightenColor = function(c:Int, amount:Int = 0x18):Int {
-            var r = Math.min(255, ((c >> 16) & 0xFF) + amount);
-            var g = Math.min(255, ((c >> 8) & 0xFF) + amount);
-            var b = Math.min(255, (c & 0xFF) + amount);
-            return (Std.int(r) << 16) | (Std.int(g) << 8) | Std.int(b);
-        };
-
         var btn = new Sprite();
-        var bg = customBg != null ? customBg : (isPrimary ? 0x990000 : 0x1E1E1E);
-        var border = customBorder != null ? customBorder : (isPrimary ? 0xCC0000 : 0x3A3A3A);
-        var hoverBg = customBg != null ? lightenColor(customBg, 0x18) : (isPrimary ? 0xBB0000 : 0x333333);
-        var hoverBorder = customBorder != null ? lightenColor(customBorder, 0x22) : (isPrimary ? 0xFF0000 : 0x555555);
-        var textColor = (customBg != null || isPrimary) ? 0xFFFFFF : 0xCCCCCC;
+        var baseBg = customBg != null ? customBg : (isPrimary ? 0x1F1414 : 0x161616);
+        var baseBorder = customBorder != null ? customBorder : (isPrimary ? 0xC82333 : 0x2E2E2E);
+        var textColor = (customBorder != null || isPrimary) ? 0xFF8888 : 0xCCCCCC;
 
-        btn.graphics.beginFill(bg, 1);
-        btn.graphics.lineStyle(1, border);
-        btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-        btn.graphics.endFill();
+        var redraw = function(hover:Bool):Void {
+            btn.graphics.clear();
+            var bg = hover ? 0x282828 : baseBg;
+            var border = hover ? (isPrimary ? 0xE53935 : 0x555555) : baseBorder;
+            btn.graphics.beginFill(bg, 0.95);
+            btn.graphics.lineStyle(1, border);
+            btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
+            btn.graphics.endFill();
+
+            btn.graphics.lineStyle(1, hover ? 0x555555 : 0x383838, 0.5);
+            btn.graphics.moveTo(2, 1);
+            btn.graphics.lineTo(w - 2, 1);
+        };
+        redraw(false);
+
         btn.buttonMode = true;
         btn.mouseChildren = false;
 
@@ -130,32 +148,34 @@ class ApiPromptModal {
         txt.mouseEnabled = false;
         btn.addChild(txt);
 
-        var prevTextColor:Int = textColor;
-
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            prevTextColor = txt.textColor;
-            btn.graphics.clear();
-            btn.graphics.beginFill(hoverBg, 1);
-            btn.graphics.lineStyle(1, hoverBorder);
-            btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-            btn.graphics.endFill();
+            redraw(true);
             txt.textColor = 0xFFFFFF;
         });
-
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            btn.graphics.clear();
-            btn.graphics.beginFill(bg, 1);
-            btn.graphics.lineStyle(1, border);
-            btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-            btn.graphics.endFill();
-            txt.textColor = prevTextColor;
+            redraw(false);
+            txt.textColor = textColor;
         });
+
+        var flashBtn = function():Void {
+            var prevAlpha = btn.alpha;
+            btn.alpha = 1.0;
+            var highlight = new Shape();
+            highlight.graphics.lineStyle(1.8, isPrimary ? 0xFF5555 : 0x00FF88);
+            highlight.graphics.drawRoundRect(0, 0, w, h, 4, 4);
+            btn.addChild(highlight);
+            haxe.Timer.delay(function():Void {
+                if (highlight.parent != null) highlight.parent.removeChild(highlight);
+                btn.alpha = prevAlpha;
+            }, 120);
+        };
 
         var lastTriggerTime:Float = 0;
         var handleAction = function():Void {
             var now = haxe.Timer.stamp();
             if (now - lastTriggerTime < 0.25) return;
             lastTriggerTime = now;
+            flashBtn();
             if (onClick != null) {
                 try {
                     onClick();
@@ -175,13 +195,7 @@ class ApiPromptModal {
             btn.addEventListener(touchTap, function(e:Dynamic):Void {
                 handleAction();
             });
-        } catch (_:Dynamic) {
-            try {
-                btn.addEventListener("touchTap", function(e:Dynamic):Void {
-                    handleAction();
-                });
-            } catch (_:Dynamic) {}
-        }
+        } catch (_:Dynamic) {}
 
         return btn;
     }
@@ -196,23 +210,26 @@ class ApiPromptModal {
         input.type = TextFieldType.INPUT;
         input.multiline = multiline;
         input.wordWrap = multiline;
-        input.defaultTextFormat = new TextFormat("_sans", multiline ? 12 : 14, 0xFFFFFF);
+        var fmt = new TextFormat("_sans", multiline ? 11 : 12, 0xEEEEEE);
+        input.defaultTextFormat = fmt;
         input.border = true;
-        input.borderColor = 0x555555;
+        input.borderColor = 0x2E2E2E;
         input.background = true;
-        input.backgroundColor = 0x222222;
+        input.backgroundColor = 0x181818;
         input.width = w;
         input.height = h;
         input.text = initialText != null ? initialText : "";
         return input;
     }
 
-    public static function createLabel(text:String, w:Float, size:Int = 14, isBold:Bool = false):TextField {
+    public static function createLabel(text:String, w:Float, size:Int = 11, isBold:Bool = false):TextField {
         var lbl = new TextField();
         lbl.defaultTextFormat = new TextFormat("_sans", size, 0xCCCCCC, isBold);
         lbl.text = text;
         lbl.width = w;
+        lbl.height = size + 8;
         lbl.selectable = false;
+        lbl.mouseEnabled = false;
         return lbl;
     }
 
@@ -283,4 +300,3 @@ class ApiPromptModal {
     public static function close():Void {}
 }
 #end
-

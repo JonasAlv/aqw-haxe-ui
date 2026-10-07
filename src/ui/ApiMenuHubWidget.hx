@@ -17,13 +17,15 @@ import util.HelperSetting;
 
 /**
  * ApiMenuHubWidget:
- * Unified Master Menu Hub Widget providing an on-screen collapsible accordion
- * for all major bot features (Scripts, Automation, Enhancements, Widgets & HUD),
- * with screen edge magnetic snapping, translucent collapsed state, and tactile feedback.
+ * Compact on-screen Mod Menu Hub.
+ * When collapsed: exact same size as the old menu button (78x26px).
+ * When clicked: smoothly expands downwards into a 230px wide category drawer
+ * providing full access to all bot features, automation, and game tweaks.
  */
 class ApiMenuHubWidget {
-    public static inline var WIDGET_W:Float = 230;
-    public static inline var HEIGHT_COLLAPSED:Float = 24;
+    public static inline var COLLAPSED_W:Float = 78;
+    public static inline var COLLAPSED_H:Float = 26;
+    public static inline var EXPANDED_W:Float = 230;
 
     private static var _pocket:Dynamic = null;
     private static var _overlay:Overlay = null;
@@ -32,14 +34,15 @@ class ApiMenuHubWidget {
     private static var _widget:Sprite = null;
     private static var _bg:Sprite = null;
     private static var _headerBar:Sprite = null;
+    private static var _redAccent:Shape = null;
     private static var _titleTxt:TextField = null;
     private static var _btnConfig:Sprite = null;
     private static var _btnCollapse:Sprite = null;
     private static var _bodyContainer:Sprite = null;
 
     private static var _isCollapsed:Bool = true;
-    private static var _activeCategory:String = "automation"; // "scripts", "automation", "enhancements", "widgets", or null
-    private static var _currentTotalHeight:Float = HEIGHT_COLLAPSED;
+    private static var _activeCategory:String = "automation"; // "scripts", "automation", "enhancements", "tweaks", "widgets", or null
+    private static var _currentTotalHeight:Float = COLLAPSED_H;
 
     // Track state for live updates
     private static var _liveStateButtons:Array<{ btn:Sprite, dot:Shape, lbl:TextField, getState:Void->Bool, activeText:String, inactiveText:String, w:Float, h:Float }> = [];
@@ -92,7 +95,7 @@ class ApiMenuHubWidget {
         var sw:Float = (_theStage != null && _theStage.stageWidth > 0) ? _theStage.stageWidth : 960;
         var sh:Float = (_theStage != null && _theStage.stageHeight > 0) ? _theStage.stageHeight : 550;
 
-        if (savedX > sw - WIDGET_W) savedX = Math.round(sw - WIDGET_W - 4);
+        if (savedX > sw - EXPANDED_W) savedX = Math.round(sw - EXPANDED_W - 4);
         if (savedY > sh - 100) savedY = Math.round(sh - 100);
         if (savedX < 0) savedX = 4;
         if (savedY < 0) savedY = 4;
@@ -108,35 +111,29 @@ class ApiMenuHubWidget {
         _headerBar = new Sprite();
         _headerBar.buttonMode = true;
         _headerBar.useHandCursor = true;
-        _headerBar.graphics.beginFill(0x000000, 0.0);
-        _headerBar.graphics.drawRect(0, 0, WIDGET_W, HEIGHT_COLLAPSED);
-        _headerBar.graphics.endFill();
         _widget.addChild(_headerBar);
 
         // Header Crimson Accent Bar (Left)
-        var redAccent = new Shape();
-        redAccent.graphics.beginFill(0xC82333, 1.0);
-        redAccent.graphics.drawRoundRect(6, 5, 3, 14, 1, 1);
-        redAccent.graphics.endFill();
-        _headerBar.addChild(redAccent);
+        _redAccent = new Shape();
+        _redAccent.graphics.beginFill(0xC82333, 1.0);
+        _redAccent.graphics.drawRoundRect(5, 5, 3, 16, 1, 1);
+        _redAccent.graphics.endFill();
+        _headerBar.addChild(_redAccent);
 
         // Header Title Text
         _titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 11, 0xBBBBBB, true);
+        var titleFmt = new TextFormat("_sans", 11, 0xEEEEEE, true);
         _titleTxt.defaultTextFormat = titleFmt;
-        _titleTxt.text = "Mod Hub";
-        _titleTxt.x = 13;
-        _titleTxt.y = 3;
-        _titleTxt.width = WIDGET_W - 58;
+        _titleTxt.x = 12;
+        _titleTxt.y = 4;
         _titleTxt.height = 18;
         _titleTxt.selectable = false;
         _titleTxt.mouseEnabled = false;
         _headerBar.addChild(_titleTxt);
 
-        // Config Gear Button (Opens Dashboard Modal)
+        // Config Gear Button (Opens Dashboard Modal) - only visible when expanded
         _btnConfig = new Sprite();
         _btnConfig.buttonMode = true;
-        _btnConfig.x = WIDGET_W - 48;
         _btnConfig.y = 3;
         renderConfigIcon(false);
         _headerBar.addChild(_btnConfig);
@@ -156,7 +153,6 @@ class ApiMenuHubWidget {
         _btnCollapse = new Sprite();
         _btnCollapse.mouseEnabled = false;
         _btnCollapse.mouseChildren = false;
-        _btnCollapse.x = WIDGET_W - 24;
         _btnCollapse.y = 3;
         renderCollapseIcon(_isCollapsed, false);
         _headerBar.addChild(_btnCollapse);
@@ -168,7 +164,7 @@ class ApiMenuHubWidget {
             _bg.alpha = 1.0;
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            _titleTxt.textColor = 0xBBBBBB;
+            _titleTxt.textColor = 0xEEEEEE;
             renderCollapseIcon(_isCollapsed, false);
             _bg.alpha = _isCollapsed ? 0.78 : 0.94;
         });
@@ -213,12 +209,32 @@ class ApiMenuHubWidget {
         while (_bodyContainer.numChildren > 0) _bodyContainer.removeChildAt(0);
         _liveStateButtons = [];
 
+        var curW:Float = _isCollapsed ? COLLAPSED_W : EXPANDED_W;
+
+        // Header sizing & visual state
+        _headerBar.graphics.clear();
+        _headerBar.graphics.beginFill(0x000000, 0.0);
+        _headerBar.graphics.drawRect(0, 0, curW, COLLAPSED_H);
+        _headerBar.graphics.endFill();
+
         if (_isCollapsed) {
+            _titleTxt.text = "Menu";
+            _titleTxt.width = 44;
+            _btnConfig.visible = false;
+            _btnCollapse.x = COLLAPSED_W - 20;
+
             _bodyContainer.visible = false;
-            _currentTotalHeight = HEIGHT_COLLAPSED;
+            _currentTotalHeight = COLLAPSED_H;
             updateBackgroundGraphics();
             return;
         }
+
+        // Expanded State
+        _titleTxt.text = "Mod Hub";
+        _titleTxt.width = EXPANDED_W - 58;
+        _btnConfig.visible = true;
+        _btnConfig.x = EXPANDED_W - 48;
+        _btnCollapse.x = EXPANDED_W - 24;
 
         _bodyContainer.visible = true;
         var currY:Float = 26; // Start right below header bar
@@ -265,10 +281,9 @@ class ApiMenuHubWidget {
             return y;
         });
 
-        // Category 2: Automation
-        currY = renderCategorySection("cat_automation", "Automation", 0x00E676, currY, function(bodyY:Float):Float {
+        // Category 2: Automation & Farm
+        currY = renderCategorySection("cat_automation", "Automation & Farm", 0x00E676, currY, function(bodyY:Float):Float {
             var y = bodyY;
-            // 3 Rows of 2 compact toggles each
             // Row 1: Cutscenes & Death Spawn
             var tCutscenes = createCompactToggle("Cutscenes", 104, 22, 8, y, function() return ApiConfig.getBool("api_skip_cutscenes", false), function() {
                 var next = !ApiConfig.getBool("api_skip_cutscenes", false);
@@ -309,33 +324,66 @@ class ApiMenuHubWidget {
             _bodyContainer.addChild(tAC);
             y += 25;
 
-            // Row 3: Auto Relogin & Infinite Range
+            // Row 3: Provoke All & Infinite Range
+            var tProvoke = createCompactToggle("Provoke All", 104, 22, 8, y, function() return (Api.combat != null && Api.combat.autoProvoke), function() {
+                var cur = (Api.combat != null && Api.combat.autoProvoke);
+                var next = !cur;
+                if (Api.combat != null) Api.combat.provokeAll(next);
+                ApiNotificationManager.notify("Provoke All: " + (next ? "Enabled" : "Disabled"));
+            });
+            var tRange = createCompactToggle("Inf Range", 104, 22, 118, y, function() return ApiConfig.getBool("api_infinite_range", false), function() {
+                var next = !ApiConfig.getBool("api_infinite_range", false);
+                ApiConfig.setBool("api_infinite_range", next);
+                if (Api.combat != null) {
+                    Api.combat.infiniteRange = next;
+                    if (next) Api.combat.applyInfiniteRange();
+                }
+                ApiNotificationManager.notify("Infinite Range: " + (next ? "Enabled" : "Disabled"));
+            });
+            _bodyContainer.addChild(tProvoke);
+            _bodyContainer.addChild(tRange);
+            y += 25;
+
+            // Row 4: Auto Relogin & Private Rooms
             var tRelogin = createCompactToggle("Auto Relogin", 104, 22, 8, y, function() return HelperSetting.getBool("api_auto_relogin", false), function() {
                 var next = !HelperSetting.getBool("api_auto_relogin", false);
                 HelperSetting.setBool("api_auto_relogin", next);
                 ApiNotificationManager.notify("Auto Relogin: " + (next ? "Enabled" : "Disabled"));
             });
-            var tRange = createCompactToggle("Inf Range", 104, 22, 118, y, function() return ApiConfig.getBool("api_infinite_range", false), function() {
-                var next = !ApiConfig.getBool("api_infinite_range", false);
-                ApiConfig.setBool("api_infinite_range", next);
-                ApiNotificationManager.notify("Infinite Range: " + (next ? "Enabled" : "Disabled"));
+            var tPrivate = createCompactToggle("Private Room", 104, 22, 118, y, function() return ApiConfig.getBool("api_private_rooms", true), function() {
+                var next = !ApiConfig.getBool("api_private_rooms", true);
+                ApiConfig.setBool("api_private_rooms", next);
+                if (Api.map != null) Api.map.usePrivateRoom = next;
+                ApiNotificationManager.notify("Private Rooms: " + (next ? "Enabled" : "Disabled"));
             });
             _bodyContainer.addChild(tRelogin);
-            _bodyContainer.addChild(tRange);
+            _bodyContainer.addChild(tPrivate);
             y += 26;
 
-            // Row 4: Auto-Quest Button
-            var btnQuest = createActionButton("Auto-Quest Helper", 214, 24, 8, y, function():Void {
+            // Row 5: Auto-Quest & Bank Toggle
+            var btnQuest = createActionButton("Auto-Quest Helper", 104, 24, 8, y, function():Void {
                 _overlay.gotoAndStop("Init");
                 ApiPrompts.showQuestPrompt(_overlay);
             });
+            var btnBank = createActionButton("Toggle Bank", 104, 24, 118, y, function():Void {
+                if (Api.inventory != null) Api.inventory.toggleBank();
+            });
             _bodyContainer.addChild(btnQuest);
+            _bodyContainer.addChild(btnBank);
+            y += 28;
+
+            // Row 6: Shop Loader
+            var btnShop = createActionButton("Open Shop by ID", 214, 24, 8, y, function():Void {
+                _overlay.gotoAndStop("Init");
+                ApiPrompts.showShopPrompt(_overlay);
+            });
+            _bodyContainer.addChild(btnShop);
             y += 28;
 
             return y;
         });
 
-        // Category 3: Enhancements
+        // Category 3: Enhancements & Loadouts
         currY = renderCategorySection("cat_enhancements", "Enhancements", 0xFFB300, currY, function(bodyY:Float):Float {
             var y = bodyY;
             var tSmart = createLiveToggleButton(
@@ -357,17 +405,58 @@ class ApiMenuHubWidget {
             _bodyContainer.addChild(tSmart);
             y += 28;
 
-            var btnCustom = createActionButton("Custom Enhancer", 214, 24, 8, y, function():Void {
+            var btnCustom = createActionButton("Custom Enhancer", 104, 24, 8, y, function():Void {
                 _overlay.gotoAndStop("Init");
                 ApiPrompts.showCustomEnhancePrompt(_overlay);
             });
+            var btnLoadouts = createActionButton("Class Loadouts", 104, 24, 118, y, function():Void {
+                _overlay.gotoAndStop("Init");
+                ApiPrompts.showLoadoutsPrompt(_overlay);
+            });
             _bodyContainer.addChild(btnCustom);
+            _bodyContainer.addChild(btnLoadouts);
             y += 28;
 
             return y;
         });
 
-        // Category 4: Widgets & HUD
+        // Category 4: Game & Lag Tweaks
+        currY = renderCategorySection("cat_tweaks", "Game & Lag Tweaks", 0x00BCD4, currY, function(bodyY:Float):Float {
+            var y = bodyY;
+            var tArena = createCompactToggle("Clean Arena", 104, 22, 8, y, function() return ApiConfig.getBool("api_clean_arena", false), function() {
+                var next = !ApiConfig.getBool("api_clean_arena", false);
+                ApiConfig.setBool("api_clean_arena", next);
+                if (Api.visual != null) Api.visual.cleanArena = next;
+                ApiNotificationManager.notify("Clean Arena: " + (next ? "Enabled" : "Disabled"));
+            });
+            var tHidePlayers = createCompactToggle("Hide Players", 104, 22, 118, y, function() return (Api.visual != null && Api.visual.hidePlayers), function() {
+                var cur = (Api.visual != null && Api.visual.hidePlayers);
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hidePlayers = next;
+                ApiNotificationManager.notify("Hide Players: " + (next ? "Enabled" : "Disabled"));
+            });
+            _bodyContainer.addChild(tArena);
+            _bodyContainer.addChild(tHidePlayers);
+            y += 25;
+
+            var tHideMonsters = createCompactToggle("Hide Mobs", 104, 22, 8, y, function() return (Api.visual != null && Api.visual.hideMonsters), function() {
+                var cur = (Api.visual != null && Api.visual.hideMonsters);
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hideMonsters = next;
+                ApiNotificationManager.notify("Hide Monsters: " + (next ? "Enabled" : "Disabled"));
+            });
+            var btnBlacklist = createActionButton("Blacklist Mgr", 104, 22, 118, y, function():Void {
+                _overlay.gotoAndStop("Init");
+                ApiPrompts.showBlacklistPrompt(_overlay);
+            });
+            _bodyContainer.addChild(tHideMonsters);
+            _bodyContainer.addChild(btnBlacklist);
+            y += 28;
+
+            return y;
+        });
+
+        // Category 5: Widgets & HUD
         currY = renderCategorySection("cat_widgets", "Widgets & HUD", 0xAB47BC, currY, function(bodyY:Float):Float {
             var y = bodyY;
             var tCombat = createCompactToggle("Combat HUD", 104, 24, 8, y, function() return ApiCombatWidget.isWidgetEnabled(), function() {
@@ -395,7 +484,7 @@ class ApiMenuHubWidget {
         var div = new Shape();
         div.graphics.lineStyle(1, 0x2A2A2A, 0.7);
         div.graphics.moveTo(10, currY + 2);
-        div.graphics.lineTo(WIDGET_W - 10, currY + 2);
+        div.graphics.lineTo(EXPANDED_W - 10, currY + 2);
         _bodyContainer.addChild(div);
         currY += 7;
 
@@ -423,7 +512,7 @@ class ApiMenuHubWidget {
         catHeader.x = 6;
         catHeader.y = startY;
 
-        var w = WIDGET_W - 12;
+        var w = EXPANDED_W - 12;
         var h:Float = 24;
 
         var redrawCatHeader = function(hover:Bool):Void {
@@ -490,19 +579,20 @@ class ApiMenuHubWidget {
     }
 
     private static function updateBackgroundGraphics():Void {
-        var h:Float = _isCollapsed ? HEIGHT_COLLAPSED : _currentTotalHeight;
+        var w:Float = _isCollapsed ? COLLAPSED_W : EXPANDED_W;
+        var h:Float = _isCollapsed ? COLLAPSED_H : _currentTotalHeight;
         var alpha:Float = _isCollapsed ? 0.78 : 0.94;
 
         _bg.graphics.clear();
         _bg.graphics.beginFill(0x161616, alpha);
         _bg.graphics.lineStyle(1, 0x2E2E2E, _isCollapsed ? 0.75 : 1.0);
-        _bg.graphics.drawRoundRect(0, 0, WIDGET_W, h, 6, 6);
+        _bg.graphics.drawRoundRect(0, 0, w, h, 6, 6);
         _bg.graphics.endFill();
 
         // Top highlight line
         _bg.graphics.lineStyle(1, 0x383838, _isCollapsed ? 0.4 : 0.55);
         _bg.graphics.moveTo(3, 1);
-        _bg.graphics.lineTo(WIDGET_W - 3, 1);
+        _bg.graphics.lineTo(w - 3, 1);
     }
 
     private static function flashActionButton(btn:Sprite):Void {
@@ -748,14 +838,15 @@ class ApiMenuHubWidget {
                         hasDragged = true;
                     }
                     if (hasDragged) {
+                        var curW:Float = _isCollapsed ? COLLAPSED_W : EXPANDED_W;
+                        var curH:Float = _isCollapsed ? COLLAPSED_H : _currentTotalHeight;
                         var nx:Float = Math.round(e.stageX - dragStartX);
                         var ny:Float = Math.round(e.stageY - dragStartY);
                         var sw:Float = _theStage.stageWidth > 0 ? _theStage.stageWidth : 960;
                         var sh:Float = _theStage.stageHeight > 0 ? _theStage.stageHeight : 550;
-                        var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : _currentTotalHeight;
                         if (nx < 0) nx = 0;
                         if (ny < 0) ny = 0;
-                        if (nx > sw - WIDGET_W) nx = sw - WIDGET_W;
+                        if (nx > sw - curW) nx = sw - curW;
                         if (ny > sh - curH) ny = sh - curH;
                         _widget.x = nx;
                         _widget.y = ny;
@@ -769,12 +860,13 @@ class ApiMenuHubWidget {
                     _widget.cacheAsBitmap = true;
                     if (hasDragged) {
                         // Mobile Edge Snap (18px threshold)
+                        var curW:Float = _isCollapsed ? COLLAPSED_W : EXPANDED_W;
+                        var curH:Float = _isCollapsed ? COLLAPSED_H : _currentTotalHeight;
                         var sw:Float = _theStage.stageWidth > 0 ? _theStage.stageWidth : 960;
                         var sh:Float = _theStage.stageHeight > 0 ? _theStage.stageHeight : 550;
-                        var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : _currentTotalHeight;
                         var snapDist:Float = 18;
                         if (_widget.x < snapDist) _widget.x = 4;
-                        else if (_widget.x > sw - WIDGET_W - snapDist) _widget.x = sw - WIDGET_W - 4;
+                        else if (_widget.x > sw - curW - snapDist) _widget.x = sw - curW - 4;
                         if (_widget.y < snapDist) _widget.y = 4;
                         else if (_widget.y > sh - curH - snapDist) _widget.y = sh - curH - 4;
 
