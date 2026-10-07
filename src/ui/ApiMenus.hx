@@ -402,6 +402,46 @@ class ApiMenus {
             }
         }));
 
+        opts.push(new Check("api_lag_killer", false, "Lag Killer (FPS Boost)", "Master performance switch. Disables other players, skill FX, and freezes monster loops.", true, function(o:Dynamic):Void {
+            var c:Check = cast o;
+            ApiConfig.setBool("api_lag_killer", c.state);
+            if (Api.visual != null) {
+                Api.visual.lagKiller = c.state;
+            }
+        }));
+
+        opts.push(new Check("api_hide_players", false, "Hide Other Players", "Hides all other player character models in the room.", true, function(o:Dynamic):Void {
+            var c:Check = cast o;
+            ApiConfig.setBool("api_hide_players", c.state);
+            if (Api.visual != null) {
+                Api.visual.hidePlayers = c.state;
+            }
+        }));
+
+        opts.push(new Check("api_disable_skill_anims", false, "Disable Skill FX", "Disables all skill spell effects and projectile particles.", true, function(o:Dynamic):Void {
+            var c:Check = cast o;
+            ApiConfig.setBool("api_disable_skill_anims", c.state);
+            if (Api.visual != null) {
+                Api.visual.disableSkillAnims = c.state;
+            }
+        }));
+
+        opts.push(new Check("api_disable_mon_anims", false, "Freeze Monster Anims", "Halts animation frame loops on monsters without affecting hitboxes.", true, function(o:Dynamic):Void {
+            var c:Check = cast o;
+            ApiConfig.setBool("api_disable_mon_anims", c.state);
+            if (Api.visual != null) {
+                Api.visual.disableMonsterAnims = c.state;
+            }
+        }));
+
+        opts.push(new Check("api_clean_arena", false, "Clean Arena", "Hides static background map artwork.", true, function(o:Dynamic):Void {
+            var c:Check = cast o;
+            ApiConfig.setBool("api_clean_arena", c.state);
+            if (Api.visual != null) {
+                Api.visual.cleanArena = c.state;
+            }
+        }));
+
         return new Menu("Settings", opts);
     }
 

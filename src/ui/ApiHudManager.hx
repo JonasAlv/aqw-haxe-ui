@@ -120,10 +120,24 @@ class ApiHudManager {
                 }
             },
             {
+                id: "toggle_bank",
+                label: "Bank",
+                defaultX: 544,
+                defaultY: 10,
+                activeText: "Bank",
+                inactiveText: "Bank",
+                getState: null,
+                onToggle: function():Void {
+                    if (Api.inventory != null) {
+                        Api.inventory.toggleBank();
+                    }
+                }
+            },
+            {
                 id: "infinite_range",
                 label: "Infinite Range",
-                defaultX: 657,
-                defaultY: 10,
+                defaultX: 205,
+                defaultY: 45,
                 activeText: "Range: ON",
                 inactiveText: "Range: OFF",
                 getState: function():Bool {
@@ -143,8 +157,8 @@ class ApiHudManager {
             {
                 id: "accept_loot",
                 label: "Accept Loot",
-                defaultX: 770,
-                defaultY: 10,
+                defaultX: 318,
+                defaultY: 45,
                 activeText: "Loot: ON",
                 inactiveText: "Loot: OFF",
                 getState: function():Bool {
@@ -165,24 +179,10 @@ class ApiHudManager {
                 }
             },
             {
-                id: "toggle_bank",
-                label: "Bank",
-                defaultX: 544,
-                defaultY: 10,
-                activeText: "Bank",
-                inactiveText: "Bank",
-                getState: null,
-                onToggle: function():Void {
-                    if (Api.inventory != null) {
-                        Api.inventory.toggleBank();
-                    }
-                }
-            },
-            {
                 id: "provoke_all",
                 label: "Provoke All",
-                defaultX: 883,
-                defaultY: 10,
+                defaultX: 431,
+                defaultY: 45,
                 activeText: "Provoke: ON",
                 inactiveText: "Provoke: OFF",
                 getState: function():Bool {
@@ -200,8 +200,8 @@ class ApiHudManager {
             {
                 id: "lag_killer",
                 label: "Lag Killer",
-                defaultX: 996,
-                defaultY: 10,
+                defaultX: 544,
+                defaultY: 45,
                 activeText: "Lag: ON",
                 inactiveText: "Lag: OFF",
                 getState: function():Bool {
@@ -255,8 +255,18 @@ class ApiHudManager {
         // Position restoring
         var savedX = HelperSetting.getInt("api_hud_" + def.id + "_x", -1);
         var savedY = HelperSetting.getInt("api_hud_" + def.id + "_y", -1);
-        btn.x = (savedX >= 0) ? savedX : def.defaultX;
-        btn.y = (savedY >= 0) ? savedY : def.defaultY;
+        var initX:Float = (savedX >= 0) ? savedX : def.defaultX;
+        var initY:Float = (savedY >= 0) ? savedY : def.defaultY;
+
+        var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
+        var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
+        if (initX > sw - btnW) initX = sw - btnW;
+        if (initY > sh - btnH) initY = sh - btnH;
+        if (initX < 0) initX = 0;
+        if (initY < 0) initY = 0;
+
+        btn.x = initX;
+        btn.y = initY;
 
         var hasIndicator:Bool = (def.id != "toggle_bank");
 
@@ -426,7 +436,7 @@ class ApiHudManager {
 
         // Visibility and live state update loop
         btn.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", false);
+            var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", true);
             if (!isEnabled) {
                 btn.visible = false;
                 return;
@@ -443,7 +453,7 @@ class ApiHudManager {
     }
 
     public static function isButtonEnabled(id:String):Bool {
-        return HelperSetting.getBool("api_hud_" + id + "_enabled", false);
+        return HelperSetting.getBool("api_hud_" + id + "_enabled", true);
     }
 
     public static function setButtonEnabled(id:String, enabled:Bool):Void {
