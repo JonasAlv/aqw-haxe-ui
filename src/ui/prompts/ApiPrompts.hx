@@ -1678,11 +1678,15 @@ class ApiPrompts {
         dlg.addChild(ddClass);
     }
 
+    public static var lastInventoryClassKeys:Map<String, Bool> = new Map<String, Bool>();
+
     public static function getAvailableClasses():Array<String> {
         var classMap:Map<String, String> = new Map<String, String>();
         var invClasses:Array<String> = [];
+        var otherClasses:Array<String> = [];
+        lastInventoryClassKeys = new Map<String, Bool>();
 
-        var addClass = function(name:Dynamic):Void {
+        var addClass = function(name:Dynamic, isInventory:Bool = false):Void {
             if (name == null) return;
             var str:String = Std.string(name);
             var trimmed:String = StringTools.trim(str);
@@ -1690,11 +1694,24 @@ class ApiPrompts {
             var key:String = trimmed.toLowerCase();
             if (!classMap.exists(key)) {
                 classMap.set(key, trimmed);
-                invClasses.push(trimmed);
+                if (isInventory) {
+                    invClasses.push(trimmed);
+                    lastInventoryClassKeys.set(key, true);
+                } else {
+                    otherClasses.push(trimmed);
+                }
             }
         };
 
-        // Inventory classes
+        // 1. Currently equipped class
+        try {
+            var cur:String = getCurrentClass();
+            if (cur != "" && cur.toLowerCase() != "current") {
+                addClass(cur, true);
+            }
+        } catch (e:Dynamic) {}
+
+        // 2. Inventory classes
         if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.items != null) {
             try {
                 var items:Dynamic = Api.game.world.myAvatar.items;
@@ -1708,22 +1725,31 @@ class ApiPrompts {
                         } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
                             if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
                         }
-                        if (isClass) addClass(item.sName);
+                        if (isClass) addClass(item.sName, true);
                     }
                 }
             } catch (e:Dynamic) {}
         }
 
-        // Currently equipped class
+        // 3. All known built-in classes from CombatEngine
         try {
-            var cur:String = getCurrentClass();
-            if (cur != "" && cur.toLowerCase() != "current") {
-                addClass(cur);
+            var known = CombatEngine.getKnownClasses();
+            if (known != null) {
+                for (kc in known) {
+                    addClass(kc, false);
+                }
             }
         } catch (e:Dynamic) {}
 
         try {
             invClasses.sort(function(a, b) {
+                var la:String = a.toLowerCase();
+                var lb:String = b.toLowerCase();
+                if (la < lb) return -1;
+                if (la > lb) return 1;
+                return 0;
+            });
+            otherClasses.sort(function(a, b) {
                 var la:String = a.toLowerCase();
                 var lb:String = b.toLowerCase();
                 if (la < lb) return -1;
@@ -1736,10 +1762,13 @@ class ApiPrompts {
         for (c in invClasses) {
             result.push(c);
         }
+        for (c in otherClasses) {
+            result.push(c);
+        }
         return result;
     }
 
-    private static function getCurrentClass():String {
+    public static function getCurrentClass():String {
         try {
             var cur:String = CombatEngine.getCurrentClassName();
             if (cur != "" && cur.toLowerCase() != "current") return cur;

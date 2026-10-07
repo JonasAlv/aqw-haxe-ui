@@ -123,9 +123,10 @@ class ApiMenus {
         // 6. Floating menu button
         setupFloatingMenuButton(pocket, overlay);
 
-        // 7. On-Screen HUD Buttons & Combat Widget
+        // 7. On-Screen HUD Buttons & Widgets
         ApiHudManager.init(pocket, overlay);
         ApiCombatWidget.init(pocket, overlay);
+        ApiToolsWidget.init(pocket, overlay);
 
         // 8. Menu tracking and frame hooks
         setupFrameHooks(pocket, overlay);

@@ -1198,9 +1198,9 @@ class ApiDashboardModal extends Sprite {
     }
 
     private function renderHudTab():Void {
-        addInfoBanner("Configure floating on-screen HUD buttons. Each button can be toggled on or off and freely dragged anywhere on your screen. Positions are saved automatically.");
+        addInfoBanner("Configure floating on-screen widgets and HUD buttons. Widgets can be collapsed with [-]/[+] and freely dragged anywhere on screen. Positions are saved automatically.");
 
-        addSectionHeader("Combat & Scripts");
+        addSectionHeader("Modular On-Screen Widgets");
 
         // 0. HUD: Combat & Hunt Widget
         addItemRow(
@@ -1219,6 +1219,40 @@ class ApiDashboardModal extends Sprite {
                 return ApiCombatWidget.isWidgetEnabled();
             }
         );
+
+        // 1. HUD: Quick Tools Widget
+        addItemRow(
+            "HUD: Quick Tools Widget",
+            "Compact on-screen widget grouping Script, Lag Killer, Range, Loot, Provoke, Bank, Enhance, and Menu buttons with collapse toggle.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiToolsWidget.isWidgetEnabled();
+                var next = !cur;
+                ApiToolsWidget.setWidgetEnabled(next);
+                ApiNotificationManager.notify("Quick Tools Widget: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return ApiToolsWidget.isWidgetEnabled();
+            }
+        );
+
+        // Reset Widget Positions
+        addItemRow(
+            "Reset Widget Positions",
+            "Resets Combat & Hunt and Quick Tools widgets back to their default screen positions.",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                ApiCombatWidget.resetPosition();
+                ApiToolsWidget.resetPosition();
+                ApiNotificationManager.notify("Widgets reset to default positions!");
+            }
+        );
+
+        addSectionHeader("Standalone HUD Buttons (Optional)");
 
         // 1. HUD: Smart Combat Button
         addItemRow(

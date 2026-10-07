@@ -161,7 +161,8 @@ class Dropdown extends Sprite {
         return listHeight;
     }
 
-    public function setOptions(newOptions:Array<String>):Array<String> {
+    public function setOptions(newOptions:Array<String>, preserveSelection:Bool = true):Array<String> {
+        var curSelected:String = (_selectedIndex >= 0 && _selectedIndex < _options.length) ? _options[_selectedIndex] : "";
         _options = newOptions != null ? newOptions : [];
         _listContent.y = 0;
         var listHeight:Float = getVisibleListHeight();
@@ -179,7 +180,9 @@ class Dropdown extends Sprite {
 
         populateList(_width, _height);
 
-        if (_options.length > 0 && _options[0] != null) {
+        if (preserveSelection && curSelected != "" && _options.indexOf(curSelected) != -1) {
+            _selectedIndex = _options.indexOf(curSelected);
+        } else if (_options.length > 0 && _options[0] != null) {
             _selectedIndex = 0;
         } else {
             _selectedIndex = -1;
@@ -408,6 +411,8 @@ class Dropdown extends Sprite {
         }, 50);
     }
 
+    public var onBeforeOpen:Void->Void = null;
+
     private function onBtnClick(e:MouseEvent):Void {
         if (_isOpen) {
             close();
@@ -417,6 +422,13 @@ class Dropdown extends Sprite {
     }
 
     public function open():Void {
+        if (onBeforeOpen != null) {
+            try {
+                onBeforeOpen();
+            } catch (err:Dynamic) {
+                trace("Dropdown onBeforeOpen error: " + err);
+            }
+        }
         if (_activeDropdown != null && _activeDropdown != this) {
             _activeDropdown.close();
         }

@@ -60,6 +60,7 @@ class ApiCombatWidget {
     private static var _selectedClass:String = "Current";
     private static var _selectedMode:String = "Auto";
     private static var _isCollapsed:Bool = false;
+    private static var _lastEquippedClass:String = "";
 
     private static inline var WIDGET_W:Float = 230;
     private static inline var HEIGHT_EXPANDED:Float = 118;
@@ -212,6 +213,14 @@ class ApiCombatWidget {
             _widget.visible = !isPanelOpen;
             if (_widget.visible) {
                 updateButtonVisuals();
+                if (_selectedClass == "Current") {
+                    var curClass = "";
+                    try { curClass = CombatEngine.getCurrentClassName(); } catch (_:Dynamic) {}
+                    if (curClass != "" && curClass != _lastEquippedClass) {
+                        _lastEquippedClass = curClass;
+                        refreshModeOptions();
+                    }
+                }
             }
         });
 
@@ -219,6 +228,57 @@ class ApiCombatWidget {
         updateButtonVisuals();
 
         theStage.addChild(_widget);
+    }
+
+    public static function getModesForClass(cName:String):Array<String> {
+        var modes:Array<String> = [];
+        var targetClass:String = cName;
+        if (targetClass == null || targetClass == "" || targetClass.toLowerCase() == "current") {
+            try {
+                var cur = CombatEngine.getCurrentClassName();
+                if (cur != null && cur != "" && cur.toLowerCase() != "current") {
+                    targetClass = cur;
+                }
+            } catch (_:Dynamic) {}
+        }
+
+        if (targetClass != null && targetClass != "" && targetClass.toLowerCase() != "current") {
+            try {
+                var engineModes = CombatEngine.getAvailableModes(targetClass);
+                if (engineModes != null) {
+                    for (m in engineModes) {
+                        if (m != null && m != "" && modes.indexOf(m) == -1) {
+                            modes.push(m);
+                        }
+                    }
+                }
+            } catch (_:Dynamic) {}
+        }
+
+        if (modes.length == 0) {
+            modes = ["Auto", "Solo", "Farm"];
+        } else if (modes.indexOf("Auto") == -1) {
+            modes.unshift("Auto");
+        }
+        return modes;
+    }
+
+    public static function refreshClassOptions():Void {
+        if (_ddClass == null) return;
+        var classes = ApiPrompts.getAvailableClasses();
+        if (classes == null || classes.length == 0) classes = ["Current"];
+        _ddClass.setOptions(classes, true);
+    }
+
+    public static function refreshModeOptions():Void {
+        if (_ddMode == null) return;
+        var modes = getModesForClass(_selectedClass);
+        _ddMode.setOptions(modes, true);
+        if (modes.indexOf(_selectedMode) == -1) {
+            _selectedMode = (modes.length > 0) ? modes[0] : "Auto";
+            _ddMode.setSelectedItem(_selectedMode);
+            HelperSetting.setString("api_smart_mode", _selectedMode);
+        }
     }
 
     private static function setupDropdownsAndInputs():Void {
@@ -231,23 +291,10 @@ class ApiCombatWidget {
             _selectedClass = "Current";
         }
 
-        var getModesForClass = function(cName:String):Array<String> {
-            var modes:Array<String> = [];
-            if (cName == null || cName == "" || cName.toLowerCase() == "current") {
-                modes = ["Auto", "Solo", "Farm"];
-            } else {
-                try {
-                    modes = CombatEngine.getAvailableModes(cName);
-                } catch (_:Dynamic) {}
-            }
-            if (modes == null || modes.length == 0) modes = ["Auto", "Solo", "Farm"];
-            return modes;
-        };
-
         var availableModes = getModesForClass(_selectedClass);
         _selectedMode = HelperSetting.getString("api_smart_mode", "Auto");
         if (_selectedMode == "" || availableModes.indexOf(_selectedMode) == -1) {
-            _selectedMode = availableModes[0];
+            _selectedMode = (availableModes.length > 0) ? availableModes[0] : "Auto";
         }
 
         // Dropdown: Class
@@ -255,9 +302,9 @@ class ApiCombatWidget {
             _selectedClass = sel;
             HelperSetting.setString("api_smart_class", sel);
             var newModes = getModesForClass(sel);
-            _ddMode.setOptions(newModes);
+            _ddMode.setOptions(newModes, true);
             if (newModes.indexOf(_selectedMode) == -1) {
-                _selectedMode = newModes[0];
+                _selectedMode = (newModes.length > 0) ? newModes[0] : "Auto";
                 _ddMode.setSelectedItem(_selectedMode);
                 HelperSetting.setString("api_smart_mode", _selectedMode);
             }
@@ -266,6 +313,18 @@ class ApiCombatWidget {
             }
             ApiNotificationManager.notify("Combat Class: " + sel);
         });
+        _ddClass.itemColorCallback = function(itemName:String):Null<Int> {
+            if (itemName == null || itemName == "") return null;
+            if (itemName == "Current") return 0xFFD700; // Gold for Current
+            var key = itemName.toLowerCase();
+            if (ApiPrompts.lastInventoryClassKeys != null && ApiPrompts.lastInventoryClassKeys.exists(key)) {
+                return 0x00FF88; // Neon Green for inventory/owned classes
+            }
+            return 0x555555; // Muted gray for global database classes
+        };
+        _ddClass.onBeforeOpen = function():Void {
+            refreshClassOptions();
+        };
         _ddClass.x = 8;
         _ddClass.y = 54;
         _ddClass.setSelectedItem(_selectedClass);
@@ -280,6 +339,9 @@ class ApiCombatWidget {
             }
             ApiNotificationManager.notify("Combat Mode: " + sel);
         });
+        _ddMode.onBeforeOpen = function():Void {
+            refreshModeOptions();
+        };
         _ddMode.x = 118;
         _ddMode.y = 54;
         _ddMode.setSelectedItem(_selectedMode);
@@ -618,11 +680,21 @@ class ApiCombatWidget {
         HelperSetting.setBool("api_widget_combat_enabled", enabled);
         if (_widget != null) _widget.visible = enabled;
     }
+
+    public static function resetPosition():Void {
+        HelperSetting.setInt("api_widget_combat_x", 205);
+        HelperSetting.setInt("api_widget_combat_y", 82);
+        if (_widget != null) {
+            _widget.x = 205;
+            _widget.y = 82;
+        }
+    }
 }
 #else
 class ApiCombatWidget {
     public static function init(pocket:Dynamic, overlay:Dynamic):Void {}
     public static function isWidgetEnabled():Bool return false;
     public static function setWidgetEnabled(enabled:Bool):Void {}
+    public static function resetPosition():Void {}
 }
 #end

@@ -436,7 +436,7 @@ class ApiHudManager {
 
         // Visibility and live state update loop
         btn.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", true);
+            var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", false);
             if (!isEnabled) {
                 btn.visible = false;
                 return;
@@ -453,7 +453,7 @@ class ApiHudManager {
     }
 
     public static function isButtonEnabled(id:String):Bool {
-        return HelperSetting.getBool("api_hud_" + id + "_enabled", true);
+        return HelperSetting.getBool("api_hud_" + id + "_enabled", false);
     }
 
     public static function setButtonEnabled(id:String, enabled:Bool):Void {
