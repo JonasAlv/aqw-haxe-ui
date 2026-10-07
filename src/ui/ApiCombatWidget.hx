@@ -233,10 +233,12 @@ class ApiCombatWidget {
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             titleTxt.textColor = 0xFFFFFF;
             renderCollapseIcon(_isCollapsed, true);
+            _bg.alpha = 1.0;
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             titleTxt.textColor = 0xBBBBBB;
             renderCollapseIcon(_isCollapsed, false);
+            _bg.alpha = _isCollapsed ? 0.78 : 0.94;
         });
 
         // 3. Row 1: Action Buttons (Atk & Hunt)
@@ -547,15 +549,16 @@ class ApiCombatWidget {
 
     private static function updateLayout():Void {
         var h:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
+        var alpha:Float = _isCollapsed ? 0.78 : 0.94;
 
         _bg.graphics.clear();
-        _bg.graphics.beginFill(0x161616, 0.94);
-        _bg.graphics.lineStyle(1, 0x2E2E2E);
+        _bg.graphics.beginFill(0x161616, alpha);
+        _bg.graphics.lineStyle(1, 0x2E2E2E, _isCollapsed ? 0.75 : 1.0);
         _bg.graphics.drawRoundRect(0, 0, WIDGET_W, h, 6, 6);
         _bg.graphics.endFill();
 
         // Top bevel highlight line
-        _bg.graphics.lineStyle(1, 0x383838, 0.55);
+        _bg.graphics.lineStyle(1, 0x383838, _isCollapsed ? 0.4 : 0.55);
         _bg.graphics.moveTo(3, 1);
         _bg.graphics.lineTo(WIDGET_W - 3, 1);
 
@@ -580,6 +583,18 @@ class ApiCombatWidget {
             _lastHuntActive = huntInt;
             renderBtnStyle(_btnHunt, isHunt, "Hunt: ON", "Hunt: OFF", 104, 26);
         }
+    }
+
+    private static function flashActionButton(btn:Sprite, active:Bool, onText:String, offText:String, w:Float, h:Float):Void {
+        if (btn == null) return;
+        btn.graphics.clear();
+        btn.graphics.beginFill(active ? 0x144022 : 0x2A2A2A, 0.98);
+        btn.graphics.lineStyle(1.8, active ? 0x00FF88 : 0x888888);
+        btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
+        btn.graphics.endFill();
+        haxe.Timer.delay(function():Void {
+            renderBtnStyle(btn, active, onText, offText, w, h);
+        }, 120);
     }
 
     private static function renderBtnStyle(btn:Sprite, active:Bool, onText:String, offText:String, w:Float, h:Float):Void {
@@ -627,6 +642,7 @@ class ApiCombatWidget {
     private static function toggleAutoAttack():Void {
         var running = (Api.combat != null && Api.combat.isRunning());
         var next = !running;
+        flashActionButton(_btnAtk, next, "Atk: ON", "Atk: OFF", 104, 26);
         if (Api.combat != null) {
             if (next) {
                 Api.combat.startSmartStandalone(_selectedClass, _selectedMode);
@@ -638,17 +654,17 @@ class ApiCombatWidget {
         }
         ApiNotificationManager.notify("Auto Attack: " + (next ? "Enabled" : "Disabled"));
         _lastAtkActive = -1;
-        updateButtonVisuals();
     }
 
     private static function toggleAutoHunt():Void {
+        var next = !_isHunting;
+        flashActionButton(_btnHunt, next, "Hunt: ON", "Hunt: OFF", 104, 26);
         if (_isHunting) {
             stopAutoHunt();
         } else {
             startAutoHunt();
         }
         _lastHuntActive = -1;
-        updateButtonVisuals();
     }
 
     private static function getTargetInputText():String {
@@ -764,6 +780,16 @@ class ApiCombatWidget {
                 isDragging = false;
                 _widget.cacheAsBitmap = true;
                 if (hasDragged) {
+                    // Mobile Edge Snap: snap softly to borders if dropped near edge
+                    var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
+                    var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
+                    var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
+                    var snapDist:Float = 18;
+                    if (_widget.x < snapDist) _widget.x = 4;
+                    else if (_widget.x > sw - WIDGET_W - snapDist) _widget.x = sw - WIDGET_W - 4;
+                    if (_widget.y < snapDist) _widget.y = 4;
+                    else if (_widget.y > sh - curH - snapDist) _widget.y = sh - curH - 4;
+
                     HelperSetting.setInt("api_widget_combat_x", Math.round(_widget.x));
                     HelperSetting.setInt("api_widget_combat_y", Math.round(_widget.y));
                 } else {

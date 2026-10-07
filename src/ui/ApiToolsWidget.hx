@@ -568,7 +568,7 @@ class ApiToolsWidget {
             content.addChild(row);
         }
 
-        // Mouse wheel scroll for tools container
+        // Mouse wheel and touch drag scrolling for tools container
         listContainer.addEventListener(MouseEvent.MOUSE_WHEEL, function(e:MouseEvent):Void {
             var totalContentH = toolRegistry.length * rowH;
             if (totalContentH <= listH) return;
@@ -577,6 +577,33 @@ class ApiToolsWidget {
             if (content.y > 0) content.y = 0;
             if (content.y < maxScroll) content.y = maxScroll;
         });
+
+        var isScrollDragging:Bool = false;
+        var scrollStartY:Float = 0;
+        var contentStartY:Float = 0;
+        listContainer.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
+            var totalContentH = toolRegistry.length * rowH;
+            if (totalContentH <= listH) return;
+            isScrollDragging = true;
+            scrollStartY = e.stageY;
+            contentStartY = content.y;
+        });
+        if (_overlay != null && _overlay.stage != null) {
+            _overlay.stage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
+                if (isScrollDragging) {
+                    var totalContentH = toolRegistry.length * rowH;
+                    var maxScroll = listH - totalContentH;
+                    var deltaY = e.stageY - scrollStartY;
+                    var targetY = contentStartY + deltaY;
+                    if (targetY > 0) targetY = 0;
+                    if (targetY < maxScroll) targetY = maxScroll;
+                    content.y = targetY;
+                }
+            });
+            _overlay.stage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
+                isScrollDragging = false;
+            });
+        }
 
         // 4. Dialog Action Buttons
         var btnY:Float = 405;
@@ -884,10 +911,12 @@ class CustomWidgetInstance extends Sprite {
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             _titleTxt.textColor = 0xFFFFFF;
             renderCollapseIcon(def.isCollapsed, true);
+            _bg.alpha = 1.0;
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             _titleTxt.textColor = 0xBBBBBB;
             renderCollapseIcon(def.isCollapsed, false);
+            _bg.alpha = def.isCollapsed ? 0.78 : 0.94;
         });
 
         // 3. Button Containers
@@ -986,12 +1015,28 @@ class CustomWidgetInstance extends Sprite {
         btn.addChild(lbl);
 
         btn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+            flashButton(btn, dot, lbl, tool);
             if (tool.onAction != null) {
                 tool.onAction();
             }
         });
 
         return { btn: btn, dot: dot, lbl: lbl, tool: tool, isFixed: isFixed };
+    }
+
+    private function flashButton(btn:Sprite, dot:Shape, lbl:TextField, tool:ToolDef):Void {
+        if (btn == null) return;
+        var isState = (tool.getState != null) ? tool.getState() : false;
+        var nextState = tool.isToggle ? !isState : isState;
+        btn.graphics.clear();
+        btn.graphics.beginFill(nextState ? 0x144022 : 0x2A2A2A, 0.98);
+        btn.graphics.lineStyle(1.8, nextState ? 0x00FF88 : 0x888888);
+        btn.graphics.drawRoundRect(0, 0, 104, 26, 4, 4);
+        btn.graphics.endFill();
+        haxe.Timer.delay(function():Void {
+            var active = (tool.getState != null) ? tool.getState() : false;
+            renderBtnStyle(btn, dot, lbl, tool, active);
+        }, 120);
     }
 
     public function toggleCollapse():Void {
@@ -1015,13 +1060,15 @@ class CustomWidgetInstance extends Sprite {
             _collapsibleContainer.visible = true;
         }
 
+        var alpha:Float = def.isCollapsed ? 0.78 : 0.94;
         _bg.graphics.clear();
-        _bg.graphics.beginFill(0x161616, 0.94);
-        _bg.graphics.lineStyle(1, 0x2E2E2E);
+        _bg.graphics.beginFill(0x161616, alpha);
+        _bg.graphics.lineStyle(1, 0x2E2E2E, def.isCollapsed ? 0.75 : 1.0);
         _bg.graphics.drawRoundRect(0, 0, ApiToolsWidget.WIDGET_W, h, 6, 6);
         _bg.graphics.endFill();
 
-        _bg.graphics.lineStyle(1, 0x383838, 0.55);
+        // Top bevel highlight line
+        _bg.graphics.lineStyle(1, 0x383838, def.isCollapsed ? 0.4 : 0.55);
         _bg.graphics.moveTo(3, 1);
         _bg.graphics.lineTo(ApiToolsWidget.WIDGET_W - 3, 1);
     }
@@ -1139,6 +1186,16 @@ class CustomWidgetInstance extends Sprite {
                 isDragging = false;
                 cacheAsBitmap = true;
                 if (hasDragged) {
+                    // Mobile Edge Snap: snap softly to borders if dropped near edge
+                    var sw:Float = _theStage.stageWidth > 0 ? _theStage.stageWidth : 960;
+                    var sh:Float = _theStage.stageHeight > 0 ? _theStage.stageHeight : 550;
+                    var curH:Float = (_bg != null && _bg.height > 0) ? _bg.height : (def.isCollapsed ? (_fixedRows > 0 ? 24 + (_fixedRows * 30) + 4 : 24) : (24 + (_totalRows * 30) + 4));
+                    var snapDist:Float = 18;
+                    if (this.x < snapDist) this.x = 4;
+                    else if (this.x > sw - ApiToolsWidget.WIDGET_W - snapDist) this.x = sw - ApiToolsWidget.WIDGET_W - 4;
+                    if (this.y < snapDist) this.y = 4;
+                    else if (this.y > sh - curH - snapDist) this.y = sh - curH - 4;
+
                     def.x = Math.round(this.x);
                     def.y = Math.round(this.y);
                     ApiToolsWidget.saveWidgets();
