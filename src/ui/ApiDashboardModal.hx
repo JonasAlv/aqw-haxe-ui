@@ -20,6 +20,7 @@ import ui.Overlay;
 import ui.prompts.ApiPrompts;
 import util.HelperSetting;
 import com.aqwapi.utils.ApiConfig;
+import ui.ApiStyle;
 
 enum DashboardTab {
     TabScripts;
@@ -35,8 +36,9 @@ class ApiDashboardModal extends Sprite {
     public static function show(overlay:Dynamic, pocket:Dynamic = null):Void {
         close();
         _instance = new ApiDashboardModal(overlay, pocket);
-        if (overlay != null) {
-            overlay.addChild(_instance);
+        var target:Dynamic = (overlay != null && overlay.stage != null) ? overlay.stage : ((pocket != null && pocket.stage != null) ? pocket.stage : overlay);
+        if (target != null) {
+            target.addChild(_instance);
         }
     }
 
@@ -51,17 +53,25 @@ class ApiDashboardModal extends Sprite {
         return _instance != null && _instance.parent != null;
     }
 
-    // Modal layout constants
-    private static inline var DIALOG_WIDTH:Float = 760;
-    private static inline var DIALOG_HEIGHT:Float = 440;
+    public static function refreshCurrentTab():Void {
+        if (_instance != null && _instance.parent != null) {
+            _instance.renderTabContent(_instance._currentTab);
+        }
+    }
+
+    // Modal layout dimensions
     private static inline var SIDEBAR_WIDTH:Float = 170;
-    private static inline var CONTENT_WIDTH:Float = 550;
-    private static inline var CONTENT_HEIGHT:Float = 370;
+
+    private var _stageW:Float = 960;
+    private var _stageH:Float = 550;
+    private var _contentWidth:Float = 750;
+    private var _contentHeight:Float = 480;
 
     private var _overlay:Dynamic;
     private var _pocket:Dynamic;
     private var _backdrop:Sprite;
     private var _window:Sprite;
+    private var _closeBtn:Sprite;
 
     private var _currentTab:DashboardTab = TabScripts;
     private var _tabButtons:Map<DashboardTab, Sprite> = new Map<DashboardTab, Sprite>();
@@ -85,33 +95,22 @@ class ApiDashboardModal extends Sprite {
         _overlay = overlay;
         _pocket = pocket;
 
-        var stageW:Float = 960;
-        var stageH:Float = 500;
-        if (overlay != null && overlay.stage != null) {
-            stageW = overlay.stage.stageWidth > 0 ? overlay.stage.stageWidth : 960;
-            stageH = overlay.stage.stageHeight > 0 ? overlay.stage.stageHeight : 500;
-        }
+        updateDimensions();
 
         // 1. Semi-transparent backdrop
         _backdrop = new Sprite();
-        _backdrop.graphics.beginFill(0x000000, 0.65);
-        _backdrop.graphics.drawRect(0, 0, stageW, stageH);
-        _backdrop.graphics.endFill();
         _backdrop.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             if (e.target == _backdrop) close();
         });
         addChild(_backdrop);
 
-        // 2. Main Dialog Window
+        // 2. Main Fullscreen Window
         _window = new Sprite();
-        _window.graphics.beginFill(0x121212, 0.98);
-        _window.graphics.lineStyle(1, 0x2A2A2A);
-        _window.graphics.drawRoundRect(0, 0, DIALOG_WIDTH, DIALOG_HEIGHT, 8, 8);
-        _window.graphics.endFill();
-
-        _window.x = (stageW - DIALOG_WIDTH) / 2;
-        _window.y = (stageH - DIALOG_HEIGHT) / 2;
+        _window.x = 0;
+        _window.y = 0;
         addChild(_window);
+
+        redrawWindowChrome();
 
         // 3. Header Bar
         setupHeader();
@@ -130,22 +129,78 @@ class ApiDashboardModal extends Sprite {
         addEventListener(Event.REMOVED_FROM_STAGE, onRemovedFromStage);
     }
 
+    private function updateDimensions():Void {
+        var targetStage:Dynamic = (stage != null) ? stage : ((_overlay != null && _overlay.stage != null) ? _overlay.stage : ((_pocket != null && _pocket.stage != null) ? _pocket.stage : null));
+        _stageW = (targetStage != null && targetStage.stageWidth > 0) ? targetStage.stageWidth : 960;
+        _stageH = (targetStage != null && targetStage.stageHeight > 0) ? targetStage.stageHeight : 550;
+        _contentWidth = Math.max(300, _stageW - (SIDEBAR_WIDTH + 26) - 16);
+        _contentHeight = Math.max(200, _stageH - 56 - 12);
+    }
+
+    private function redrawWindowChrome():Void {
+        _backdrop.graphics.clear();
+        _backdrop.graphics.beginFill(ApiStyle.COLOR_BG_BACKDROP, ApiStyle.ALPHA_BACKDROP);
+        _backdrop.graphics.drawRect(0, 0, _stageW, _stageH);
+        _backdrop.graphics.endFill();
+
+        _window.graphics.clear();
+        _window.graphics.beginFill(ApiStyle.COLOR_BG_DASHBOARD, ApiStyle.ALPHA_DASHBOARD);
+        _window.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_PANEL);
+        _window.graphics.drawRect(0, 0, _stageW, _stageH);
+        _window.graphics.endFill();
+
+        // Divider line below header
+        _window.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DIVIDER);
+        _window.graphics.moveTo(0, 48);
+        _window.graphics.lineTo(_stageW, 48);
+
+        // Vertical divider line between sidebar and content
+        _window.graphics.moveTo(SIDEBAR_WIDTH + 14, 48);
+        _window.graphics.lineTo(SIDEBAR_WIDTH + 14, _stageH);
+
+        if (_closeBtn != null) {
+            _closeBtn.x = _stageW - 32 - 14;
+        }
+    }
+
     private function onAddedToStage(e:Event):Void {
         if (stage != null) {
             stage.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+            stage.addEventListener(Event.RESIZE, onStageResize);
+            onStageResize(null);
         }
     }
 
     private function onRemovedFromStage(e:Event):Void {
         if (stage != null) {
             stage.removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+            stage.removeEventListener(Event.RESIZE, onStageResize);
             stage.removeEventListener(MouseEvent.MOUSE_MOVE, onStageMouseMove);
             stage.removeEventListener(MouseEvent.MOUSE_UP, onStageMouseUp);
         }
     }
 
+    private function onStageResize(e:Event):Void {
+        updateDimensions();
+        redrawWindowChrome();
+        if (_contentMask != null) {
+            _contentMask.graphics.clear();
+            _contentMask.graphics.beginFill(0xFF0000);
+            _contentMask.graphics.drawRect(0, 0, _contentWidth, _contentHeight);
+            _contentMask.graphics.endFill();
+        }
+        if (_scrollbarTrack != null) {
+            _scrollbarTrack.x = _contentViewport.x + _contentWidth - 8;
+            _scrollbarThumb.x = _scrollbarTrack.x;
+        }
+        renderTabContent(_currentTab);
+    }
+
     private function onKeyDown(e:KeyboardEvent):Void {
         if (e.keyCode == 27) { // ESC key
+            if (ui.prompts.ApiPromptModal.isOpen()) {
+                return; // Let prompt modal take foreground priority
+            }
             close();
         }
     }
@@ -155,14 +210,9 @@ class ApiDashboardModal extends Sprite {
     // =========================================================================
 
     private function setupHeader():Void {
-        // Divider line below header
-        _window.graphics.lineStyle(1, 0x242424);
-        _window.graphics.moveTo(0, 48);
-        _window.graphics.lineTo(DIALOG_WIDTH, 48);
-
         // Title
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 16, 0xEEEEEE, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 16, ApiStyle.COLOR_TEXT_PRIMARY, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = "Menu";
         titleTxt.x = 22;
@@ -175,7 +225,7 @@ class ApiDashboardModal extends Sprite {
 
         // Subtitle badge
         var badgeTxt = new TextField();
-        var badgeFmt = new TextFormat("_sans", 11, 0x666666, false);
+        var badgeFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_MUTED, false);
         badgeTxt.defaultTextFormat = badgeFmt;
         badgeTxt.text = "Control Center";
         badgeTxt.x = 85;
@@ -187,47 +237,47 @@ class ApiDashboardModal extends Sprite {
         _window.addChild(badgeTxt);
 
         // Close Button (Vector ✕)
-        var closeBtn = new Sprite();
+        _closeBtn = new Sprite();
         var cbW:Float = 32;
         var cbH:Float = 28;
-        closeBtn.buttonMode = true;
-        closeBtn.x = DIALOG_WIDTH - cbW - 14;
-        closeBtn.y = 10;
+        _closeBtn.buttonMode = true;
+        _closeBtn.x = _stageW - cbW - 14;
+        _closeBtn.y = 10;
 
         var renderCloseBtn = function(isHover:Bool):Void {
-            closeBtn.graphics.clear();
-            var bg = isHover ? 0x990000 : 0x1E1E1E;
-            var border = isHover ? 0xCC0000 : 0x333333;
-            var xColor = isHover ? 0xFFFFFF : 0xAAAAAA;
+            _closeBtn.graphics.clear();
+            var bg = isHover ? ApiStyle.COLOR_STATUS_ERROR : ApiStyle.COLOR_BG_SURFACE;
+            var border = isHover ? ApiStyle.COLOR_STATUS_ERROR_HOVER : ApiStyle.COLOR_BORDER_DEFAULT;
+            var xColor = isHover ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_TEXT_MUTED;
 
             // Background & Border
-            closeBtn.graphics.beginFill(bg, 1);
-            closeBtn.graphics.lineStyle(1, border);
-            closeBtn.graphics.drawRoundRect(0, 0, cbW, cbH, 5, 5);
-            closeBtn.graphics.endFill();
+            _closeBtn.graphics.beginFill(bg, 1);
+            _closeBtn.graphics.lineStyle(1, border);
+            _closeBtn.graphics.drawRoundRect(0, 0, cbW, cbH, 5, 5);
+            _closeBtn.graphics.endFill();
 
-            // Crisp Vector ✕ Icon (No font dependency!)
+            // Crisp Vector ✕ Icon
             var cx:Float = cbW / 2;
             var cy:Float = cbH / 2;
             var size:Float = 4.5;
-            closeBtn.graphics.lineStyle(2, xColor, 1);
-            closeBtn.graphics.moveTo(cx - size, cy - size);
-            closeBtn.graphics.lineTo(cx + size, cy + size);
-            closeBtn.graphics.moveTo(cx + size, cy - size);
-            closeBtn.graphics.lineTo(cx - size, cy + size);
+            _closeBtn.graphics.lineStyle(2, xColor, 1);
+            _closeBtn.graphics.moveTo(cx - size, cy - size);
+            _closeBtn.graphics.lineTo(cx + size, cy + size);
+            _closeBtn.graphics.moveTo(cx + size, cy - size);
+            _closeBtn.graphics.lineTo(cx - size, cy + size);
         };
         renderCloseBtn(false);
 
-        closeBtn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+        _closeBtn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             renderCloseBtn(true);
         });
-        closeBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
+        _closeBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             renderCloseBtn(false);
         });
-        closeBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+        _closeBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             close();
         });
-        _window.addChild(closeBtn);
+        _window.addChild(_closeBtn);
     }
 
     // =========================================================================
@@ -235,11 +285,6 @@ class ApiDashboardModal extends Sprite {
     // =========================================================================
 
     private function setupSidebar():Void {
-        // Vertical divider line between sidebar and content
-        _window.graphics.lineStyle(1, 0x242424);
-        _window.graphics.moveTo(SIDEBAR_WIDTH + 14, 48);
-        _window.graphics.lineTo(SIDEBAR_WIDTH + 14, DIALOG_HEIGHT);
-
         var tabs = [
             { id: TabScripts, label: "Scripts" },
             { id: TabAutomation, label: "Automation" },
@@ -266,7 +311,7 @@ class ApiDashboardModal extends Sprite {
         btn.buttonMode = true;
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 13, 0x888888, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 13, ApiStyle.COLOR_TEXT_SECONDARY, true);
         txt.defaultTextFormat = fmt;
         txt.text = label;
         txt.x = 16;
@@ -286,14 +331,14 @@ class ApiDashboardModal extends Sprite {
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             if (_currentTab != tabId) {
                 renderTabGraphic(btn, w, h, false, true);
-                txt.textColor = 0xCCCCCC;
+                txt.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
             }
         });
 
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             if (_currentTab != tabId) {
                 renderTabGraphic(btn, w, h, false, false);
-                txt.textColor = 0x888888;
+                txt.textColor = ApiStyle.COLOR_TEXT_SECONDARY;
             }
         });
 
@@ -304,24 +349,24 @@ class ApiDashboardModal extends Sprite {
     private function renderTabGraphic(btn:Sprite, w:Float, h:Float, isActive:Bool, isHover:Bool):Void {
         btn.graphics.clear();
         if (isActive) {
-            btn.graphics.beginFill(0x880000, 1);
-            btn.graphics.lineStyle(1, 0xAA0000);
-            btn.graphics.drawRoundRect(0, 0, w, h, 6, 6);
+            btn.graphics.beginFill(ApiStyle.COLOR_BG_CARD, 1);
+            btn.graphics.lineStyle(1, ApiStyle.COLOR_ACCENT_PRIMARY);
+            btn.graphics.drawRoundRect(0, 0, w, h, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
             btn.graphics.endFill();
 
-            btn.graphics.beginFill(0xFF3333, 1);
+            btn.graphics.beginFill(ApiStyle.COLOR_ACCENT_PRIMARY, 1);
             btn.graphics.lineStyle(0, 0, 0);
-            btn.graphics.drawRoundRect(0, 4, 3, h - 8, 2, 2);
+            btn.graphics.drawRoundRect(0, 4, 3.5, h - 8, 2, 2);
             btn.graphics.endFill();
         } else if (isHover) {
-            btn.graphics.beginFill(0x222222, 1);
-            btn.graphics.lineStyle(1, 0x3A3A3A);
-            btn.graphics.drawRoundRect(0, 0, w, h, 6, 6);
+            btn.graphics.beginFill(ApiStyle.COLOR_BG_CARD_HOVER, 1);
+            btn.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_HIGHLIGHT);
+            btn.graphics.drawRoundRect(0, 0, w, h, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
             btn.graphics.endFill();
         } else {
-            btn.graphics.beginFill(0x171717, 1);
-            btn.graphics.lineStyle(1, 0x242424);
-            btn.graphics.drawRoundRect(0, 0, w, h, 6, 6);
+            btn.graphics.beginFill(ApiStyle.COLOR_BG_PANEL, 1);
+            btn.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_CARD);
+            btn.graphics.drawRoundRect(0, 0, w, h, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
             btn.graphics.endFill();
         }
     }
@@ -337,7 +382,7 @@ class ApiDashboardModal extends Sprite {
             var txt = _tabLabels.get(t);
             var isActive = (t == tabId);
             renderTabGraphic(btn, tabW, tabH, isActive, false);
-            txt.textColor = isActive ? 0xFFFFFF : 0x888888;
+            txt.textColor = isActive ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_TEXT_SECONDARY;
         }
 
         renderTabContent(tabId);
@@ -355,7 +400,7 @@ class ApiDashboardModal extends Sprite {
 
         _contentMask = new Shape();
         _contentMask.graphics.beginFill(0xFF0000);
-        _contentMask.graphics.drawRect(0, 0, CONTENT_WIDTH, CONTENT_HEIGHT);
+        _contentMask.graphics.drawRect(0, 0, _contentWidth, _contentHeight);
         _contentMask.graphics.endFill();
         _contentMask.x = _contentViewport.x;
         _contentMask.y = _contentViewport.y;
@@ -366,7 +411,7 @@ class ApiDashboardModal extends Sprite {
         _contentViewport.mask = _contentMask;
 
         _scrollbarTrack = new Shape();
-        _scrollbarTrack.x = _contentViewport.x + CONTENT_WIDTH - 8;
+        _scrollbarTrack.x = _contentViewport.x + _contentWidth - 8;
         _scrollbarTrack.y = _contentViewport.y;
         _window.addChild(_scrollbarTrack);
 
@@ -377,8 +422,8 @@ class ApiDashboardModal extends Sprite {
 
         _window.addEventListener(MouseEvent.MOUSE_WHEEL, function(e:MouseEvent):Void {
             var totalH = getTotalContentHeight();
-            if (totalH <= CONTENT_HEIGHT) return;
-            var maxScroll = CONTENT_HEIGHT - totalH;
+            if (totalH <= _contentHeight) return;
+            var maxScroll = _contentHeight - totalH;
             _contentContainer.y += e.delta * 25;
             if (_contentContainer.y > 0) _contentContainer.y = 0;
             if (_contentContainer.y < maxScroll) _contentContainer.y = maxScroll;
@@ -390,7 +435,7 @@ class ApiDashboardModal extends Sprite {
 
     private function onContentMouseDown(e:MouseEvent):Void {
         var totalH = getTotalContentHeight();
-        if (stage == null || totalH <= CONTENT_HEIGHT) return;
+        if (stage == null || totalH <= _contentHeight) return;
         _isDraggingScroll = false;
         _hasDraggedScroll = false;
         _dragStartY = stage.mouseY;
@@ -402,7 +447,7 @@ class ApiDashboardModal extends Sprite {
 
     private function onStageMouseMove(e:MouseEvent):Void {
         var totalH = getTotalContentHeight();
-        if (stage == null || totalH <= CONTENT_HEIGHT) return;
+        if (stage == null || totalH <= _contentHeight) return;
         var dy = stage.mouseY - _dragStartY;
         if (!_isDraggingScroll && Math.abs(dy) > 4) {
             _isDraggingScroll = true;
@@ -410,7 +455,7 @@ class ApiDashboardModal extends Sprite {
         }
         if (_isDraggingScroll) {
             var newY = _dragStartContentY + dy;
-            var maxScroll = CONTENT_HEIGHT - totalH;
+            var maxScroll = _contentHeight - totalH;
             if (newY > 0) newY = 0;
             if (newY < maxScroll) newY = maxScroll;
             _contentContainer.y = newY;
@@ -431,7 +476,7 @@ class ApiDashboardModal extends Sprite {
 
     private function updateScrollbar():Void {
         var totalH = getTotalContentHeight();
-        if (totalH <= CONTENT_HEIGHT) {
+        if (totalH <= _contentHeight) {
             _scrollbarTrack.visible = false;
             _scrollbarThumb.visible = false;
             return;
@@ -442,17 +487,17 @@ class ApiDashboardModal extends Sprite {
 
         var sbW:Float = 6;
         _scrollbarTrack.graphics.clear();
-        _scrollbarTrack.graphics.beginFill(0x181818, 0.85);
-        _scrollbarTrack.graphics.drawRoundRect(0, 0, sbW, CONTENT_HEIGHT, 3, 3);
+        _scrollbarTrack.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.95);
+        _scrollbarTrack.graphics.drawRoundRect(0, 0, sbW, _contentHeight, 3, 3);
         _scrollbarTrack.graphics.endFill();
 
-        var viewRatio = CONTENT_HEIGHT / totalH;
-        var thumbH = Math.max(24, CONTENT_HEIGHT * viewRatio);
-        var scrollRatio = -_contentContainer.y / (totalH - CONTENT_HEIGHT);
-        var thumbY = scrollRatio * (CONTENT_HEIGHT - thumbH);
+        var viewRatio = _contentHeight / totalH;
+        var thumbH = Math.max(24, _contentHeight * viewRatio);
+        var scrollRatio = -_contentContainer.y / (totalH - _contentHeight);
+        var thumbY = scrollRatio * (_contentHeight - thumbH);
 
         _scrollbarThumb.graphics.clear();
-        _scrollbarThumb.graphics.beginFill(0x666666, 0.95);
+        _scrollbarThumb.graphics.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.95);
         _scrollbarThumb.graphics.drawRoundRect(0, thumbY, sbW, thumbH, 3, 3);
         _scrollbarThumb.graphics.endFill();
     }
@@ -475,11 +520,11 @@ class ApiDashboardModal extends Sprite {
     }
 
     private function addSectionHeader(title:String):Void {
-        var rowW:Float = CONTENT_WIDTH - 20;
+        var rowW:Float = _contentWidth - 20;
         var header = new Sprite();
 
         var lbl = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xCC4444, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_ACCENT, true);
         lbl.defaultTextFormat = fmt;
         lbl.text = title.toUpperCase();
         lbl.x = 2;
@@ -491,7 +536,7 @@ class ApiDashboardModal extends Sprite {
 
         var lineX:Float = lbl.x + lbl.width + 8;
         if (lineX < rowW) {
-            header.graphics.lineStyle(1, 0x2A2A2A);
+            header.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_PANEL);
             header.graphics.moveTo(lineX, 7);
             header.graphics.lineTo(rowW, 7);
         }
@@ -505,11 +550,11 @@ class ApiDashboardModal extends Sprite {
     }
 
     private function addInfoBanner(text:String):Void {
-        var rowW:Float = CONTENT_WIDTH - 20;
+        var rowW:Float = _contentWidth - 20;
         var banner = new Sprite();
 
         var descTxt = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0x999999, false);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_SECONDARY, false);
         descTxt.defaultTextFormat = fmt;
         descTxt.text = text;
         descTxt.x = 10;
@@ -523,9 +568,9 @@ class ApiDashboardModal extends Sprite {
         banner.addChild(descTxt);
 
         var bannerH:Float = descTxt.height + 16;
-        banner.graphics.beginFill(0x161616, 0.85);
-        banner.graphics.lineStyle(1, 0x282828);
-        banner.graphics.drawRoundRect(0, 0, rowW, bannerH, 6, 6);
+        banner.graphics.beginFill(ApiStyle.COLOR_BG_CARD, 0.85);
+        banner.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_CARD);
+        banner.graphics.drawRoundRect(0, 0, rowW, bannerH, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
         banner.graphics.endFill();
 
         banner.x = 0;
@@ -545,7 +590,7 @@ class ApiDashboardModal extends Sprite {
         onClick:Void->Void,
         getToggleState:Void->Bool = null
     ):Void {
-        var rowW:Float = CONTENT_WIDTH - 20;
+        var rowW:Float = _contentWidth - 20;
         var btnW:Float = 116;
         var btnH:Float = 32;
         var padX:Float = 14;
@@ -556,7 +601,7 @@ class ApiDashboardModal extends Sprite {
 
         // Title
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 13, 0xFFFFFF, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 13, ApiStyle.COLOR_TEXT_TITLE, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = title;
         titleTxt.x = padX;
@@ -571,7 +616,7 @@ class ApiDashboardModal extends Sprite {
 
         // Description (Word wrapped & autoSize so text scales dynamically without clipping!)
         var descTxt = new TextField();
-        var descFmt = new TextFormat("_sans", 11, 0x888888, false);
+        var descFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_SECONDARY, false);
         descTxt.defaultTextFormat = descFmt;
         descTxt.text = description;
         descTxt.x = padX;
@@ -608,9 +653,9 @@ class ApiDashboardModal extends Sprite {
         // Draw card background with hover responsiveness
         var renderCardBg = function(isHover:Bool):Void {
             card.graphics.clear();
-            card.graphics.beginFill(isHover ? 0x1C1C1C : 0x181818, 1);
-            card.graphics.lineStyle(1, isHover ? 0x2E2E2E : 0x242424);
-            card.graphics.drawRoundRect(0, 0, rowW, cardH, 6, 6);
+            card.graphics.beginFill(isHover ? ApiStyle.COLOR_BG_CARD_HOVER : ApiStyle.COLOR_BG_CARD, 1);
+            card.graphics.lineStyle(1, isHover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_CARD);
+            card.graphics.drawRoundRect(0, 0, rowW, cardH, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
             card.graphics.endFill();
         };
         renderCardBg(false);
@@ -638,11 +683,11 @@ class ApiDashboardModal extends Sprite {
         var btn = new Sprite();
         btn.buttonMode = true;
 
-        var bg = isPrimary ? 0x880000 : 0x1E1E1E;
-        var border = isPrimary ? 0xAA0000 : 0x333333;
-        var hoverBg = isPrimary ? 0xAA0000 : 0x2A2A2A;
-        var hoverBorder = isPrimary ? 0xDD0000 : 0x555555;
-        var textColor = isPrimary ? 0xFFFFFF : 0xCCCCCC;
+        var bg = isPrimary ? ApiStyle.COLOR_BTN_BG_PRIMARY : ApiStyle.COLOR_BTN_BG_NORMAL;
+        var border = isPrimary ? ApiStyle.COLOR_BTN_BORDER_PRIMARY : ApiStyle.COLOR_BTN_BORDER_NORMAL;
+        var hoverBg = isPrimary ? ApiStyle.COLOR_BTN_BG_PRIMARY_HOVER : ApiStyle.COLOR_BTN_BG_HOVER;
+        var hoverBorder = isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BTN_BORDER_HOVER;
+        var textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_PRIMARY;
 
         btn.graphics.beginFill(bg, 1);
         btn.graphics.lineStyle(1, border);
@@ -650,7 +695,7 @@ class ApiDashboardModal extends Sprite {
         btn.graphics.endFill();
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 12, textColor, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 12, textColor, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.text = label;
@@ -667,7 +712,7 @@ class ApiDashboardModal extends Sprite {
             btn.graphics.lineStyle(1, hoverBorder);
             btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
             btn.graphics.endFill();
-            txt.textColor = 0xFFFFFF;
+            txt.textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_TITLE;
         });
 
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
@@ -692,7 +737,7 @@ class ApiDashboardModal extends Sprite {
         btn.buttonMode = true;
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xFFFFFF, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_TITLE, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.width = w;
@@ -706,18 +751,18 @@ class ApiDashboardModal extends Sprite {
             var active = (getState != null) ? getState() : false;
             btn.graphics.clear();
             if (active) {
-                btn.graphics.beginFill(0x103318, 1);
-                btn.graphics.lineStyle(1, 0x2D7A3E);
+                btn.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 1);
+                btn.graphics.lineStyle(1, ApiStyle.COLOR_STATUS_ACTIVE);
                 btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
                 btn.graphics.endFill();
-                txt.textColor = 0x44EE77;
+                txt.textColor = ApiStyle.COLOR_STATUS_ACTIVE;
                 txt.text = "ON";
             } else {
-                btn.graphics.beginFill(0x1A1A1A, 1);
-                btn.graphics.lineStyle(1, 0x383838);
+                btn.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 1);
+                btn.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
                 btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
                 btn.graphics.endFill();
-                txt.textColor = 0x777777;
+                txt.textColor = ApiStyle.COLOR_TEXT_MUTED;
                 txt.text = "OFF";
             }
         };
@@ -768,7 +813,6 @@ class ApiDashboardModal extends Sprite {
             "Open",
             true, // Primary red button!
             function():Void {
-                close();
                 ApiPrompts.showScriptManager(_overlay);
             }
         );
@@ -820,7 +864,6 @@ class ApiDashboardModal extends Sprite {
                         var content:String = stream.readUTFBytes(stream.bytesAvailable);
                         stream.close();
 
-                        close();
                         ScriptManager.SINGLETON.loadScript(content);
                         ScriptManager.SINGLETON.start();
                         ApiNotificationManager.notify("Loaded: " + file.name);
@@ -841,7 +884,6 @@ class ApiDashboardModal extends Sprite {
             "Paste",
             false,
             function():Void {
-                close();
                 ApiPrompts.showPastePrompt(_overlay);
             }
         );
@@ -856,7 +898,6 @@ class ApiDashboardModal extends Sprite {
             "Setup",
             false,
             function():Void {
-                close();
                 ApiPrompts.showLoadoutsPrompt(_overlay);
             }
         );
@@ -913,7 +954,6 @@ class ApiDashboardModal extends Sprite {
             "Configure",
             false,
             function():Void {
-                close();
                 ApiPrompts.showSmartCombatPrompt(_overlay);
             }
         );
@@ -926,7 +966,6 @@ class ApiDashboardModal extends Sprite {
             "Editor",
             false,
             function():Void {
-                close();
                 ApiPrompts.showCombatModeEditorPrompt(_overlay);
             }
         );
@@ -941,7 +980,6 @@ class ApiDashboardModal extends Sprite {
             "Configure",
             false,
             function():Void {
-                close();
                 ApiPrompts.showCombatPrompt(_overlay);
             }
         );
@@ -959,14 +997,13 @@ class ApiDashboardModal extends Sprite {
             isQuestAuto ? "Running" : "Configure",
             isQuestAuto,
             function():Void {
-                close();
                 ApiPrompts.showQuestPrompt(_overlay);
             }
         );
     }
 
     private function addEnhancementLoadoutCard():Void {
-        var rowW:Float = CONTENT_WIDTH - 20;
+        var rowW:Float = _contentWidth - 20;
         var cardH:Float = 88;
         var card = new Sprite();
 
@@ -1011,17 +1048,17 @@ class ApiDashboardModal extends Sprite {
             isOptimal = (wMatches && cMatches && hMatches && capeMatches);
         }
 
-        card.graphics.beginFill(0x161616, 1);
-        card.graphics.lineStyle(1, 0x262626);
+        card.graphics.beginFill(ApiStyle.COLOR_BG_CARD, 1);
+        card.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_CARD);
         card.graphics.drawRoundRect(0, 0, rowW, cardH, 6, 6);
 
-        card.graphics.lineStyle(1, 0x222222);
+        card.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DIVIDER);
         card.graphics.moveTo(12, 28);
         card.graphics.lineTo(rowW - 12, 28);
         card.graphics.endFill();
 
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 12, 0xE0E0E0, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 12, ApiStyle.COLOR_TEXT_PRIMARY, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = "Active Loadout: " + curClass + " (Lvl " + playerLvl + ")";
         titleTxt.x = 12;
@@ -1033,8 +1070,8 @@ class ApiDashboardModal extends Sprite {
         card.addChild(titleTxt);
 
         var tagTxt = new TextField();
-        var tagColor:Int = isOptimal ? 0x4CAF50 : 0xFFA726;
-        var tagFmt = new TextFormat("_sans", 11, tagColor, true);
+        var tagColor:Int = isOptimal ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_STATUS_WARN;
+        var tagFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, tagColor, true);
         tagFmt.align = TextFormatAlign.RIGHT;
         tagTxt.defaultTextFormat = tagFmt;
         tagTxt.text = isOptimal ? "[Optimal]" : "[Upgrade Available]";
@@ -1048,13 +1085,13 @@ class ApiDashboardModal extends Sprite {
 
         var drawSlotEntry = function(label:String, val:String, lvl:Int, dotColor:Null<Int>, sx:Float, sy:Float, maxW:Float):Void {
             var dot = new Shape();
-            dot.graphics.beginFill(dotColor != null ? dotColor : 0x666666, 1);
+            dot.graphics.beginFill(dotColor != null ? dotColor : ApiStyle.COLOR_TEXT_MUTED, 1);
             dot.graphics.drawCircle(sx + 4, sy + 7, 3.5);
             dot.graphics.endFill();
             card.addChild(dot);
 
             var sTxt = new TextField();
-            var sFmt = new TextFormat("_sans", 11, 0xCCCCCC, false);
+            var sFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, false);
             sTxt.defaultTextFormat = sFmt;
             var lvlStr = (lvl > 0) ? " (Lvl " + lvl + ")" : "";
             sTxt.text = label + ": " + val + lvlStr;
@@ -1128,7 +1165,6 @@ class ApiDashboardModal extends Sprite {
             "Configure",
             false,
             function():Void {
-                close();
                 ApiPrompts.showCustomEnhancePrompt(_overlay);
             }
         );
@@ -1152,7 +1188,6 @@ class ApiDashboardModal extends Sprite {
             "Open Shop",
             false,
             function():Void {
-                close();
                 ApiPrompts.showEnhancementPrompt(_overlay, "Lvl 50+ Enhancements", lvl50Shops, false);
             }
         );
@@ -1173,7 +1208,6 @@ class ApiDashboardModal extends Sprite {
             "Open Shop",
             false,
             function():Void {
-                close();
                 ApiPrompts.showEnhancementPrompt(_overlay, "Awe Enhancements", aweShops, false);
             }
         );
@@ -1191,7 +1225,6 @@ class ApiDashboardModal extends Sprite {
             "Open Shop",
             false,
             function():Void {
-                close();
                 ApiPrompts.showEnhancementPrompt(_overlay, "Forge Enhancements", forgeShops, true);
             }
         );
@@ -1210,18 +1243,18 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = ApiCombatWidget.isWidgetEnabled();
+                var cur = ApiMenuHubWidget.isCombatWidgetEnabled();
                 var next = !cur;
-                ApiCombatWidget.setWidgetEnabled(next);
+                ApiMenuHubWidget.setCombatWidgetEnabled(next);
                 ApiNotificationManager.notify("Combat Widget: " + (next ? "Visible" : "Hidden"));
             },
             function():Bool {
-                return ApiCombatWidget.isWidgetEnabled();
+                return ApiMenuHubWidget.isCombatWidgetEnabled();
             }
         );
 
-        // Modular Custom Widgets
-        var widgets = ApiToolsWidget.getWidgets();
+        // Modular Custom Widgets (Managed by ApiMenuHubWidget)
+        var widgets = ApiMenuHubWidget.getWidgets();
         for (wDef in widgets) {
             addItemRow(
                 "HUD: " + wDef.title,
@@ -1231,7 +1264,7 @@ class ApiDashboardModal extends Sprite {
                 false,
                 function():Void {
                     var next = !wDef.enabled;
-                    ApiToolsWidget.setWidgetEnabled(wDef.id, next);
+                    ApiMenuHubWidget.setWidgetEnabled(wDef.id, next);
                     ApiNotificationManager.notify("Widget '" + wDef.title + "': " + (next ? "Visible" : "Hidden"));
                 },
                 function():Bool {
@@ -1246,12 +1279,12 @@ class ApiDashboardModal extends Sprite {
                 "Configure",
                 false,
                 function():Void {
-                    ApiToolsWidget.openEditor(wDef);
+                    ApiMenuHubWidget.openEditor(wDef);
                 }
             );
         }
 
-        // Add [+ Create New Custom Widget] button!
+        // Add [+ Create New Custom Widget] button! (Widget Creation System)
         addItemRow(
             "+ Create New Custom Widget",
             "Creates a new custom floating widget with your choice of misc tools.",
@@ -1259,7 +1292,7 @@ class ApiDashboardModal extends Sprite {
             "Create",
             false,
             function():Void {
-                ApiToolsWidget.createNewWidget();
+                ApiMenuHubWidget.createNewWidget();
             }
         );
 
@@ -1271,10 +1304,7 @@ class ApiDashboardModal extends Sprite {
             "Reset",
             false,
             function():Void {
-                ApiMenuHubWidget.resetPosition();
-                ApiCombatWidget.resetPosition();
-                ApiToolsWidget.resetAllPositions();
-                ApiNotificationManager.notify("All widgets reset to default positions!");
+                ApiMenuHubWidget.resetAllWidgets();
             }
         );
 
@@ -1605,7 +1635,6 @@ class ApiDashboardModal extends Sprite {
             "Manage",
             false,
             function():Void {
-                close();
                 ApiPrompts.showBlacklistPrompt(_overlay);
             }
         );
@@ -1647,7 +1676,6 @@ class ApiDashboardModal extends Sprite {
             "Load Shop",
             false,
             function():Void {
-                close();
                 ApiPrompts.showShopPrompt(_overlay);
             }
         );
@@ -1768,5 +1796,7 @@ class ApiDashboardModal extends Sprite {
 class ApiDashboardModal {
     public static function show(overlay:Dynamic, pocket:Dynamic = null):Void {}
     public static function close():Void {}
+    public static function isOpen():Bool return false;
+    public static function refreshCurrentTab():Void {}
 }
 #end

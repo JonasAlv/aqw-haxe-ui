@@ -11,11 +11,17 @@ import flash.text.TextFieldType;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 
+import ui.ApiStyle;
+
 class ApiPromptModal {
     private static var _currentContainer:Sprite;
     private static var _backdrop:Sprite;
     private static var _dialogWidth:Float = 0;
     private static var _dialogHeight:Float = 0;
+
+    public static function isOpen():Bool {
+        return _currentContainer != null && _currentContainer.parent != null;
+    }
 
     public static function createDialog(w:Float, h:Float, titleText:String):Sprite {
         close();
@@ -24,29 +30,29 @@ class ApiPromptModal {
 
         var container = new Sprite();
         // Modern glass plate
-        container.graphics.beginFill(0x161616, 0.96);
-        container.graphics.lineStyle(1, 0x2E2E2E);
-        container.graphics.drawRoundRect(0, 0, w, h, 6, 6);
+        container.graphics.beginFill(ApiStyle.COLOR_BG_DIALOG, ApiStyle.ALPHA_DIALOG);
+        container.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
+        container.graphics.drawRoundRect(0, 0, w, h, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
         container.graphics.endFill();
 
         // Top glass bevel highlight
-        container.graphics.lineStyle(1, 0x383838, 0.55);
+        container.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_HIGHLIGHT, 0.55);
         container.graphics.moveTo(3, 1);
         container.graphics.lineTo(w - 3, 1);
 
         // Crimson accent pill on top left
         container.graphics.lineStyle(0, 0, 0);
-        container.graphics.beginFill(0xC82333, 1.0);
+        container.graphics.beginFill(ApiStyle.COLOR_ACCENT_CRIMSON, 1.0);
         container.graphics.drawRoundRect(14, 12, 3.5, 16, 1, 1);
         container.graphics.endFill();
 
         container.x = (960 - w) / 2;
         container.y = (500 - h) / 2;
-        if (container.x < 0) container.x = 0;
-        if (container.y < 0) container.y = 0;
+        if (container.x < ApiStyle.SCREEN_MARGIN) container.x = ApiStyle.SCREEN_MARGIN;
+        if (container.y < ApiStyle.SCREEN_MARGIN) container.y = ApiStyle.SCREEN_MARGIN;
 
         var title = new TextField();
-        var fmt = new TextFormat("_sans", 13, 0xEEEEEE, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 13, ApiStyle.COLOR_TEXT_PRIMARY, true);
         fmt.align = TextFormatAlign.LEFT;
         title.defaultTextFormat = fmt;
         title.text = titleText;
@@ -60,7 +66,7 @@ class ApiPromptModal {
 
         // Divider below header
         var div = new Shape();
-        div.graphics.lineStyle(1, 0x262626, 0.9);
+        div.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DIVIDER, 0.9);
         div.graphics.moveTo(12, 34);
         div.graphics.lineTo(w - 12, 34);
         container.addChild(div);
@@ -75,9 +81,9 @@ class ApiPromptModal {
 
         var renderCloseBtn = function(isHover:Bool):Void {
             closeBtn.graphics.clear();
-            var bg = isHover ? 0x2A2A2A : 0x1A1A1A;
-            var border = isHover ? 0xC82333 : 0x282828;
-            var xColor = isHover ? 0xFF5555 : 0x999999;
+            var bg = isHover ? ApiStyle.COLOR_STATUS_ERROR : ApiStyle.COLOR_BG_SURFACE;
+            var border = isHover ? ApiStyle.COLOR_STATUS_ERROR_HOVER : ApiStyle.COLOR_BORDER_DEFAULT;
+            var xColor = isHover ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_TEXT_MUTED;
 
             closeBtn.graphics.beginFill(bg, 0.9);
             closeBtn.graphics.lineStyle(1, border);
@@ -100,6 +106,52 @@ class ApiPromptModal {
         closeBtn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void close());
         container.addChild(closeBtn);
 
+        // Draggable header strip (strictly clamped to screen, no edge snapping)
+        var dragBar = new Sprite();
+        dragBar.graphics.beginFill(0x000000, 0.0);
+        dragBar.graphics.drawRect(0, 0, w - cbW - 20, 34);
+        dragBar.graphics.endFill();
+        dragBar.buttonMode = true;
+        dragBar.useHandCursor = true;
+        container.addChild(dragBar);
+
+        var isDragging:Bool = false;
+        var dragStartX:Float = 0;
+        var dragStartY:Float = 0;
+
+        dragBar.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
+            isDragging = true;
+            dragStartX = e.stageX - container.x;
+            dragStartY = e.stageY - container.y;
+            if (container.stage != null) {
+                var onDragMove = null;
+                var onDragUp = null;
+                onDragMove = function(me:MouseEvent):Void {
+                    if (isDragging) {
+                        var nx:Float = Math.round(me.stageX - dragStartX);
+                        var ny:Float = Math.round(me.stageY - dragStartY);
+                        var sw:Float = (container.stage.stageWidth > 0) ? container.stage.stageWidth : 960;
+                        var sh:Float = (container.stage.stageHeight > 0) ? container.stage.stageHeight : 550;
+                        if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
+                        if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
+                        if (nx > sw - w - ApiStyle.SCREEN_MARGIN) nx = sw - w - ApiStyle.SCREEN_MARGIN;
+                        if (ny > sh - h - ApiStyle.SCREEN_MARGIN) ny = sh - h - ApiStyle.SCREEN_MARGIN;
+                        container.x = nx;
+                        container.y = ny;
+                    }
+                };
+                onDragUp = function(ue:MouseEvent):Void {
+                    isDragging = false;
+                    if (container.stage != null) {
+                        container.stage.removeEventListener(MouseEvent.MOUSE_MOVE, onDragMove);
+                        container.stage.removeEventListener(MouseEvent.MOUSE_UP, onDragUp);
+                    }
+                };
+                container.stage.addEventListener(MouseEvent.MOUSE_MOVE, onDragMove);
+                container.stage.addEventListener(MouseEvent.MOUSE_UP, onDragUp);
+            }
+        });
+
         _currentContainer = container;
         return container;
     }
@@ -115,20 +167,20 @@ class ApiPromptModal {
         fontSize:Int = 11
     ):Sprite {
         var btn = new Sprite();
-        var baseBg = customBg != null ? customBg : (isPrimary ? 0x1F1414 : 0x161616);
-        var baseBorder = customBorder != null ? customBorder : (isPrimary ? 0xC82333 : 0x2E2E2E);
-        var textColor = (customBorder != null || isPrimary) ? 0xFF8888 : 0xCCCCCC;
+        var baseBg = customBg != null ? customBg : (isPrimary ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_BG_CARD);
+        var baseBorder = customBorder != null ? customBorder : (isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BORDER_DEFAULT);
+        var textColor = (customBorder != null) ? ApiStyle.COLOR_ACCENT_PINK : (isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_PRIMARY);
 
         var redraw = function(hover:Bool):Void {
             btn.graphics.clear();
-            var bg = hover ? 0x282828 : baseBg;
-            var border = hover ? (isPrimary ? 0xE53935 : 0x555555) : baseBorder;
+            var bg = hover ? (isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BTN_BG_HOVER) : baseBg;
+            var border = hover ? (isPrimary ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_BORDER_HIGHLIGHT) : baseBorder;
             btn.graphics.beginFill(bg, 0.95);
             btn.graphics.lineStyle(1, border);
             btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
             btn.graphics.endFill();
 
-            btn.graphics.lineStyle(1, hover ? 0x555555 : 0x383838, 0.5);
+            btn.graphics.lineStyle(1, hover ? ApiStyle.COLOR_BEVEL_LIGHT : ApiStyle.COLOR_BEVEL_SUBTLE, 0.5);
             btn.graphics.moveTo(2, 1);
             btn.graphics.lineTo(w - 2, 1);
         };
@@ -138,7 +190,7 @@ class ApiPromptModal {
         btn.mouseChildren = false;
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", fontSize, textColor, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, fontSize, textColor, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.text = label;
@@ -150,7 +202,7 @@ class ApiPromptModal {
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             redraw(true);
-            txt.textColor = 0xFFFFFF;
+            txt.textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_TITLE;
         });
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             redraw(false);
@@ -161,7 +213,7 @@ class ApiPromptModal {
             var prevAlpha = btn.alpha;
             btn.alpha = 1.0;
             var highlight = new Shape();
-            highlight.graphics.lineStyle(1.8, isPrimary ? 0xFF5555 : 0x00FF88);
+            highlight.graphics.lineStyle(1.8, isPrimary ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_STATUS_ACTIVE);
             highlight.graphics.drawRoundRect(0, 0, w, h, 4, 4);
             btn.addChild(highlight);
             haxe.Timer.delay(function():Void {
@@ -210,12 +262,13 @@ class ApiPromptModal {
         input.type = TextFieldType.INPUT;
         input.multiline = multiline;
         input.wordWrap = multiline;
-        var fmt = new TextFormat("_sans", multiline ? 11 : 12, 0xEEEEEE);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, multiline ? 11 : 12, ApiStyle.COLOR_TEXT_PRIMARY);
         input.defaultTextFormat = fmt;
         input.border = true;
-        input.borderColor = 0x2E2E2E;
+        input.borderColor = ApiStyle.COLOR_BORDER_DEFAULT;
         input.background = true;
-        input.backgroundColor = 0x181818;
+        input.backgroundColor = ApiStyle.COLOR_BG_INPUT;
+        input.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
         input.width = w;
         input.height = h;
         input.text = initialText != null ? initialText : "";
@@ -224,7 +277,7 @@ class ApiPromptModal {
 
     public static function createLabel(text:String, w:Float, size:Int = 11, isBold:Bool = false):TextField {
         var lbl = new TextField();
-        lbl.defaultTextFormat = new TextFormat("_sans", size, 0xCCCCCC, isBold);
+        lbl.defaultTextFormat = new TextFormat(ApiStyle.FONT_FAMILY, size, isBold ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_TEXT_PRIMARY, isBold);
         lbl.text = text;
         lbl.width = w;
         lbl.height = size + 8;
@@ -252,33 +305,31 @@ class ApiPromptModal {
 
     public static function show(overlay:Dynamic, container:Sprite):Void {
         if (overlay != null) {
-            var sw:Float = 960;
-            var sh:Float = 500;
-            if (overlay.stage != null) {
-                sw = overlay.stage.stageWidth > 0 ? overlay.stage.stageWidth : 960;
-                sh = overlay.stage.stageHeight > 0 ? overlay.stage.stageHeight : 500;
-            }
+            var target:Dynamic = (overlay.stage != null) ? overlay.stage : overlay;
+            var sw:Float = (target.stageWidth != null && target.stageWidth > 0) ? target.stageWidth : 960;
+            var sh:Float = (target.stageHeight != null && target.stageHeight > 0) ? target.stageHeight : 550;
 
             if (_backdrop == null) {
                 _backdrop = new Sprite();
             }
             _backdrop.graphics.clear();
-            _backdrop.graphics.beginFill(0x000000, 0.65);
+            _backdrop.graphics.beginFill(ApiStyle.COLOR_BG_BACKDROP, ApiStyle.ALPHA_BACKDROP);
             _backdrop.graphics.drawRect(0, 0, sw, sh);
             _backdrop.graphics.endFill();
 
             if (container != null) {
                 var dw:Float = _dialogWidth > 0 ? _dialogWidth : container.width;
                 var dh:Float = _dialogHeight > 0 ? _dialogHeight : container.height;
-                container.x = Math.max(0, (sw - dw) / 2);
-                container.y = Math.max(0, (sh - dh) / 2);
+                container.x = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sw - dw - ApiStyle.SCREEN_MARGIN, (sw - dw) / 2));
+                container.y = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sh - dh - ApiStyle.SCREEN_MARGIN, (sh - dh) / 2));
             }
 
-            overlay.addChild(_backdrop);
-            overlay.addChild(container);
+            // Always add to target stage for absolute foreground priority over dashboard & widgets
+            target.addChild(_backdrop);
+            target.addChild(container);
 
-            if (overlay.stage != null) {
-                overlay.stage.addEventListener(KeyboardEvent.KEY_DOWN, onStageKeyDown);
+            if (target.stage != null) {
+                target.stage.addEventListener(KeyboardEvent.KEY_DOWN, onStageKeyDown);
             } else if (container != null) {
                 container.addEventListener(Event.ADDED_TO_STAGE, function(e:Event):Void {
                     if (container.stage != null) {
@@ -297,6 +348,7 @@ class ApiPromptModal {
 }
 #else
 class ApiPromptModal {
+    public static function isOpen():Bool { return false; }
     public static function close():Void {}
 }
 #end

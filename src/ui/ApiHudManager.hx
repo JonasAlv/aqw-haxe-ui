@@ -12,6 +12,7 @@ import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import ui.ApiDashboardModal;
+import ui.ApiStyle;
 import ui.Overlay;
 import util.HelperSetting;
 
@@ -271,7 +272,7 @@ class ApiHudManager {
         var hasIndicator:Bool = (def.id != "toggle_bank");
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xEEEEEE, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
         fmt.align = hasIndicator ? TextFormatAlign.LEFT : TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.x = hasIndicator ? 21 : 0;
@@ -287,36 +288,36 @@ class ApiHudManager {
 
         var renderBtn = function(active:Bool, hover:Bool):Void {
             btn.graphics.clear();
-            var bg:Int = 0x161616;
-            var border:Int = 0x2E2E2E;
-            var textColor:Int = 0xCCCCCC;
+            var bg:Int = ApiStyle.COLOR_BG_CARD;
+            var border:Int = ApiStyle.COLOR_BORDER_DEFAULT;
+            var textColor:Int = ApiStyle.COLOR_TEXT_PRIMARY;
 
             if (active) {
                 if (def.id == "smart_enhance") {
-                    bg = hover ? 0x2A1C0E : 0x1E1408;
-                    border = hover ? 0xFFA726 : 0xD97706;
-                    textColor = hover ? 0xFFE082 : 0xFFB74D;
+                    bg = hover ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BG_SURFACE;
+                    border = hover ? ApiStyle.COLOR_STATUS_WARN : ApiStyle.COLOR_STATUS_WARN;
+                    textColor = hover ? ApiStyle.COLOR_TEXT_YELLOW : ApiStyle.COLOR_STATUS_WARN;
                 } else {
-                    bg = hover ? 0x122B18 : 0x0C1F11;
-                    border = hover ? 0x2ECC71 : 0x27AE60;
-                    textColor = hover ? 0x76FF9F : 0x4CE87A;
+                    bg = hover ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BG_SURFACE;
+                    border = hover ? ApiStyle.COLOR_STATUS_ACTIVE_HOVER : ApiStyle.COLOR_STATUS_ACTIVE;
+                    textColor = hover ? ApiStyle.COLOR_STATUS_ACTIVE_HOVER : ApiStyle.COLOR_STATUS_ACTIVE;
                 }
                 txt.text = def.activeText;
             } else {
-                bg = hover ? 0x242424 : 0x161616;
-                border = hover ? 0x484848 : 0x2E2E2E;
-                textColor = hover ? 0xFFFFFF : 0xCCCCCC;
+                bg = hover ? ApiStyle.COLOR_BG_CARD_HOVER : ApiStyle.COLOR_BG_CARD;
+                border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
+                textColor = hover ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_TEXT_PRIMARY;
                 txt.text = def.inactiveText;
             }
 
             // Plate fill
             btn.graphics.beginFill(bg, 0.94);
             btn.graphics.lineStyle(1, border);
-            btn.graphics.drawRoundRect(0, 0, btnW, btnH, 5, 5);
+            btn.graphics.drawRoundRect(0, 0, btnW, btnH, ApiStyle.CORNER_RADIUS_SM, ApiStyle.CORNER_RADIUS_SM);
             btn.graphics.endFill();
 
             // Subtle top highlight line for crisp glass bevel look
-            btn.graphics.lineStyle(1, hover ? 0x555555 : 0x383838, 0.55);
+            btn.graphics.lineStyle(1, hover ? ApiStyle.COLOR_BEVEL_LIGHT : ApiStyle.COLOR_BEVEL_SUBTLE, 0.55);
             btn.graphics.moveTo(3, 1);
             btn.graphics.lineTo(btnW - 3, 1);
 
@@ -329,24 +330,24 @@ class ApiHudManager {
                 if (active) {
                     if (def.id == "smart_enhance") {
                         // Amber glow & core
-                        btn.graphics.beginFill(0xFFA726, 0.35);
+                        btn.graphics.beginFill(ApiStyle.COLOR_STATUS_WARN, 0.35);
                         btn.graphics.drawCircle(dotX, dotY, 4.5);
                         btn.graphics.endFill();
-                        btn.graphics.beginFill(0xFFB74D, 1.0);
+                        btn.graphics.beginFill(ApiStyle.COLOR_STATUS_WARN, 1.0);
                         btn.graphics.drawCircle(dotX, dotY, 2.5);
                         btn.graphics.endFill();
                     } else {
                         // Luminous green glow & core
-                        btn.graphics.beginFill(0x2ECC71, 0.35);
+                        btn.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 0.35);
                         btn.graphics.drawCircle(dotX, dotY, 4.5);
                         btn.graphics.endFill();
-                        btn.graphics.beginFill(0x00E676, 1.0);
+                        btn.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE_HOVER, 1.0);
                         btn.graphics.drawCircle(dotX, dotY, 2.5);
                         btn.graphics.endFill();
                     }
                 } else {
-                    // Muted dark grey inactive dot
-                    btn.graphics.beginFill(0x444444, 0.85);
+                    // Muted inactive dot
+                    btn.graphics.beginFill(ApiStyle.COLOR_STATUS_INACTIVE, 0.85);
                     btn.graphics.drawCircle(dotX, dotY, 2.5);
                     btn.graphics.endFill();
                 }
@@ -402,10 +403,10 @@ class ApiHudManager {
                 var ny:Float = Math.round(e.stageY - dragStartY);
                 var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
                 var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 500;
-                if (nx < 0) nx = 0;
-                if (ny < 0) ny = 0;
-                if (nx > sw - btnW) nx = sw - btnW;
-                if (ny > sh - btnH) ny = sh - btnH;
+                if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
+                if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
+                if (nx > sw - btnW - ApiStyle.SCREEN_MARGIN) nx = sw - btnW - ApiStyle.SCREEN_MARGIN;
+                if (ny > sh - btnH - ApiStyle.SCREEN_MARGIN) ny = sh - btnH - ApiStyle.SCREEN_MARGIN;
                 btn.x = nx;
                 btn.y = ny;
             }
@@ -415,6 +416,13 @@ class ApiHudManager {
             if (isDragging) {
                 btn.cacheAsBitmap = true;
                 if (hasDragged) {
+                    var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
+                    var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
+                    if (btn.x < ApiStyle.SCREEN_MARGIN) btn.x = ApiStyle.SCREEN_MARGIN;
+                    if (btn.y < ApiStyle.SCREEN_MARGIN) btn.y = ApiStyle.SCREEN_MARGIN;
+                    if (btn.x > sw - btnW - ApiStyle.SCREEN_MARGIN) btn.x = sw - btnW - ApiStyle.SCREEN_MARGIN;
+                    if (btn.y > sh - btnH - ApiStyle.SCREEN_MARGIN) btn.y = sh - btnH - ApiStyle.SCREEN_MARGIN;
+
                     HelperSetting.setInt("api_hud_" + def.id + "_x", Math.round(btn.x));
                     HelperSetting.setInt("api_hud_" + def.id + "_y", Math.round(btn.y));
                 }

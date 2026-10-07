@@ -19,6 +19,7 @@ import ui.Dropdown;
 import ui.Overlay;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
+import ui.ApiStyle;
 import ui.prompts.ApiPrompts;
 import util.HelperSetting;
 
@@ -76,14 +77,14 @@ class ApiCombatWidget {
         g.drawRect(-4, -2, 28, 24);
         g.endFill();
 
-        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
-        var border = hover ? 0x444444 : 0x282828;
+        var bg = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE;
+        var border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
         g.beginFill(bg, 0.85);
         g.lineStyle(1, border);
         g.drawRoundRect(0, 0, 20, 18, 4, 4);
         g.endFill();
 
-        var color:Int = hover ? 0x00FF88 : 0xAAAAAA;
+        var color:Int = hover ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
         g.lineStyle(2.2, color, 1.0, true);
         var cx = 10.0;
         var cy = 9.0;
@@ -110,9 +111,9 @@ class ApiCombatWidget {
         g.drawRect(-4, -4, 38, 32);
         g.endFill();
 
-        var bg = active ? 0x0C2A18 : (hover ? 0x2A2A2A : 0x1A1A1A);
-        var border = active ? 0x00FF88 : (hover ? 0x666666 : 0x3E3E3E);
-        var iconColor = active ? 0x00FF88 : (hover ? 0xFFFFFF : 0xCCCCCC);
+        var bg = active ? ApiStyle.COLOR_BG_SURFACE : (hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE);
+        var border = active ? ApiStyle.COLOR_STATUS_ACTIVE : (hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT);
+        var iconColor = active ? ApiStyle.COLOR_STATUS_ACTIVE : (hover ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_TEXT_MUTED);
 
         g.beginFill(bg, 0.95);
         g.lineStyle(1, border);
@@ -175,10 +176,10 @@ class ApiCombatWidget {
 
         var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
         var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
-        if (initX > sw - WIDGET_W) initX = sw - WIDGET_W;
-        if (initY > sh - HEIGHT_EXPANDED) initY = sh - HEIGHT_EXPANDED;
-        if (initX < 0) initX = 0;
-        if (initY < 0) initY = 0;
+        if (initX > sw - WIDGET_W - ApiStyle.SCREEN_MARGIN) initX = sw - WIDGET_W - ApiStyle.SCREEN_MARGIN;
+        if (initY > sh - HEIGHT_EXPANDED - ApiStyle.SCREEN_MARGIN) initY = sh - HEIGHT_EXPANDED - ApiStyle.SCREEN_MARGIN;
+        if (initX < ApiStyle.SCREEN_MARGIN) initX = ApiStyle.SCREEN_MARGIN;
+        if (initY < ApiStyle.SCREEN_MARGIN) initY = ApiStyle.SCREEN_MARGIN;
 
         _widget.x = initX;
         _widget.y = initY;
@@ -200,16 +201,16 @@ class ApiCombatWidget {
         _headerBar.graphics.endFill();
         _widget.addChild(_headerBar);
 
-        // Header Crimson Accent
+        // Header Accent Bar
         var redAccent = new Shape();
-        redAccent.graphics.beginFill(0xC82333, 1.0);
+        redAccent.graphics.beginFill(ApiStyle.COLOR_ACCENT_PRIMARY, 1.0);
         redAccent.graphics.drawRoundRect(6, 4, 3, 14, 1, 1);
         redAccent.graphics.endFill();
         _headerBar.addChild(redAccent);
 
         // Header Title
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 11, 0xBBBBBB, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = "Combat & Hunt";
         titleTxt.x = 13;
@@ -231,12 +232,12 @@ class ApiCombatWidget {
 
         // Subtle hover brightness feedback on title bar
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            titleTxt.textColor = 0xFFFFFF;
+            titleTxt.textColor = ApiStyle.COLOR_TEXT_TITLE;
             renderCollapseIcon(_isCollapsed, true);
             _bg.alpha = 1.0;
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            titleTxt.textColor = 0xBBBBBB;
+            titleTxt.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
             renderCollapseIcon(_isCollapsed, false);
             _bg.alpha = _isCollapsed ? 0.78 : 0.94;
         });
@@ -416,12 +417,12 @@ class ApiCombatWidget {
         });
         _ddClass.itemColorCallback = function(itemName:String):Null<Int> {
             if (itemName == null || itemName == "") return null;
-            if (itemName == "Current") return 0xFFD700; // Gold for Current
+            if (itemName == "Current") return ApiStyle.COLOR_TEXT_YELLOW;
             var key = itemName.toLowerCase();
             if (ApiPrompts.lastInventoryClassKeys != null && ApiPrompts.lastInventoryClassKeys.exists(key)) {
-                return 0x00FF88; // Neon Green for inventory/owned classes
+                return ApiStyle.COLOR_STATUS_ACTIVE;
             }
-            return 0x555555; // Muted gray for global database classes
+            return ApiStyle.COLOR_TEXT_MUTED;
         };
         _ddClass.onBeforeOpen = function():Void {
             refreshClassOptions();
@@ -450,8 +451,8 @@ class ApiCombatWidget {
 
         // Row 3: Target Input Plate
         var inputPlate = new Sprite();
-        inputPlate.graphics.beginFill(0x111111, 0.95);
-        inputPlate.graphics.lineStyle(1, 0x333333);
+        inputPlate.graphics.beginFill(ApiStyle.COLOR_BG_INPUT, 0.95);
+        inputPlate.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         inputPlate.graphics.drawRoundRect(0, 0, 180, 24, 4, 4);
         inputPlate.graphics.endFill();
         inputPlate.x = 8;
@@ -462,7 +463,7 @@ class ApiCombatWidget {
 
         _targetInput = new TextField();
         _targetInput.type = TextFieldType.INPUT;
-        var inFmt = new TextFormat("_sans", 11, 0xEEEEEE);
+        var inFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY);
         _targetInput.defaultTextFormat = inFmt;
         _targetInput.x = 12;
         _targetInput.y = 85;
@@ -470,7 +471,7 @@ class ApiCombatWidget {
         _targetInput.height = 18;
         _targetInput.selectable = true;
         _targetInput.text = (savedTarget != "") ? savedTarget : "Target (Name / ID / MMID)";
-        _targetInput.textColor = (savedTarget != "") ? 0xFFFFFF : 0x777777;
+        _targetInput.textColor = (savedTarget != "") ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
 
         _targetInput.addEventListener(FocusEvent.FOCUS_IN, function(e:FocusEvent):Void {
             if (_targetInput.text == "Target (Name / ID / MMID)") {
@@ -552,13 +553,13 @@ class ApiCombatWidget {
         var alpha:Float = _isCollapsed ? 0.78 : 0.94;
 
         _bg.graphics.clear();
-        _bg.graphics.beginFill(0x161616, alpha);
-        _bg.graphics.lineStyle(1, 0x2E2E2E, _isCollapsed ? 0.75 : 1.0);
+        _bg.graphics.beginFill(ApiStyle.COLOR_BG_MAIN, alpha);
+        _bg.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT, _isCollapsed ? 0.75 : 1.0);
         _bg.graphics.drawRoundRect(0, 0, WIDGET_W, h, 6, 6);
         _bg.graphics.endFill();
 
         // Top bevel highlight line
-        _bg.graphics.lineStyle(1, 0x383838, _isCollapsed ? 0.4 : 0.55);
+        _bg.graphics.lineStyle(1, ApiStyle.COLOR_BEVEL_LIGHT, _isCollapsed ? 0.35 : 0.5);
         _bg.graphics.moveTo(3, 1);
         _bg.graphics.lineTo(WIDGET_W - 3, 1);
 
@@ -588,8 +589,8 @@ class ApiCombatWidget {
     private static function flashActionButton(btn:Sprite, active:Bool, onText:String, offText:String, w:Float, h:Float):Void {
         if (btn == null) return;
         btn.graphics.clear();
-        btn.graphics.beginFill(active ? 0x144022 : 0x2A2A2A, 0.98);
-        btn.graphics.lineStyle(1.8, active ? 0x00FF88 : 0x888888);
+        btn.graphics.beginFill(active ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BTN_BG_HOVER, 0.98);
+        btn.graphics.lineStyle(1.8, active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_BORDER_HIGHLIGHT);
         btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
         btn.graphics.endFill();
         haxe.Timer.delay(function():Void {
@@ -599,16 +600,16 @@ class ApiCombatWidget {
 
     private static function renderBtnStyle(btn:Sprite, active:Bool, onText:String, offText:String, w:Float, h:Float):Void {
         btn.graphics.clear();
-        var bg = active ? 0x0C1F11 : 0x161616;
-        var border = active ? 0x2ECC71 : 0x2E2E2E;
-        var textColor = active ? 0x76FF9F : 0xCCCCCC;
+        var bg = active ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BG_CARD;
+        var border = active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_BORDER_DEFAULT;
+        var textColor = active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_TEXT_PRIMARY;
 
         btn.graphics.beginFill(bg, 0.94);
         btn.graphics.lineStyle(1, border);
         btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
         btn.graphics.endFill();
 
-        btn.graphics.lineStyle(1, active ? 0x2ECC71 : 0x383838, 0.55);
+        btn.graphics.lineStyle(1, active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_BEVEL_LIGHT, 0.55);
         btn.graphics.moveTo(2, 1);
         btn.graphics.lineTo(w - 2, 1);
 
@@ -619,14 +620,14 @@ class ApiCombatWidget {
             var dotY:Float = h / 2;
             dot.graphics.lineStyle(0, 0, 0);
             if (active) {
-                dot.graphics.beginFill(0x2ECC71, 0.35);
+                dot.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 0.35);
                 dot.graphics.drawCircle(dotX, dotY, 4.5);
                 dot.graphics.endFill();
-                dot.graphics.beginFill(0x00E676, 1.0);
+                dot.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 1.0);
                 dot.graphics.drawCircle(dotX, dotY, 2.5);
                 dot.graphics.endFill();
             } else {
-                dot.graphics.beginFill(0x444444, 0.85);
+                dot.graphics.beginFill(ApiStyle.COLOR_STATUS_INACTIVE, 0.85);
                 dot.graphics.drawCircle(dotX, dotY, 2.5);
                 dot.graphics.endFill();
             }
@@ -764,10 +765,10 @@ class ApiCombatWidget {
                     var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
                     var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
 
-                    if (nx < 0) nx = 0;
-                    if (ny < 0) ny = 0;
-                    if (nx > sw - WIDGET_W) nx = sw - WIDGET_W;
-                    if (ny > sh - curH) ny = sh - curH;
+                    if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
+                    if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
+                    if (nx > sw - WIDGET_W - ApiStyle.SCREEN_MARGIN) nx = sw - WIDGET_W - ApiStyle.SCREEN_MARGIN;
+                    if (ny > sh - curH - ApiStyle.SCREEN_MARGIN) ny = sh - curH - ApiStyle.SCREEN_MARGIN;
 
                     _widget.x = nx;
                     _widget.y = ny;
@@ -780,15 +781,13 @@ class ApiCombatWidget {
                 isDragging = false;
                 _widget.cacheAsBitmap = true;
                 if (hasDragged) {
-                    // Mobile Edge Snap: snap softly to borders if dropped near edge
                     var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
                     var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
                     var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
-                    var snapDist:Float = 18;
-                    if (_widget.x < snapDist) _widget.x = 4;
-                    else if (_widget.x > sw - WIDGET_W - snapDist) _widget.x = sw - WIDGET_W - 4;
-                    if (_widget.y < snapDist) _widget.y = 4;
-                    else if (_widget.y > sh - curH - snapDist) _widget.y = sh - curH - 4;
+                    if (_widget.x < ApiStyle.SCREEN_MARGIN) _widget.x = ApiStyle.SCREEN_MARGIN;
+                    if (_widget.y < ApiStyle.SCREEN_MARGIN) _widget.y = ApiStyle.SCREEN_MARGIN;
+                    if (_widget.x > sw - WIDGET_W - ApiStyle.SCREEN_MARGIN) _widget.x = sw - WIDGET_W - ApiStyle.SCREEN_MARGIN;
+                    if (_widget.y > sh - curH - ApiStyle.SCREEN_MARGIN) _widget.y = sh - curH - ApiStyle.SCREEN_MARGIN;
 
                     HelperSetting.setInt("api_widget_combat_x", Math.round(_widget.x));
                     HelperSetting.setInt("api_widget_combat_y", Math.round(_widget.y));

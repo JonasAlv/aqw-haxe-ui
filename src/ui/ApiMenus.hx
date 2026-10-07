@@ -16,6 +16,8 @@ import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import flash.Vector;
 import ui.Overlay;
+import ui.ApiDashboardModal;
+import ui.ApiStyle;
 import ui.option.Button;
 import ui.option.Check;
 import ui.option.Menu;
@@ -27,6 +29,7 @@ class ApiMenus {
     private static var _injected:Bool = false;
     private static var _overlay:Overlay;
     private static var _pocket:Dynamic = null;
+    private static var _floatingMenuBtn:Sprite = null;
 
     public static function isInGame():Bool {
         try {
@@ -36,12 +39,6 @@ class ApiMenus {
             if (w.myAvatar.objData == null || w.myAvatar.objData.strUsername == null) return false;
             var mapStr:String = (w.strMapName != null) ? Std.string(w.strMapName) : "";
             if (mapStr == "" || mapStr == "null") return false;
-
-            var p:Dynamic = (_pocket != null) ? _pocket : untyped __global__["Pocket"].SINGLETON;
-            if (p != null && p.gameCore != null && p.gameCore.currentFrame != null) {
-                var frame:String = Std.string(p.gameCore.currentFrame);
-                if (frame != "Game") return false;
-            }
             if (Api.game.sfc != null && Api.game.sfc.isConnected == false) return false;
             return true;
         } catch (_:Dynamic) {
@@ -50,7 +47,12 @@ class ApiMenus {
     }
 
     public static function resetMenuButtonPosition():Void {
-        ApiMenuHubWidget.resetPosition();
+        HelperSetting.setInt("api_floating_menu_x", 80);
+        HelperSetting.setInt("api_floating_menu_y", 10);
+        if (_floatingMenuBtn != null) {
+            _floatingMenuBtn.x = 80;
+            _floatingMenuBtn.y = 10;
+        }
     }
 
     public static var anthonyMenus:Dynamic;
@@ -137,11 +139,11 @@ class ApiMenus {
             }
         }
 
-        // 6. Master Menu Hub Widget & Screen Widgets
+        // 6. Floating On-Screen Menu Button (opens fullscreen dashboard)
+        setupFloatingMenuButton(pocket, overlay);
+
+        // 7. Master Modular Widgets & Widget Creation System (ApiMenuHubWidget)
         ApiMenuHubWidget.init(pocket, overlay);
-        ApiHudManager.init(pocket, overlay);
-        ApiCombatWidget.init(pocket, overlay);
-        ApiToolsWidget.init(pocket, overlay);
 
         // 8. Menu tracking and frame hooks
         setupFrameHooks(pocket, overlay);
@@ -534,10 +536,153 @@ class ApiMenus {
             Api.notify(action + " error: " + Std.string(err));
         }
     }
+
+    private static function setupFloatingMenuButton(pocket:Dynamic, overlay:Overlay):Void {
+        var btnW:Float = 78;
+        var btnH:Float = 26;
+
+        var icon = new Sprite();
+        icon.name = "ApiMenuFloatingButton";
+        icon.buttonMode = true;
+        icon.useHandCursor = true;
+
+        var bg = new Sprite();
+        icon.addChild(bg);
+
+        var redAccent = new flash.display.Shape();
+        redAccent.graphics.beginFill(ApiStyle.COLOR_ACCENT_CRIMSON, 1.0);
+        redAccent.graphics.drawRoundRect(5, 5, 3.5, 16, 1.5, 1.5);
+        redAccent.graphics.endFill();
+        icon.addChild(redAccent);
+
+        var txt = new TextField();
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
+        txt.defaultTextFormat = fmt;
+        txt.text = "Menu";
+        txt.x = 13;
+        txt.y = 4;
+        txt.width = btnW - 16;
+        txt.height = 18;
+        txt.selectable = false;
+        txt.mouseEnabled = false;
+        icon.addChild(txt);
+
+        var renderBtn = function(isHover:Bool):Void {
+            bg.graphics.clear();
+            var bgCol = isHover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_WIDGET;
+            var borderCol = isHover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
+
+            bg.graphics.beginFill(bgCol, ApiStyle.ALPHA_WIDGET);
+            bg.graphics.lineStyle(1, borderCol);
+            bg.graphics.drawRoundRect(0, 0, btnW, btnH, ApiStyle.CORNER_RADIUS_SM, ApiStyle.CORNER_RADIUS_SM);
+            bg.graphics.endFill();
+
+            bg.graphics.lineStyle(1, isHover ? ApiStyle.COLOR_BEVEL_LIGHT : ApiStyle.COLOR_BEVEL_SUBTLE, 0.55);
+            bg.graphics.moveTo(3, 1);
+            bg.graphics.lineTo(btnW - 3, 1);
+        };
+        renderBtn(false);
+
+        icon.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void renderBtn(true));
+        icon.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void renderBtn(false));
+
+        _floatingMenuBtn = icon;
+        var savedX = HelperSetting.getInt("api_floating_menu_x", 80);
+        var savedY = HelperSetting.getInt("api_floating_menu_y", 10);
+        icon.x = savedX;
+        icon.y = savedY;
+
+        var theStage:Dynamic = (pocket != null && pocket.stage != null) ? pocket.stage : overlay.stage;
+        if (theStage != null) {
+            theStage.addChild(icon);
+        } else {
+            overlay.addEventListener(Event.ADDED_TO_STAGE, function(ev:Event):Void {
+                if (overlay.stage != null) {
+                    overlay.stage.addChild(icon);
+                }
+            });
+        }
+
+        var isDragging:Bool = false;
+        var hasDragged:Bool = false;
+        var startDownX:Float = 0;
+        var startDownY:Float = 0;
+        var dragStartX:Float = 0;
+        var dragStartY:Float = 0;
+
+        icon.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
+            isDragging = true;
+            hasDragged = false;
+            startDownX = e.stageX;
+            startDownY = e.stageY;
+            dragStartX = e.stageX - icon.x;
+            dragStartY = e.stageY - icon.y;
+            icon.cacheAsBitmap = false;
+        });
+
+        if (theStage != null) {
+            theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
+                if (isDragging) {
+                    var dx = e.stageX - startDownX;
+                    var dy = e.stageY - startDownY;
+                    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                        hasDragged = true;
+                    }
+                    if (hasDragged) {
+                        var nx:Float = Math.round(e.stageX - dragStartX);
+                        var ny:Float = Math.round(e.stageY - dragStartY);
+                        var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
+                        var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550;
+
+                        if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
+                        if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
+                        if (nx > sw - btnW - ApiStyle.SCREEN_MARGIN) nx = sw - btnW - ApiStyle.SCREEN_MARGIN;
+                        if (ny > sh - btnH - ApiStyle.SCREEN_MARGIN) ny = sh - btnH - ApiStyle.SCREEN_MARGIN;
+
+                        icon.x = nx;
+                        icon.y = ny;
+                    }
+                }
+            });
+
+            theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
+                if (isDragging) {
+                    isDragging = false;
+                    icon.cacheAsBitmap = true;
+                    if (hasDragged) {
+                        HelperSetting.setInt("api_floating_menu_x", Math.round(icon.x));
+                        HelperSetting.setInt("api_floating_menu_y", Math.round(icon.y));
+                    } else {
+                        if (ApiDashboardModal.isOpen()) {
+                            ApiDashboardModal.close();
+                        } else {
+                            ApiDashboardModal.show(overlay, pocket);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Visible immediately at app launch, hidden ONLY when dashboard or host panel is open
+        icon.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            var isPanelOpen:Bool = (overlay != null && (overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
+            icon.visible = !isPanelOpen;
+
+            if (icon.visible && theStage != null) {
+                var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
+                var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550;
+                if (icon.x > sw - btnW - ApiStyle.SCREEN_MARGIN) icon.x = Math.max(ApiStyle.SCREEN_MARGIN, sw - btnW - ApiStyle.SCREEN_MARGIN);
+                if (icon.y > sh - btnH - ApiStyle.SCREEN_MARGIN) icon.y = Math.max(ApiStyle.SCREEN_MARGIN, sh - btnH - ApiStyle.SCREEN_MARGIN);
+                if (icon.x < ApiStyle.SCREEN_MARGIN) icon.x = ApiStyle.SCREEN_MARGIN;
+                if (icon.y < ApiStyle.SCREEN_MARGIN) icon.y = ApiStyle.SCREEN_MARGIN;
+            }
+        });
+    }
 }
 #else
 class ApiMenus {
     public static function inject(overlay:Dynamic):Void {}
+    public static function resetMenuButtonPosition():Void {}
 }
 #end
 

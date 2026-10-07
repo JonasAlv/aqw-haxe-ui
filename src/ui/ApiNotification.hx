@@ -59,7 +59,7 @@ class ApiNotification extends Sprite {
         this.sticky = sticky;
         _baseMessage = message != null ? message : "";
 
-        _fmt = new TextFormat("_sans", FONT_SIZE, 0xEEEEEE, true);
+        _fmt = new TextFormat(ApiStyle.FONT_FAMILY, FONT_SIZE, ApiStyle.COLOR_TEXT_PRIMARY, true);
         _fmt.align = TextFormatAlign.LEFT;
         _fmt.leading = 2;
 
@@ -130,27 +130,18 @@ class ApiNotification extends Sprite {
         _messageTxt.mouseEnabled = _scrolling;
 
         this.graphics.clear();
-        this.graphics.beginFill(0x111111, 0.92);
-        this.graphics.drawRect(0, 0, CARD_WIDTH, _boxHeight);
+        this.graphics.beginFill(ApiStyle.COLOR_BG_MAIN, 0.95);
+        this.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
+        this.graphics.drawRoundRect(0, 0, CARD_WIDTH, _boxHeight, 4, 4);
         this.graphics.endFill();
 
-        this.graphics.beginFill(0x4a9eff, 1);
-        this.graphics.drawRect(0, 0, 4, _boxHeight);
+        this.graphics.lineStyle(0, 0, 0);
+        this.graphics.beginFill(ApiStyle.COLOR_ACCENT_PRIMARY, 1);
+        this.graphics.drawRoundRect(0, 0, 3.5, _boxHeight, 1.5, 1.5);
         this.graphics.endFill();
 
         if (_closeBtn != null) {
-            _closeBtn.graphics.clear();
-            var cx:Float = CARD_WIDTH - CLOSE_W / 2 - 2;
-            var cy:Float = _boxHeight / 2;
-            var r:Float = 5;
-            _closeBtn.graphics.lineStyle(2, 0x888888, 1);
-            _closeBtn.graphics.moveTo(cx - r, cy - r);
-            _closeBtn.graphics.lineTo(cx + r, cy + r);
-            _closeBtn.graphics.moveTo(cx + r, cy - r);
-            _closeBtn.graphics.lineTo(cx - r, cy + r);
-            _closeBtn.graphics.beginFill(0x000000, 0);
-            _closeBtn.graphics.drawRect(cx - r - 4, cy - r - 4, (r + 4) * 2, (r + 4) * 2);
-            _closeBtn.graphics.endFill();
+            drawCloseIcon(ApiStyle.COLOR_TEXT_MUTED);
         }
     }
 
@@ -232,11 +223,11 @@ class ApiNotification extends Sprite {
     }
 
     private function onCloseBtnOver(e:MouseEvent):Void {
-        drawCloseIcon(0xffffff);
+        drawCloseIcon(ApiStyle.COLOR_STATUS_ERROR);
     }
 
     private function onCloseBtnOut(e:MouseEvent):Void {
-        drawCloseIcon(0x888888);
+        drawCloseIcon(ApiStyle.COLOR_TEXT_MUTED);
     }
 
     private function onCloseClick(e:MouseEvent):Void {

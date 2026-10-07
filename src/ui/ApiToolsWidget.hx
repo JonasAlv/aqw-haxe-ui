@@ -15,6 +15,7 @@ import com.aqwapi.utils.ApiLogger;
 import ui.Overlay;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
+import ui.ApiStyle;
 import ui.prompts.ApiPromptModal;
 import util.HelperSetting;
 
@@ -322,7 +323,7 @@ class ApiToolsWidget {
             x: 445,
             y: 82,
             isCollapsed: false,
-            enabled: true,
+            enabled: false,
             items: [
                 { toolId: "script_runner", isFixed: true },
                 { toolId: "lag_killer", isFixed: true },
@@ -363,12 +364,12 @@ class ApiToolsWidget {
                                 x: (item.x != null) ? Std.parseFloat(Std.string(item.x)) : 445,
                                 y: (item.y != null) ? Std.parseFloat(Std.string(item.y)) : 82,
                                 isCollapsed: (item.isCollapsed == true || item.isCollapsed == 1),
-                                enabled: (item.enabled != false && item.enabled != 0),
+                                enabled: (item.enabled == true || item.enabled == 1),
                                 items: itemsArr
                             });
                         }
                     }
-                    if (list.length > 0) return list;
+                    return list;
                 }
             } catch (err:Dynamic) {
                 trace("Error parsing custom widgets: " + err);
@@ -430,6 +431,7 @@ class ApiToolsWidget {
         _widgetDefs.push(newDef);
         saveWidgets();
         loadAndBuildWidgets();
+        ApiDashboardModal.refreshCurrentTab();
         openEditor(newDef);
     }
 
@@ -440,12 +442,10 @@ class ApiToolsWidget {
                 break;
             }
         }
-        if (_widgetDefs.length == 0) {
-            _widgetDefs.push(getDefaultWidgetDef());
-        }
         saveWidgets();
         loadAndBuildWidgets();
         ApiNotificationManager.notify("Widget deleted.");
+        ApiDashboardModal.refreshCurrentTab();
     }
 
     public static function setWidgetEnabled(idOrEnabled:Dynamic, ?enabledVal:Null<Bool>):Void {
@@ -502,7 +502,7 @@ class ApiToolsWidget {
         var lblDesc = ApiPromptModal.createLabel("Select tools to include. Check 'Fixed' to keep a tool visible when collapsed:", 360, 10, false);
         lblDesc.x = 20;
         lblDesc.y = 84;
-        lblDesc.textColor = 0x888888;
+        lblDesc.textColor = ApiStyle.COLOR_TEXT_MUTED;
         dlg.addChild(lblDesc);
 
         // 3. Tools Scroll Container
@@ -511,8 +511,8 @@ class ApiToolsWidget {
         var listContainer = new Sprite();
         listContainer.x = 20;
         listContainer.y = 104;
-        listContainer.graphics.beginFill(0x161616, 0.95);
-        listContainer.graphics.lineStyle(1, 0x2A2A2A);
+        listContainer.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.95);
+        listContainer.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         listContainer.graphics.drawRoundRect(0, 0, listW, listH, 6, 6);
         listContainer.graphics.endFill();
         dlg.addChild(listContainer);
@@ -543,7 +543,7 @@ class ApiToolsWidget {
             row.y = i * rowH + 2;
 
             // Zebra striping
-            row.graphics.beginFill((i % 2 == 0) ? 0x1A1A1A : 0x141414, 0.8);
+            row.graphics.beginFill((i % 2 == 0) ? ApiStyle.COLOR_BG_MAIN : ApiStyle.COLOR_BG_SURFACE, 0.8);
             row.graphics.drawRoundRect(2, 0, listW - 4, rowH - 2, 4, 4);
             row.graphics.endFill();
 
@@ -632,6 +632,7 @@ class ApiToolsWidget {
             loadAndBuildWidgets();
             ApiPromptModal.close();
             ApiNotificationManager.notify("Widget '" + newTitle + "' saved!");
+            ApiDashboardModal.refreshCurrentTab();
         }, true);
         btnSave.x = 20;
         btnSave.y = btnY;
@@ -645,27 +646,26 @@ class ApiToolsWidget {
             loadAndBuildWidgets();
             ApiPromptModal.close();
             ApiNotificationManager.notify("Widget reset to defaults.");
+            ApiDashboardModal.refreshCurrentTab();
         }, false);
         btnReset.x = 138;
         btnReset.y = btnY;
         dlg.addChild(btnReset);
 
         // [Delete Widget]
-        if (_widgetDefs.length > 1) {
-            var btnDel = ApiPromptModal.createButton("Delete", 75, 28, function():Void {
-                deleteWidget(def.id);
-                ApiPromptModal.close();
-            }, false, 0x881111, 0xAA2222);
-            btnDel.x = 221;
-            btnDel.y = btnY;
-            dlg.addChild(btnDel);
-        }
+        var btnDel = ApiPromptModal.createButton("Delete", 75, 28, function():Void {
+            deleteWidget(def.id);
+            ApiPromptModal.close();
+        }, false, ApiStyle.COLOR_STATUS_ERROR, ApiStyle.COLOR_STATUS_ERROR_HOVER);
+        btnDel.x = 221;
+        btnDel.y = btnY;
+        dlg.addChild(btnDel);
 
         // [Cancel]
-        var btnCancel = ApiPromptModal.createButton("Cancel", 70, 28, function():Void {
+        var btnCancel = ApiPromptModal.createButton("Cancel", 75, 28, function():Void {
             ApiPromptModal.close();
         }, false);
-        btnCancel.x = 310;
+        btnCancel.x = 304;
         btnCancel.y = btnY;
         dlg.addChild(btnCancel);
 
@@ -681,7 +681,7 @@ class ApiToolsWidget {
         sp.addChild(box);
 
         var txt = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xCCCCCC);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY);
         txt.defaultTextFormat = fmt;
         txt.text = label;
         txt.x = 20;
@@ -694,12 +694,12 @@ class ApiToolsWidget {
 
         var redraw = function():Void {
             box.graphics.clear();
-            box.graphics.beginFill(checked ? 0x00BCD4 : 0x222222, 1);
-            box.graphics.lineStyle(1, checked ? 0x00E5FF : 0x555555);
+            box.graphics.beginFill(checked ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_BG_SURFACE, 1);
+            box.graphics.lineStyle(1, checked ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BORDER_DEFAULT);
             box.graphics.drawRoundRect(0, 2, 14, 14, 3, 3);
             box.graphics.endFill();
             if (checked) {
-                box.graphics.lineStyle(2, 0xFFFFFF);
+                box.graphics.lineStyle(2, ApiStyle.COLOR_BG_BACKDROP);
                 box.graphics.moveTo(3, 9);
                 box.graphics.lineTo(6, 12);
                 box.graphics.lineTo(11, 5);
@@ -760,14 +760,14 @@ class CustomWidgetInstance extends Sprite {
         g.drawRect(-4, -2, 28, 24);
         g.endFill();
 
-        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
-        var border = hover ? 0x00E5FF : 0x2E2E2E;
+        var bg = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE;
+        var border = hover ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_BORDER_DEFAULT;
         g.beginFill(bg, 0.85);
         g.lineStyle(1, border);
         g.drawRoundRect(0, 0, 20, 18, 4, 4);
         g.endFill();
 
-        var color = hover ? 0x00E5FF : 0x00BCD4; // Cyan accent
+        var color = hover ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_ACCENT_PRIMARY;
         var cx = 10.0;
         var cy = 9.0;
 
@@ -802,14 +802,14 @@ class CustomWidgetInstance extends Sprite {
         g.drawRect(-4, -2, 28, 24);
         g.endFill();
 
-        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
-        var border = hover ? 0x444444 : 0x282828;
+        var bg = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE;
+        var border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
         g.beginFill(bg, 0.85);
         g.lineStyle(1, border);
         g.drawRoundRect(0, 0, 20, 18, 4, 4);
         g.endFill();
 
-        var color:Int = hover ? 0x00FF88 : 0xAAAAAA;
+        var color:Int = hover ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
         g.lineStyle(2.2, color, 1.0, true);
         var cx = 10.0;
         var cy = 9.0;
@@ -864,15 +864,15 @@ class CustomWidgetInstance extends Sprite {
         addChild(_headerBar);
 
         // Header Accent
-        var cyanAccent = new Shape();
-        cyanAccent.graphics.beginFill(0x00BCD4, 1.0);
-        cyanAccent.graphics.drawRoundRect(6, 5, 3, 14, 1, 1);
-        cyanAccent.graphics.endFill();
-        _headerBar.addChild(cyanAccent);
+        var purpleAccent = new Shape();
+        purpleAccent.graphics.beginFill(ApiStyle.COLOR_ACCENT_PRIMARY, 1.0);
+        purpleAccent.graphics.drawRoundRect(6, 5, 3, 14, 1, 1);
+        purpleAccent.graphics.endFill();
+        _headerBar.addChild(purpleAccent);
 
         // Header Title
         _titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 11, 0xBBBBBB, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
         _titleTxt.defaultTextFormat = titleFmt;
         _titleTxt.text = def.title;
         _titleTxt.x = 13;
@@ -909,12 +909,12 @@ class CustomWidgetInstance extends Sprite {
 
         // Title bar hover feedback
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            _titleTxt.textColor = 0xFFFFFF;
+            _titleTxt.textColor = ApiStyle.COLOR_TEXT_TITLE;
             renderCollapseIcon(def.isCollapsed, true);
             _bg.alpha = 1.0;
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            _titleTxt.textColor = 0xBBBBBB;
+            _titleTxt.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
             renderCollapseIcon(def.isCollapsed, false);
             _bg.alpha = def.isCollapsed ? 0.78 : 0.94;
         });
@@ -1003,7 +1003,7 @@ class CustomWidgetInstance extends Sprite {
         btn.addChild(dot);
 
         var lbl = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xCCCCCC, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
         fmt.align = tool.isToggle ? TextFormatAlign.LEFT : TextFormatAlign.CENTER;
         lbl.defaultTextFormat = fmt;
         lbl.x = tool.isToggle ? 21 : 0;
@@ -1029,8 +1029,8 @@ class CustomWidgetInstance extends Sprite {
         var isState = (tool.getState != null) ? tool.getState() : false;
         var nextState = tool.isToggle ? !isState : isState;
         btn.graphics.clear();
-        btn.graphics.beginFill(nextState ? 0x144022 : 0x2A2A2A, 0.98);
-        btn.graphics.lineStyle(1.8, nextState ? 0x00FF88 : 0x888888);
+        btn.graphics.beginFill(nextState ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BG_CARD, 0.98);
+        btn.graphics.lineStyle(1.8, nextState ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_BORDER_DEFAULT);
         btn.graphics.drawRoundRect(0, 0, 104, 26, 4, 4);
         btn.graphics.endFill();
         haxe.Timer.delay(function():Void {
@@ -1062,13 +1062,13 @@ class CustomWidgetInstance extends Sprite {
 
         var alpha:Float = def.isCollapsed ? 0.78 : 0.94;
         _bg.graphics.clear();
-        _bg.graphics.beginFill(0x161616, alpha);
-        _bg.graphics.lineStyle(1, 0x2E2E2E, def.isCollapsed ? 0.75 : 1.0);
+        _bg.graphics.beginFill(ApiStyle.COLOR_BG_MAIN, alpha);
+        _bg.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT, def.isCollapsed ? 0.75 : 1.0);
         _bg.graphics.drawRoundRect(0, 0, ApiToolsWidget.WIDGET_W, h, 6, 6);
         _bg.graphics.endFill();
 
         // Top bevel highlight line
-        _bg.graphics.lineStyle(1, 0x383838, def.isCollapsed ? 0.4 : 0.55);
+        _bg.graphics.lineStyle(1, ApiStyle.COLOR_BEVEL_LIGHT, def.isCollapsed ? 0.35 : 0.5);
         _bg.graphics.moveTo(3, 1);
         _bg.graphics.lineTo(ApiToolsWidget.WIDGET_W - 3, 1);
     }
@@ -1092,14 +1092,14 @@ class CustomWidgetInstance extends Sprite {
         var h:Float = 26;
 
         btn.graphics.clear();
-        var bg = active ? 0x0C1F11 : 0x161616;
-        var border = active ? 0x2ECC71 : 0x2E2E2E;
-        var textColor = active ? 0x76FF9F : 0xCCCCCC;
+        var bg = active ? ApiStyle.COLOR_BG_SURFACE : ApiStyle.COLOR_BG_CARD;
+        var border = active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_BORDER_DEFAULT;
+        var textColor = active ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_TEXT_PRIMARY;
 
         if (tool.id == "smart_enhance" && active) {
-            bg = 0x1E1408;
-            border = 0xD97706;
-            textColor = 0xFFE082;
+            bg = ApiStyle.COLOR_BG_SURFACE;
+            border = ApiStyle.COLOR_STATUS_WARN;
+            textColor = ApiStyle.COLOR_STATUS_WARN;
         }
 
         btn.graphics.beginFill(bg, 0.94);
@@ -1107,7 +1107,7 @@ class CustomWidgetInstance extends Sprite {
         btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
         btn.graphics.endFill();
 
-        btn.graphics.lineStyle(1, active ? border : 0x383838, 0.55);
+        btn.graphics.lineStyle(1, active ? border : ApiStyle.COLOR_BEVEL_LIGHT, 0.55);
         btn.graphics.moveTo(2, 1);
         btn.graphics.lineTo(w - 2, 1);
 
@@ -1118,8 +1118,8 @@ class CustomWidgetInstance extends Sprite {
                 var dotY:Float = h / 2;
                 dot.graphics.lineStyle(0, 0, 0);
                 if (active) {
-                    var glowColor = (tool.id == "smart_enhance") ? 0xFFA726 : 0x2ECC71;
-                    var coreColor = (tool.id == "smart_enhance") ? 0xFFB74D : 0x00E676;
+                    var glowColor = (tool.id == "smart_enhance") ? ApiStyle.COLOR_STATUS_WARN : ApiStyle.COLOR_STATUS_ACTIVE;
+                    var coreColor = (tool.id == "smart_enhance") ? ApiStyle.COLOR_STATUS_WARN : ApiStyle.COLOR_STATUS_ACTIVE;
                     dot.graphics.beginFill(glowColor, 0.35);
                     dot.graphics.drawCircle(dotX, dotY, 4.5);
                     dot.graphics.endFill();
@@ -1127,7 +1127,7 @@ class CustomWidgetInstance extends Sprite {
                     dot.graphics.drawCircle(dotX, dotY, 2.5);
                     dot.graphics.endFill();
                 } else {
-                    dot.graphics.beginFill(0x444444, 0.85);
+                    dot.graphics.beginFill(ApiStyle.COLOR_STATUS_INACTIVE, 0.85);
                     dot.graphics.drawCircle(dotX, dotY, 2.5);
                     dot.graphics.endFill();
                 }
@@ -1171,10 +1171,10 @@ class CustomWidgetInstance extends Sprite {
                     var sw:Float = _theStage.stageWidth > 0 ? _theStage.stageWidth : 960;
                     var sh:Float = _theStage.stageHeight > 0 ? _theStage.stageHeight : 550;
                     var curH:Float = _bg.height;
-                    if (nx < 0) nx = 0;
-                    if (ny < 0) ny = 0;
-                    if (nx > sw - ApiToolsWidget.WIDGET_W) nx = sw - ApiToolsWidget.WIDGET_W;
-                    if (ny > sh - curH) ny = sh - curH;
+                    if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
+                    if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
+                    if (nx > sw - ApiToolsWidget.WIDGET_W - ApiStyle.SCREEN_MARGIN) nx = sw - ApiToolsWidget.WIDGET_W - ApiStyle.SCREEN_MARGIN;
+                    if (ny > sh - curH - ApiStyle.SCREEN_MARGIN) ny = sh - curH - ApiStyle.SCREEN_MARGIN;
                     this.x = nx;
                     this.y = ny;
                 }
@@ -1186,15 +1186,13 @@ class CustomWidgetInstance extends Sprite {
                 isDragging = false;
                 cacheAsBitmap = true;
                 if (hasDragged) {
-                    // Mobile Edge Snap: snap softly to borders if dropped near edge
                     var sw:Float = _theStage.stageWidth > 0 ? _theStage.stageWidth : 960;
                     var sh:Float = _theStage.stageHeight > 0 ? _theStage.stageHeight : 550;
                     var curH:Float = (_bg != null && _bg.height > 0) ? _bg.height : (def.isCollapsed ? (_fixedRows > 0 ? 24 + (_fixedRows * 30) + 4 : 24) : (24 + (_totalRows * 30) + 4));
-                    var snapDist:Float = 18;
-                    if (this.x < snapDist) this.x = 4;
-                    else if (this.x > sw - ApiToolsWidget.WIDGET_W - snapDist) this.x = sw - ApiToolsWidget.WIDGET_W - 4;
-                    if (this.y < snapDist) this.y = 4;
-                    else if (this.y > sh - curH - snapDist) this.y = sh - curH - 4;
+                    if (this.x < ApiStyle.SCREEN_MARGIN) this.x = ApiStyle.SCREEN_MARGIN;
+                    if (this.y < ApiStyle.SCREEN_MARGIN) this.y = ApiStyle.SCREEN_MARGIN;
+                    if (this.x > sw - ApiToolsWidget.WIDGET_W - ApiStyle.SCREEN_MARGIN) this.x = sw - ApiToolsWidget.WIDGET_W - ApiStyle.SCREEN_MARGIN;
+                    if (this.y > sh - curH - ApiStyle.SCREEN_MARGIN) this.y = sh - curH - ApiStyle.SCREEN_MARGIN;
 
                     def.x = Math.round(this.x);
                     def.y = Math.round(this.y);

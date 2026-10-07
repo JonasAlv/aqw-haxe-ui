@@ -52,8 +52,8 @@ class Dropdown extends Sprite {
         _onSelect = onSelect;
 
         _btn = new Sprite();
-        _btn.graphics.beginFill(0x222222, 1);
-        _btn.graphics.lineStyle(1, 0x555555);
+        _btn.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 1);
+        _btn.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         _btn.graphics.drawRoundRect(0, 0, width, height, 4, 4);
         _btn.graphics.endFill();
         _btn.buttonMode = true;
@@ -64,7 +64,7 @@ class Dropdown extends Sprite {
         _btn.addChild(_btnDot);
 
         _btnText = new TextField();
-        _btnText.defaultTextFormat = new TextFormat("_sans", 12, 0xFFFFFF);
+        _btnText.defaultTextFormat = new TextFormat(ApiStyle.FONT_FAMILY, 12, ApiStyle.COLOR_TEXT_PRIMARY);
         _btnText.width = width - 25;
         _btnText.height = 20;
         _btnText.x = 6;
@@ -95,8 +95,8 @@ class Dropdown extends Sprite {
         var listHeight:Float = getVisibleListHeight();
 
         _listBg = new Sprite();
-        _listBg.graphics.beginFill(0x151515, 0.98);
-        _listBg.graphics.lineStyle(1, 0x555555);
+        _listBg.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.98);
+        _listBg.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         _listBg.graphics.drawRoundRect(0, 0, width, listHeight, 4, 4);
         _listBg.graphics.endFill();
         _listContainer.addChild(_listBg);
@@ -173,8 +173,8 @@ class Dropdown extends Sprite {
         _listMask.graphics.endFill();
 
         _listBg.graphics.clear();
-        _listBg.graphics.beginFill(0x151515, 0.98);
-        _listBg.graphics.lineStyle(1, 0x555555);
+        _listBg.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.98);
+        _listBg.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         _listBg.graphics.drawRoundRect(0, 0, _width, listHeight, 4, 4);
         _listBg.graphics.endFill();
 
@@ -249,7 +249,7 @@ class Dropdown extends Sprite {
         while (_listContent.numChildren > 0) _listContent.removeChildAt(0);
         for (i in 0..._options.length) {
             var optBtn = new Sprite();
-            optBtn.graphics.beginFill(i % 2 == 0 ? 0x1e1e1e : 0x262626, 1);
+            optBtn.graphics.beginFill(i % 2 == 0 ? ApiStyle.COLOR_BG_MAIN : ApiStyle.COLOR_BG_SURFACE, 1);
             optBtn.graphics.drawRect(0, 0, w, h);
             optBtn.graphics.endFill();
             optBtn.y = i * h;
@@ -266,7 +266,7 @@ class Dropdown extends Sprite {
             }
 
             var optTxt = new TextField();
-            var fmt = new TextFormat("_sans", 12, 0xDDDDDD);
+            var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 12, ApiStyle.COLOR_TEXT_PRIMARY);
             optTxt.defaultTextFormat = fmt;
             optTxt.text = (_options[i] != null) ? _options[i] : "";
             optTxt.height = 20;
@@ -280,24 +280,24 @@ class Dropdown extends Sprite {
             optBtn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
                 var tg:Sprite = cast e.currentTarget;
                 tg.graphics.clear();
-                tg.graphics.beginFill(0x3a3a3a, 1);
+                tg.graphics.beginFill(ApiStyle.COLOR_BTN_BG_HOVER, 1);
                 tg.graphics.drawRect(0, 0, w, h);
                 tg.graphics.endFill();
                 for (ci in 0...tg.numChildren) {
                     var ch = tg.getChildAt(ci);
-                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = 0xFFFFFF;
+                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = ApiStyle.COLOR_TEXT_TITLE;
                 }
             });
             optBtn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
                 var tg:Sprite = cast e.currentTarget;
                 var idx:Int = _listContent.getChildIndex(tg);
                 tg.graphics.clear();
-                tg.graphics.beginFill(idx % 2 == 0 ? 0x1e1e1e : 0x262626, 1);
+                tg.graphics.beginFill(idx % 2 == 0 ? ApiStyle.COLOR_BG_MAIN : ApiStyle.COLOR_BG_SURFACE, 1);
                 tg.graphics.drawRect(0, 0, w, h);
                 tg.graphics.endFill();
                 for (ci in 0...tg.numChildren) {
                     var ch = tg.getChildAt(ci);
-                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = 0xDDDDDD;
+                    if (Std.isOfType(ch, TextField)) (cast ch : TextField).textColor = ApiStyle.COLOR_TEXT_PRIMARY;
                 }
             });
 
@@ -354,7 +354,7 @@ class Dropdown extends Sprite {
         var sbW:Float = 5;
         var sbX:Float = _width - sbW - 2;
 
-        _scrollbarTrack.graphics.beginFill(0x222222, 0.7);
+        _scrollbarTrack.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.7);
         _scrollbarTrack.graphics.drawRoundRect(sbX, 2, sbW, curListHeight - 4, 2, 2);
         _scrollbarTrack.graphics.endFill();
 
@@ -363,7 +363,7 @@ class Dropdown extends Sprite {
         var scrollRatio:Float = -_listContent.y / (_listContent.height - curListHeight);
         var thumbY:Float = 2 + scrollRatio * (curListHeight - 4 - thumbH);
 
-        _scrollbarThumb.graphics.beginFill(0x888888, 0.9);
+        _scrollbarThumb.graphics.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.9);
         _scrollbarThumb.graphics.drawRoundRect(sbX, thumbY, sbW, thumbH, 2, 2);
         _scrollbarThumb.graphics.endFill();
     }
@@ -488,7 +488,7 @@ class Dropdown extends Sprite {
     private function drawArrow(up:Bool):Void {
         if (_arrowIcon == null) return;
         _arrowIcon.graphics.clear();
-        _arrowIcon.graphics.beginFill(0xAAAAAA, 1);
+        _arrowIcon.graphics.beginFill(ApiStyle.COLOR_TEXT_MUTED, 1);
         if (up) {
             _arrowIcon.graphics.moveTo(0, 5);
             _arrowIcon.graphics.lineTo(8, 5);
