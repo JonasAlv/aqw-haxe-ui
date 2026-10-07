@@ -119,9 +119,15 @@ class ApiCombatWidget {
         _bg = new Sprite();
         _widget.addChild(_bg);
 
-        // 2. Header Bar (Drag zone)
+        // 2. Header Bar (Drag & Click-to-collapse zone)
         _headerBar = new Sprite();
         _headerBar.buttonMode = true;
+        _headerBar.useHandCursor = true;
+
+        // Full transparent hit plate for the entire 230x22 header area
+        _headerBar.graphics.beginFill(0x000000, 0.0);
+        _headerBar.graphics.drawRect(0, 0, WIDGET_W, 22);
+        _headerBar.graphics.endFill();
         _widget.addChild(_headerBar);
 
         // Header Crimson Accent
@@ -144,9 +150,10 @@ class ApiCombatWidget {
         titleTxt.mouseEnabled = false;
         _headerBar.addChild(titleTxt);
 
-        // Header Collapse Button [-] / [+]
+        // Header Collapse Indicator [-] / [+]
         _btnCollapse = new Sprite();
-        _btnCollapse.buttonMode = true;
+        _btnCollapse.mouseEnabled = false;
+        _btnCollapse.mouseChildren = false;
         _btnCollapse.x = WIDGET_W - 22;
         _btnCollapse.y = 2;
         _txtCollapse = new TextField();
@@ -161,12 +168,14 @@ class ApiCombatWidget {
         _btnCollapse.addChild(_txtCollapse);
         _headerBar.addChild(_btnCollapse);
 
-        _btnCollapse.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            e.stopPropagation();
-            _isCollapsed = !_isCollapsed;
-            HelperSetting.setBool("api_widget_combat_collapsed", _isCollapsed);
-            _txtCollapse.text = _isCollapsed ? "+" : "_";
-            updateLayout();
+        // Subtle hover brightness feedback on title bar
+        _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+            titleTxt.textColor = 0xFFFFFF;
+            _txtCollapse.textColor = 0xCCCCCC;
+        });
+        _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
+            titleTxt.textColor = 0xBBBBBB;
+            _txtCollapse.textColor = 0x888888;
         });
 
         // 3. Row 1: Action Buttons (Atk & Hunt)
@@ -625,50 +634,69 @@ class ApiCombatWidget {
         ApiNotificationManager.notify("Auto Hunt stopped.");
     }
 
+    public static function toggleCollapse():Void {
+        _isCollapsed = !_isCollapsed;
+        HelperSetting.setBool("api_widget_combat_collapsed", _isCollapsed);
+        if (_txtCollapse != null) {
+            _txtCollapse.text = _isCollapsed ? "+" : "_";
+        }
+        updateLayout();
+    }
+
     private static function setupDragging(theStage:Dynamic):Void {
         var isDragging:Bool = false;
         var hasDragged:Bool = false;
+        var startDownX:Float = 0;
+        var startDownY:Float = 0;
         var dragStartX:Float = 0;
         var dragStartY:Float = 0;
 
         _headerBar.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
             isDragging = true;
             hasDragged = false;
+            startDownX = e.stageX;
+            startDownY = e.stageY;
+            _widget.cacheAsBitmap = false;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
         });
 
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
             if (isDragging) {
-                var dx = (e.stageX - dragStartX) - _widget.x;
-                var dy = (e.stageY - dragStartY) - _widget.y;
-                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                var dx = e.stageX - startDownX;
+                var dy = e.stageY - startDownY;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
                     hasDragged = true;
                 }
-                var nx:Float = Math.round(e.stageX - dragStartX);
-                var ny:Float = Math.round(e.stageY - dragStartY);
-                var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
-                var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
-                var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
+                if (hasDragged) {
+                    var nx:Float = Math.round(e.stageX - dragStartX);
+                    var ny:Float = Math.round(e.stageY - dragStartY);
+                    var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
+                    var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
+                    var curH:Float = _isCollapsed ? HEIGHT_COLLAPSED : HEIGHT_EXPANDED;
 
-                if (nx < 0) nx = 0;
-                if (ny < 0) ny = 0;
-                if (nx > sw - WIDGET_W) nx = sw - WIDGET_W;
-                if (ny > sh - curH) ny = sh - curH;
+                    if (nx < 0) nx = 0;
+                    if (ny < 0) ny = 0;
+                    if (nx > sw - WIDGET_W) nx = sw - WIDGET_W;
+                    if (ny > sh - curH) ny = sh - curH;
 
-                _widget.x = nx;
-                _widget.y = ny;
+                    _widget.x = nx;
+                    _widget.y = ny;
+                }
             }
         });
 
         theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
             if (isDragging) {
+                isDragging = false;
+                _widget.cacheAsBitmap = true;
                 if (hasDragged) {
                     HelperSetting.setInt("api_widget_combat_x", Math.round(_widget.x));
                     HelperSetting.setInt("api_widget_combat_y", Math.round(_widget.y));
+                } else {
+                    toggleCollapse();
                 }
             }
-            isDragging = false;
         });
     }
 

@@ -1220,34 +1220,59 @@ class ApiDashboardModal extends Sprite {
             }
         );
 
-        // 1. HUD: Quick Tools Widget
+        // Modular Custom Widgets
+        var widgets = ApiToolsWidget.getWidgets();
+        for (wDef in widgets) {
+            addItemRow(
+                "HUD: " + wDef.title,
+                "Custom widget with " + wDef.items.length + " configured tools. Toggle visibility on screen.",
+                "toggle",
+                "",
+                false,
+                function():Void {
+                    var next = !wDef.enabled;
+                    ApiToolsWidget.setWidgetEnabled(wDef.id, next);
+                    ApiNotificationManager.notify("Widget '" + wDef.title + "': " + (next ? "Visible" : "Hidden"));
+                },
+                function():Bool {
+                    return wDef.enabled;
+                }
+            );
+
+            addItemRow(
+                "Configure " + wDef.title,
+                "Customize tools, fixed/pinned buttons, and title for '" + wDef.title + "'.",
+                "button",
+                "Configure",
+                false,
+                function():Void {
+                    ApiToolsWidget.openEditor(wDef);
+                }
+            );
+        }
+
+        // Add [+ Create New Custom Widget] button!
         addItemRow(
-            "HUD: Quick Tools Widget",
-            "Compact on-screen widget grouping Script, Lag Killer, Range, Loot, Provoke, Bank, Enhance, and Menu buttons with collapse toggle.",
-            "toggle",
-            "",
+            "+ Create New Custom Widget",
+            "Creates a new custom floating widget with your choice of misc tools.",
+            "button",
+            "Create",
             false,
             function():Void {
-                var cur = ApiToolsWidget.isWidgetEnabled();
-                var next = !cur;
-                ApiToolsWidget.setWidgetEnabled(next);
-                ApiNotificationManager.notify("Quick Tools Widget: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiToolsWidget.isWidgetEnabled();
+                ApiToolsWidget.createNewWidget();
             }
         );
 
         // Reset Widget Positions
         addItemRow(
             "Reset Widget Positions",
-            "Resets Combat & Hunt and Quick Tools widgets back to their default screen positions.",
+            "Resets Combat & Hunt and all custom widgets back to their default screen positions.",
             "button",
             "Reset",
             false,
             function():Void {
                 ApiCombatWidget.resetPosition();
-                ApiToolsWidget.resetPosition();
+                ApiToolsWidget.resetAllPositions();
                 ApiNotificationManager.notify("Widgets reset to default positions!");
             }
         );
