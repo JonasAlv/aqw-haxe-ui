@@ -27,7 +27,6 @@ class ApiMenus {
     private static var _injected:Bool = false;
     private static var _overlay:Overlay;
     private static var _pocket:Dynamic = null;
-    private static var _floatingMenuBtn:Sprite = null;
 
     public static function isInGame():Bool {
         try {
@@ -51,12 +50,7 @@ class ApiMenus {
     }
 
     public static function resetMenuButtonPosition():Void {
-        HelperSetting.setInt("api_floating_menu_x", 80);
-        HelperSetting.setInt("api_floating_menu_y", 10);
-        if (_floatingMenuBtn != null) {
-            _floatingMenuBtn.x = 80;
-            _floatingMenuBtn.y = 10;
-        }
+        ApiMenuHubWidget.resetPosition();
     }
 
     public static var anthonyMenus:Dynamic;
@@ -143,10 +137,8 @@ class ApiMenus {
             }
         }
 
-        // 6. Floating menu button
-        setupFloatingMenuButton(pocket, overlay);
-
-        // 7. On-Screen HUD Buttons & Widgets
+        // 6. Master Menu Hub Widget & Screen Widgets
+        ApiMenuHubWidget.init(pocket, overlay);
         ApiHudManager.init(pocket, overlay);
         ApiCombatWidget.init(pocket, overlay);
         ApiToolsWidget.init(pocket, overlay);
@@ -470,136 +462,7 @@ class ApiMenus {
         return new Menu("Settings", opts);
     }
 
-    private static function setupFloatingMenuButton(pocket:Dynamic, overlay:Overlay):Void {
-        var btnW:Float = 74;
-        var btnH:Float = 30;
 
-        var icon = new Sprite();
-        var txt = new TextField();
-        var fmt = new TextFormat("_sans", 11, 0xEEEEEE, true);
-        fmt.align = TextFormatAlign.CENTER;
-        txt.defaultTextFormat = fmt;
-        txt.text = "Menu";
-        txt.x = 4;
-        txt.y = 6;
-        txt.width = btnW - 4;
-        txt.height = 20;
-        txt.selectable = false;
-        txt.mouseEnabled = false;
-        icon.addChild(txt);
-
-        var renderBtn = function(isHover:Bool):Void {
-            icon.graphics.clear();
-            var bg:Int = isHover ? 0x242424 : 0x161616;
-            var border:Int = isHover ? 0xC82333 : 0x2E2E2E;
-
-            // Plate fill
-            icon.graphics.beginFill(bg, 0.94);
-            icon.graphics.lineStyle(1, border);
-            icon.graphics.drawRoundRect(0, 0, btnW, btnH, 5, 5);
-            icon.graphics.endFill();
-
-            // Subtle top highlight line for crisp glass bevel look
-            icon.graphics.lineStyle(1, isHover ? 0x882222 : 0x383838, 0.55);
-            icon.graphics.moveTo(3, 1);
-            icon.graphics.lineTo(btnW - 3, 1);
-
-            // Sleek red accent bar on the left (matches AQW crimson aesthetic)
-            icon.graphics.lineStyle(0, 0, 0);
-            icon.graphics.beginFill(isHover ? 0xE53935 : 0xC82333, 1.0);
-            icon.graphics.drawRoundRect(2, 4, 3, btnH - 8, 2, 2);
-            icon.graphics.endFill();
-
-            txt.textColor = isHover ? 0xFFFFFF : 0xEEEEEE;
-        };
-
-        renderBtn(false);
-
-        icon.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            renderBtn(true);
-        });
-        icon.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            renderBtn(false);
-        });
-
-        // Fast bitmap caching for Flash AIR rendering performance
-        icon.cacheAsBitmap = true;
-
-        _floatingMenuBtn = icon;
-        var savedMenuX = HelperSetting.getInt("api_floating_menu_x", -1);
-        var savedMenuY = HelperSetting.getInt("api_floating_menu_y", -1);
-        icon.x = (savedMenuX >= 0) ? savedMenuX : 80;
-        icon.y = (savedMenuY >= 0) ? savedMenuY : 10;
-        icon.buttonMode = true;
-
-        var theStage:Dynamic = (pocket != null && pocket.stage != null) ? pocket.stage : overlay.stage;
-        if (theStage != null) {
-            theStage.addChild(icon);
-        } else {
-            overlay.addEventListener(Event.ADDED_TO_STAGE, function(ev:Event):Void {
-                if (overlay.stage != null) {
-                    overlay.stage.addChild(icon);
-                }
-            });
-        }
-
-        var isDragging:Bool = false;
-        var hasDragged:Bool = false;
-        var dragStartX:Float = 0;
-        var dragStartY:Float = 0;
-
-        icon.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
-            isDragging = true;
-            hasDragged = false;
-            icon.cacheAsBitmap = false;
-            dragStartX = e.stageX - icon.x;
-            dragStartY = e.stageY - icon.y;
-        });
-
-        if (theStage != null) {
-            theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
-                if (isDragging) {
-                    hasDragged = true;
-                    var nx:Float = Math.round(e.stageX - dragStartX);
-                    var ny:Float = Math.round(e.stageY - dragStartY);
-                    var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
-                    var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 500;
-                    if (nx < 0) nx = 0;
-                    if (ny < 0) ny = 0;
-                    if (nx > sw - btnW) nx = sw - btnW;
-                    if (ny > sh - btnH) ny = sh - btnH;
-                    icon.x = nx;
-                    icon.y = ny;
-                }
-            });
-            theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
-                if (isDragging) {
-                    icon.cacheAsBitmap = true;
-                    if (hasDragged) {
-                        HelperSetting.setInt("api_floating_menu_x", Math.round(icon.x));
-                        HelperSetting.setInt("api_floating_menu_y", Math.round(icon.y));
-                    }
-                }
-                isDragging = false;
-            });
-        }
-
-        icon.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            if (hasDragged) return;
-            if (ApiDashboardModal.isOpen()) {
-                ApiDashboardModal.close();
-            } else {
-                ApiDashboardModal.show(overlay, pocket);
-            }
-        });
-
-        // Hide floating button while dashboard or host panel is open, or when not inside the game
-        overlay.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var inGame = isInGame();
-            var isPanelOpen:Bool = (overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen());
-            icon.visible = inGame && !isPanelOpen;
-        });
-    }
 
     private static function setupFrameHooks(pocket:Dynamic, overlay:Overlay):Void {
         overlay.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {

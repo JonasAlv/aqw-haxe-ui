@@ -1271,9 +1271,10 @@ class ApiDashboardModal extends Sprite {
             "Reset",
             false,
             function():Void {
+                ApiMenuHubWidget.resetPosition();
                 ApiCombatWidget.resetPosition();
                 ApiToolsWidget.resetAllPositions();
-                ApiNotificationManager.notify("Widgets reset to default positions!");
+                ApiNotificationManager.notify("All widgets reset to default positions!");
             }
         );
 
