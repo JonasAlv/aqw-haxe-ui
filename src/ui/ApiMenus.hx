@@ -549,24 +549,18 @@ class ApiMenus {
         }, false);
 
         overlay.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            // Cutscene skipping
-            try {
-                if (pocket.config.option_disable_cutscenes && pocket.game != null && pocket.game.world != null) {
-                    var world = pocket.game.world;
-                    if (world.mcExtSWF != null && world.mcExtSWF.numChildren > 0) {
-                        var ext = world.mcExtSWF.getChildAt(0);
-                        if (ext != null && Reflect.hasField(ext, "totalFrames")) {
-                            ext.gotoAndPlay(Reflect.field(ext, "totalFrames") - 2);
-                            if (Reflect.hasField(world, "showInterface")) {
-                                world.showInterface();
-                            }
-                        }
-                    }
+            var isScriptRunning = ScriptManager.SINGLETON.isRunning;
+
+            // Cutscene skipping (Skua logic - always active during scripts or when enabled in settings)
+            var skipCutscenesActive = isScriptRunning || HelperSetting.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+            if (Api.map != null) {
+                Api.map.skipCutscenes = skipCutscenesActive;
+                if (skipCutscenesActive) {
+                    Api.map.checkSkipCutscenes();
                 }
-            } catch (err:Dynamic) {}
+            }
 
             // Infinite range & Death spawn tick
-            var isScriptRunning = ScriptManager.SINGLETON.isRunning;
             var infiniteRangeActive = isScriptRunning || HelperSetting.getBool("api_infinite_range", false);
             var deathSpawnActive = isScriptRunning || HelperSetting.getBool("api_death_spawn", false);
 
