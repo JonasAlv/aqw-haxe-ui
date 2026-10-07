@@ -1312,6 +1312,24 @@ class ApiDashboardModal extends Sprite {
             }
         );
 
+        // 7. HUD: Provoke All Button
+        addItemRow(
+            "HUD: Provoke All Button",
+            "Places an on-screen toggle button to provoke and pull all living monsters in the room into combat.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiHudManager.isButtonEnabled("provoke_all");
+                var next = !cur;
+                ApiHudManager.setButtonEnabled("provoke_all", next);
+                ApiNotificationManager.notify("HUD Provoke All: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return ApiHudManager.isButtonEnabled("provoke_all");
+            }
+        );
+
         addSectionHeader("Layout Controls");
 
         // 7. Reset HUD Button Positions
@@ -1353,7 +1371,27 @@ class ApiDashboardModal extends Sprite {
             }
         );
 
-        // 2. Death Spawn
+        // 2. Provoke All (Cell Farm)
+        addItemRow(
+            "Provoke All (Cell Farm)",
+            "Aggro and magnetize all living monsters in the room simultaneously for rapid clearing.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.combat != null && Api.combat.autoProvoke);
+                var next = !cur;
+                if (Api.combat != null) {
+                    Api.combat.provokeAll(next);
+                }
+                ApiNotificationManager.notify("Provoke All: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.combat != null && Api.combat.autoProvoke);
+            }
+        );
+
+        // 3. Death Spawn
         addItemRow(
             "Death Spawn (Same Room)",
             "Automatically sets your respawn point to your current room so you never walk back on death.",

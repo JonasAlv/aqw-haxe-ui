@@ -177,6 +177,25 @@ class ApiHudManager {
                         Api.inventory.toggleBank();
                     }
                 }
+            },
+            {
+                id: "provoke_all",
+                label: "Provoke All",
+                defaultX: 883,
+                defaultY: 10,
+                activeText: "Provoke: ON",
+                inactiveText: "Provoke: OFF",
+                getState: function():Bool {
+                    return (Api.combat != null && Api.combat.autoProvoke);
+                },
+                onToggle: function():Void {
+                    var cur = (Api.combat != null && Api.combat.autoProvoke);
+                    var next = !cur;
+                    if (Api.combat != null) {
+                        Api.combat.provokeAll(next);
+                    }
+                    ApiNotificationManager.notify("Provoke All: " + (next ? "Enabled" : "Disabled"));
+                }
             }
         ];
     }
