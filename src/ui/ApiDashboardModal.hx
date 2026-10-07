@@ -19,6 +19,7 @@ import flash.ui.Keyboard;
 import ui.Overlay;
 import ui.prompts.ApiPrompts;
 import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 enum DashboardTab {
     TabScripts;
@@ -887,11 +888,11 @@ class ApiDashboardModal extends Sprite {
             function():Void {
                 var current = (Api.combat != null && Api.combat.isRunning());
                 var next = !current;
-                HelperSetting.setBool("api_smart_combat_active", next);
+                ApiConfig.setBool("api_smart_combat_active", next);
                 if (Api.combat != null) {
                     if (next) {
-                        var confClass = HelperSetting.getString("api_smart_class", "Current");
-                        var confMode = HelperSetting.getString("api_smart_mode", "Auto");
+                        var confClass = ApiConfig.getString("api_smart_class", "Current");
+                        var confMode = ApiConfig.getString("api_smart_mode", "Auto");
                         Api.combat.startSmartStandalone(confClass, confMode);
                     } else {
                         Api.combat.stop();
@@ -1333,9 +1334,9 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_infinite_range", false);
+                var cur = ApiConfig.getBool("api_infinite_range", false);
                 var next = !cur;
-                HelperSetting.setBool("api_infinite_range", next);
+                ApiConfig.setBool("api_infinite_range", next);
                 if (Api.combat != null) {
                     Api.combat.infiniteRange = next;
                     if (next) Api.combat.applyInfiniteRange();
@@ -1343,7 +1344,7 @@ class ApiDashboardModal extends Sprite {
                 ApiNotificationManager.notify("Infinite Range: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.combat != null) ? Api.combat.infiniteRange : HelperSetting.getBool("api_infinite_range", false);
+                return (Api.combat != null) ? Api.combat.infiniteRange : ApiConfig.getBool("api_infinite_range", false);
             }
         );
 
@@ -1355,14 +1356,14 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_death_spawn", false);
+                var cur = ApiConfig.getBool("api_death_spawn", false);
                 var next = !cur;
-                HelperSetting.setBool("api_death_spawn", next);
+                ApiConfig.setBool("api_death_spawn", next);
                 if (Api.map != null) Api.map.autoDeathSpawn = next;
                 ApiNotificationManager.notify("Death Spawn: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.map != null) ? Api.map.autoDeathSpawn : HelperSetting.getBool("api_death_spawn", false);
+                return (Api.map != null) ? Api.map.autoDeathSpawn : ApiConfig.getBool("api_death_spawn", false);
             }
         );
 
@@ -1374,15 +1375,15 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+                var cur = ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
                 var next = !cur;
-                HelperSetting.setBool("api_skip_cutscenes", next);
+                ApiConfig.setBool("api_skip_cutscenes", next);
                 HelperSetting.setBool("option_disable_cutscenes", next);
                 if (Api.map != null) Api.map.skipCutscenes = next;
                 ApiNotificationManager.notify("Skip Cutscenes: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.map != null) ? Api.map.skipCutscenes : (HelperSetting.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false));
+                return (Api.map != null) ? Api.map.skipCutscenes : (ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false));
             }
         );
 
@@ -1394,14 +1395,14 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_private_rooms", true);
+                var cur = ApiConfig.getBool("api_private_rooms", true);
                 var next = !cur;
-                HelperSetting.setBool("api_private_rooms", next);
+                ApiConfig.setBool("api_private_rooms", next);
                 if (Api.map != null) Api.map.usePrivateRoom = next;
                 ApiNotificationManager.notify("Private Rooms: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.map != null) ? Api.map.usePrivateRoom : HelperSetting.getBool("api_private_rooms", true);
+                return (Api.map != null) ? Api.map.usePrivateRoom : ApiConfig.getBool("api_private_rooms", true);
             }
         );
 
@@ -1415,9 +1416,9 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_accept_loot", false);
+                var cur = ApiConfig.getBool("api_accept_loot", false);
                 var next = !cur;
-                HelperSetting.setBool("api_accept_loot", next);
+                ApiConfig.setBool("api_accept_loot", next);
                 if (Api.drop != null) {
                     Api.drop.acceptAll = next;
                     if (next) {
@@ -1428,7 +1429,7 @@ class ApiDashboardModal extends Sprite {
                 ApiNotificationManager.notify("Accept All Loot: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.drop != null) ? Api.drop.acceptAll : HelperSetting.getBool("api_accept_loot", false);
+                return (Api.drop != null) ? Api.drop.acceptAll : ApiConfig.getBool("api_accept_loot", false);
             }
         );
 
@@ -1440,9 +1441,9 @@ class ApiDashboardModal extends Sprite {
             "",
             false,
             function():Void {
-                var cur = HelperSetting.getBool("api_accept_ac_drops", false);
+                var cur = ApiConfig.getBool("api_accept_ac_drops", false);
                 var next = !cur;
-                HelperSetting.setBool("api_accept_ac_drops", next);
+                ApiConfig.setBool("api_accept_ac_drops", next);
                 if (Api.drop != null) {
                     Api.drop.acceptACs = next;
                     if (next) {
@@ -1453,7 +1454,7 @@ class ApiDashboardModal extends Sprite {
                 ApiNotificationManager.notify("Accept AC Drops: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.drop != null) ? Api.drop.acceptACs : HelperSetting.getBool("api_accept_ac_drops", false);
+                return (Api.drop != null) ? Api.drop.acceptACs : ApiConfig.getBool("api_accept_ac_drops", false);
             }
         );
 

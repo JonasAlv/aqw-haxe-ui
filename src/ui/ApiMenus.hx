@@ -2,9 +2,12 @@ package ui;
 
 #if flash
 import com.aqwapi.Api;
+import com.aqwapi.events.ApiEvent;
 import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
+import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
+import com.aqwapi.utils.ApiStorage;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.MouseEvent;
@@ -55,25 +58,17 @@ class ApiMenus {
         overlay.addChild(apiNotifs);
         ApiNotificationManager.instance.init(apiNotifs);
 
-        // 2. Restore Combat Manager state from persistent settings
-        CombatEngine.farmClass = HelperSetting.getString("api_farm_class", "Current");
-        CombatEngine.farmMode = HelperSetting.getString("api_farm_mode", "Auto");
-        CombatEngine.soloClass = HelperSetting.getString("api_solo_class", "Current");
-        CombatEngine.soloMode = HelperSetting.getString("api_solo_mode", "Auto");
-        CombatEngine.bossClass = HelperSetting.getString("api_boss_class", "Current");
-        CombatEngine.bossMode = HelperSetting.getString("api_boss_mode", "Auto");
-        CombatEngine.dodgeClass = HelperSetting.getString("api_dodge_class", "Current");
-        CombatEngine.dodgeMode = HelperSetting.getString("api_dodge_mode", "Auto");
-        CombatEngine.smartClass = HelperSetting.getString("api_smart_class", "Current");
-        CombatEngine.skillMode = HelperSetting.getString("api_smart_mode", "Auto");
+        // 2. Restore Combat Manager state from persistent settings (account-bound via ApiConfig)
+        ApiConfig.reload();
 
-        if (Api.combat != null) {
-            Api.combat.infiniteRange = HelperSetting.getBool("api_infinite_range", false);
-        }
-        if (Api.map != null) {
-            Api.map.autoDeathSpawn = HelperSetting.getBool("api_death_spawn", false);
-            Api.map.usePrivateRoom = HelperSetting.getBool("api_private_rooms", true);
-            Api.map.skipCutscenes  = HelperSetting.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+        if (Api.dispatcher != null) {
+            Api.dispatcher.addEventListener(ApiEvent.ACCOUNT_CHANGED, function(e:Dynamic):Void {
+                ApiConfig.reload();
+                var acc = (ApiStorage.currentAccount != null) ? ApiStorage.currentAccount : "";
+                if (acc != "") {
+                    ApiNotificationManager.notify("Active profile: " + acc);
+                }
+            });
         }
 
         // 3. Build Menu Tabs
@@ -108,7 +103,7 @@ class ApiMenus {
         }, true);
 
         // 5. Restore loot and AC settings
-        var initialLootState = HelperSetting.getBool("api_accept_loot", false);
+        var initialLootState = ApiConfig.getBool("api_accept_loot", false);
         if (Api.drop != null) {
             Api.drop.acceptAll = initialLootState;
             if (initialLootState) {
@@ -116,7 +111,7 @@ class ApiMenus {
                 Api.drop.acceptAllDrops();
             }
         }
-        var initialACState = HelperSetting.getBool("api_accept_ac_drops", false);
+        var initialACState = ApiConfig.getBool("api_accept_ac_drops", false);
         if (Api.drop != null) {
             Api.drop.acceptACs = initialACState;
             if (initialACState && !initialLootState) {
@@ -212,8 +207,8 @@ class ApiMenus {
             tryAction("Smart Combat", function() {
                 var c:Check = cast o;
                 if (c.state) {
-                    var confClass = HelperSetting.getString("api_smart_class", "Current");
-                    var confMode = HelperSetting.getString("api_smart_mode", "Auto");
+                    var confClass = ApiConfig.getString("api_smart_class", "Current");
+                    var confMode = ApiConfig.getString("api_smart_mode", "Auto");
                     if (Api.combat != null) {
                         Api.combat.startSmartStandalone(confClass, confMode);
                     }
@@ -345,6 +340,7 @@ class ApiMenus {
 
         opts.push(new Check("api_infinite_range", false, "Infinite Range", "Attack and use skills across the entire screen without range limits.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_infinite_range", c.state);
             if (Api.combat != null) {
                 Api.combat.infiniteRange = c.state;
                 if (c.state) Api.combat.applyInfiniteRange();
@@ -353,22 +349,26 @@ class ApiMenus {
 
         opts.push(new Check("api_death_spawn", false, "Death Spawn (Same Room)", "Automatically sets your respawn point to your current room so you never walk back on death.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_death_spawn", c.state);
             if (Api.map != null) Api.map.autoDeathSpawn = c.state;
         }));
 
         opts.push(new Check("api_skip_cutscenes", false, "Skip Cutscenes", "Automatically cancel cutscene animations whenever they appear.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_skip_cutscenes", c.state);
             HelperSetting.setBool("option_disable_cutscenes", c.state);
             if (Api.map != null) Api.map.skipCutscenes = c.state;
         }));
 
         opts.push(new Check("api_private_rooms", true, "Private Rooms", "Automatically join private rooms (e.g. map-100000). Uncheck to join public rooms.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_private_rooms", c.state);
             if (Api.map != null) Api.map.usePrivateRoom = c.state;
         }));
 
         opts.push(new Check("api_accept_loot", false, "Accept All Loot", "Automatically accept all dropped items.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_accept_loot", c.state);
             if (Api.drop != null) {
                 Api.drop.acceptAll = c.state;
                 if (c.state) {
@@ -380,6 +380,7 @@ class ApiMenus {
 
         opts.push(new Check("api_accept_ac_drops", false, "Accept AC Drops", "Automatically accept all AC-tagged (coin) drops.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
+            ApiConfig.setBool("api_accept_ac_drops", c.state);
             if (Api.drop != null) {
                 Api.drop.acceptACs = c.state;
                 if (c.state) {
@@ -552,7 +553,7 @@ class ApiMenus {
             var isScriptRunning = ScriptManager.SINGLETON.isRunning;
 
             // Cutscene skipping (Skua logic - always active during scripts or when enabled in settings)
-            var skipCutscenesActive = isScriptRunning || HelperSetting.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+            var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
             if (Api.map != null) {
                 Api.map.skipCutscenes = skipCutscenesActive;
                 if (skipCutscenesActive) {
@@ -561,8 +562,8 @@ class ApiMenus {
             }
 
             // Infinite range & Death spawn tick
-            var infiniteRangeActive = isScriptRunning || HelperSetting.getBool("api_infinite_range", false);
-            var deathSpawnActive = isScriptRunning || HelperSetting.getBool("api_death_spawn", false);
+            var infiniteRangeActive = isScriptRunning || ApiConfig.getBool("api_infinite_range", false);
+            var deathSpawnActive = isScriptRunning || ApiConfig.getBool("api_death_spawn", false);
 
             if (Api.map != null) {
                 Api.map.autoDeathSpawn = deathSpawnActive;

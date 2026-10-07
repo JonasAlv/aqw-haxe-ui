@@ -5,6 +5,7 @@ import com.aqwapi.Api;
 import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.managers.SkillManager;
+import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Sprite;
 import flash.events.Event;
@@ -28,7 +29,7 @@ class ApiPrompts {
         lblInstruction.y = 38;
         dlg.addChild(lblInstruction);
 
-        var savedQuests = HelperSetting.getString("api_auto_quest_ids", "");
+        var savedQuests = ApiConfig.getString("api_auto_quest_ids", "");
         if (savedQuests == "" && _lastQuests != "") savedQuests = _lastQuests;
         if (isRunning && Api.quest != null && Api.quest.autoQuestString != "") {
             savedQuests = Api.quest.autoQuestString;
@@ -61,7 +62,7 @@ class ApiPrompts {
 
             var updateBtn = ApiPromptModal.createButton("Update IDs", 140, 32, function():Void {
                 var txt = StringTools.trim(input.text);
-                HelperSetting.setString("api_auto_quest_ids", txt);
+                ApiConfig.setString("api_auto_quest_ids", txt);
                 _lastQuests = txt;
                 var ids = txt.split(",");
                 var validIds:Array<Int> = [];
@@ -82,7 +83,7 @@ class ApiPrompts {
         } else {
             var startBtn = ApiPromptModal.createButton("Start Loop", 140, 32, function():Void {
                 var txt = StringTools.trim(input.text);
-                HelperSetting.setString("api_auto_quest_ids", txt);
+                ApiConfig.setString("api_auto_quest_ids", txt);
                 _lastQuests = txt;
                 var ids = txt.split(",");
                 var validIds:Array<Int> = [];
@@ -684,7 +685,7 @@ class ApiPrompts {
             var availableClasses = getAvailableClasses();
             if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
 
-            var selectedClassStr = HelperSetting.getString("api_smart_class", "Current");
+            var selectedClassStr = ApiConfig.getString("api_smart_class", "Current");
             if (selectedClassStr == "" || availableClasses.indexOf(selectedClassStr) == -1) {
                 selectedClassStr = "Current";
             }
@@ -713,7 +714,7 @@ class ApiPrompts {
             };
 
             var availableModes:Array<String> = getModesForClass(selectedClassStr);
-            var selectedModeStr = HelperSetting.getString("api_smart_mode", "Auto");
+            var selectedModeStr = ApiConfig.getString("api_smart_mode", "Auto");
             if (selectedClassStr == "Current" && (selectedModeStr == "" || selectedModeStr == "Auto")) {
                 selectedModeStr = "Auto (First Available)";
             } else if (selectedModeStr == null || selectedModeStr == "" || availableModes.indexOf(selectedModeStr) == -1) {
@@ -747,8 +748,8 @@ class ApiPrompts {
 
             var saveBtn = ApiPromptModal.createButton("Save Config", 130, 35, function():Void {
                 var saveModeVal = (selectedModeStr == "Auto (First Available)") ? "Auto" : selectedModeStr;
-                HelperSetting.setString("api_smart_class", selectedClassStr);
-                HelperSetting.setString("api_smart_mode", saveModeVal);
+                ApiConfig.setString("api_smart_class", selectedClassStr);
+                ApiConfig.setString("api_smart_mode", saveModeVal);
                 CombatEngine.smartClass = selectedClassStr;
                 CombatEngine.skillMode = saveModeVal;
                 if (Api.combat != null) {
@@ -1364,8 +1365,8 @@ class ApiPrompts {
                         }
                     }
                     try {
-                        HelperSetting.setString("api_smart_class", cName);
-                        HelperSetting.setString("api_smart_mode", mName);
+                        ApiConfig.setString("api_smart_class", cName);
+                        ApiConfig.setString("api_smart_mode", mName);
                     } catch (se:Dynamic) {}
                     CombatEngine.smartClass = cName;
                     CombatEngine.skillMode = mName;
@@ -1458,7 +1459,7 @@ class ApiPrompts {
                                 var remainingModes = CombatEngine.getAvailableModes(cName);
                                 var fallbackMode = (remainingModes.length > 0 && remainingModes[0] != "[+ New Mode]") ? remainingModes[0] : "Base";
                                 CombatEngine.skillMode = fallbackMode;
-                                try { HelperSetting.setString("api_smart_mode", fallbackMode); } catch (_:Dynamic) {}
+                                try { ApiConfig.setString("api_smart_mode", fallbackMode); } catch (_:Dynamic) {}
                                 try { if (Api.combat != null) Api.combat.mode = fallbackMode; } catch (_:Dynamic) {}
                             }
 
@@ -1631,11 +1632,11 @@ class ApiPrompts {
             return modes;
         };
 
-        var curClass = HelperSetting.getString(classKey, "Current");
+        var curClass = ApiConfig.getString(classKey, "Current");
         if (classes.indexOf(curClass) == -1) curClass = classes[0];
 
         var modes:Array<String> = getModesForClass(curClass);
-        var curMode = HelperSetting.getString(modeKey, "Auto");
+        var curMode = ApiConfig.getString(modeKey, "Auto");
         if (curClass == "Current" && (curMode == "" || curMode == "Auto")) {
             curMode = "Auto (First Available)";
         } else if (curMode == null || curMode == "" || modes.indexOf(curMode) == -1) {
@@ -1646,7 +1647,7 @@ class ApiPrompts {
         ddMode = new Dropdown(188, 25, modes, function(sel:String):Void {
             curMode = sel;
             var saveMode = (sel == "Auto (First Available)") ? "Auto" : sel;
-            HelperSetting.setString(modeKey, saveMode);
+            ApiConfig.setString(modeKey, saveMode);
             if (onUpdate != null) onUpdate(curClass, saveMode);
         });
         ddMode.x = 248;
@@ -1655,7 +1656,7 @@ class ApiPrompts {
         var ddClass:Dropdown = null;
         ddClass = new Dropdown(215, 25, classes, function(sel:String):Void {
             curClass = sel;
-            HelperSetting.setString(classKey, sel);
+            ApiConfig.setString(classKey, sel);
             var nm:Array<String> = getModesForClass(curClass);
             ddMode.setOptions(nm);
             if (curClass == "Current") {
@@ -1665,7 +1666,7 @@ class ApiPrompts {
             }
             ddMode.setSelectedItem(curMode);
             var saveMode = (curMode == "Auto (First Available)") ? "Auto" : curMode;
-            HelperSetting.setString(modeKey, saveMode);
+            ApiConfig.setString(modeKey, saveMode);
             if (onUpdate != null) onUpdate(curClass, saveMode);
         });
         ddClass.x = 24;
