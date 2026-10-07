@@ -436,6 +436,11 @@ class ApiHudManager {
 
         // Visibility and live state update loop
         btn.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            var inGame = ApiMenus.isInGame();
+            if (!inGame) {
+                btn.visible = false;
+                return;
+            }
             var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", false);
             if (!isEnabled) {
                 btn.visible = false;

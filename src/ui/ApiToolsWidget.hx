@@ -712,7 +712,6 @@ class CustomWidgetInstance extends Sprite {
     private var _titleTxt:TextField;
     private var _btnConfig:Sprite;
     private var _btnCollapse:Sprite;
-    private var _txtCollapse:TextField;
 
     private var _fixedContainer:Sprite;
     private var _collapsibleContainer:Sprite;
@@ -723,6 +722,82 @@ class CustomWidgetInstance extends Sprite {
     private var _fixedRows:Int = 0;
     private var _collapsibleRows:Int = 0;
     private var _totalRows:Int = 0;
+
+    private function renderConfigIcon(hover:Bool = false):Void {
+        if (_btnConfig == null) return;
+        var g = _btnConfig.graphics;
+        g.clear();
+
+        // Extended transparent hit boundary for mobile touch
+        g.beginFill(0x000000, 0.0);
+        g.drawRect(-4, -2, 28, 24);
+        g.endFill();
+
+        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
+        var border = hover ? 0x00E5FF : 0x2E2E2E;
+        g.beginFill(bg, 0.85);
+        g.lineStyle(1, border);
+        g.drawRoundRect(0, 0, 20, 18, 4, 4);
+        g.endFill();
+
+        var color = hover ? 0x00E5FF : 0x00BCD4; // Cyan accent
+        var cx = 10.0;
+        var cy = 9.0;
+
+        // 6-tooth gear spokes
+        g.lineStyle(2.2, color, 1.0, true);
+        g.moveTo(cx - 5.0, cy); g.lineTo(cx + 5.0, cy);
+        g.moveTo(cx, cy - 5.0); g.lineTo(cx, cy + 5.0);
+        var d = 3.6;
+        g.moveTo(cx - d, cy - d); g.lineTo(cx + d, cy + d);
+        g.moveTo(cx - d, cy + d); g.lineTo(cx + d, cy - d);
+
+        // Gear body circle
+        g.lineStyle(1.4, color, 1.0, true);
+        g.beginFill(bg, 1.0);
+        g.drawCircle(cx, cy, 3.4);
+        g.endFill();
+
+        // Center cutout
+        g.lineStyle(0, 0, 0);
+        g.beginFill(color, 1.0);
+        g.drawCircle(cx, cy, 1.3);
+        g.endFill();
+    }
+
+    private function renderCollapseIcon(collapsed:Bool, hover:Bool = false):Void {
+        if (_btnCollapse == null) return;
+        var g = _btnCollapse.graphics;
+        g.clear();
+
+        // Extended transparent hit boundary for mobile
+        g.beginFill(0x000000, 0.0);
+        g.drawRect(-4, -2, 28, 24);
+        g.endFill();
+
+        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
+        var border = hover ? 0x444444 : 0x282828;
+        g.beginFill(bg, 0.85);
+        g.lineStyle(1, border);
+        g.drawRoundRect(0, 0, 20, 18, 4, 4);
+        g.endFill();
+
+        var color:Int = hover ? 0x00FF88 : 0xAAAAAA;
+        g.lineStyle(2.2, color, 1.0, true);
+        var cx = 10.0;
+        var cy = 9.0;
+        if (collapsed) {
+            // Modern Chevron Down (closed, click to expand)
+            g.moveTo(cx - 4.5, cy - 2.5);
+            g.lineTo(cx, cy + 2.5);
+            g.lineTo(cx + 4.5, cy - 2.5);
+        } else {
+            // Modern Chevron Up (open, click to fold)
+            g.moveTo(cx - 4.5, cy + 2.5);
+            g.lineTo(cx, cy - 2.5);
+            g.lineTo(cx + 4.5, cy + 2.5);
+        }
+    }
 
     public function new(def:CustomWidgetDef, theStage:Dynamic, overlay:Overlay) {
         super();
@@ -757,82 +832,62 @@ class CustomWidgetInstance extends Sprite {
         _headerBar.useHandCursor = true;
 
         _headerBar.graphics.beginFill(0x000000, 0.0);
-        _headerBar.graphics.drawRect(0, 0, ApiToolsWidget.WIDGET_W, 22);
+        _headerBar.graphics.drawRect(0, 0, ApiToolsWidget.WIDGET_W, 24);
         _headerBar.graphics.endFill();
         addChild(_headerBar);
 
         // Header Accent
         var cyanAccent = new Shape();
         cyanAccent.graphics.beginFill(0x00BCD4, 1.0);
-        cyanAccent.graphics.drawRoundRect(6, 4, 3, 12, 1, 1);
+        cyanAccent.graphics.drawRoundRect(6, 5, 3, 14, 1, 1);
         cyanAccent.graphics.endFill();
         _headerBar.addChild(cyanAccent);
 
         // Header Title
         _titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 10, 0xBBBBBB, true);
+        var titleFmt = new TextFormat("_sans", 11, 0xBBBBBB, true);
         _titleTxt.defaultTextFormat = titleFmt;
         _titleTxt.text = def.title;
         _titleTxt.x = 13;
         _titleTxt.y = 3;
         _titleTxt.width = ApiToolsWidget.WIDGET_W - 55;
-        _titleTxt.height = 16;
+        _titleTxt.height = 18;
         _titleTxt.selectable = false;
         _titleTxt.mouseEnabled = false;
         _headerBar.addChild(_titleTxt);
 
-        // Config Gear Button [*]
+        // Config Gear Button (Vector Cog)
         _btnConfig = new Sprite();
         _btnConfig.buttonMode = true;
-        _btnConfig.x = ApiToolsWidget.WIDGET_W - 38;
-        _btnConfig.y = 2;
-
-        var txtCfg = new TextField();
-        var cfgFmt = new TextFormat("_sans", 11, 0x777777, true);
-        cfgFmt.align = TextFormatAlign.CENTER;
-        txtCfg.defaultTextFormat = cfgFmt;
-        txtCfg.text = "*";
-        txtCfg.width = 16;
-        txtCfg.height = 18;
-        txtCfg.selectable = false;
-        txtCfg.mouseEnabled = false;
-        _btnConfig.addChild(txtCfg);
+        _btnConfig.x = ApiToolsWidget.WIDGET_W - 48;
+        _btnConfig.y = 3;
+        renderConfigIcon(false);
         _headerBar.addChild(_btnConfig);
 
-        _btnConfig.addEventListener(MouseEvent.MOUSE_OVER, function(e) txtCfg.textColor = 0x00E5FF);
-        _btnConfig.addEventListener(MouseEvent.MOUSE_OUT, function(e) txtCfg.textColor = 0x777777);
+        _btnConfig.addEventListener(MouseEvent.MOUSE_OVER, function(e) renderConfigIcon(true));
+        _btnConfig.addEventListener(MouseEvent.MOUSE_OUT, function(e) renderConfigIcon(false));
         _btnConfig.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             e.stopPropagation();
             ApiToolsWidget.openEditor(def);
         });
 
-        // Collapse Indicator [-] / [+]
+        // Collapse Indicator (Vector Chevron)
         _btnCollapse = new Sprite();
         _btnCollapse.mouseEnabled = false;
         _btnCollapse.mouseChildren = false;
-        _btnCollapse.x = ApiToolsWidget.WIDGET_W - 20;
-        _btnCollapse.y = 2;
-
-        _txtCollapse = new TextField();
-        var colFmt = new TextFormat("_sans", 11, 0x888888, true);
-        colFmt.align = TextFormatAlign.CENTER;
-        _txtCollapse.defaultTextFormat = colFmt;
-        _txtCollapse.text = def.isCollapsed ? "+" : "_";
-        _txtCollapse.width = 18;
-        _txtCollapse.height = 18;
-        _txtCollapse.selectable = false;
-        _txtCollapse.mouseEnabled = false;
-        _btnCollapse.addChild(_txtCollapse);
+        _btnCollapse.x = ApiToolsWidget.WIDGET_W - 24;
+        _btnCollapse.y = 3;
+        renderCollapseIcon(def.isCollapsed, false);
         _headerBar.addChild(_btnCollapse);
 
         // Title bar hover feedback
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             _titleTxt.textColor = 0xFFFFFF;
-            _txtCollapse.textColor = 0xCCCCCC;
+            renderCollapseIcon(def.isCollapsed, true);
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             _titleTxt.textColor = 0xBBBBBB;
-            _txtCollapse.textColor = 0x888888;
+            renderCollapseIcon(def.isCollapsed, false);
         });
 
         // 3. Button Containers
@@ -880,7 +935,7 @@ class CustomWidgetInstance extends Sprite {
             var row = Math.floor(idx / 2);
             var col = idx % 2;
             var bx:Float = (col == 0) ? 8 : 118;
-            var by:Float = 22 + (row * 30);
+            var by:Float = 24 + (row * 30);
 
             var sp = createButtonSprite(tool, bx, by, btnW, btnH, true);
             _fixedContainer.addChild(sp.btn);
@@ -898,7 +953,7 @@ class CustomWidgetInstance extends Sprite {
             var row = Math.floor(globalIdx / 2);
             var col = globalIdx % 2;
             var bx:Float = (col == 0) ? 8 : 118;
-            var by:Float = 22 + (row * 30);
+            var by:Float = 24 + (row * 30);
 
             var sp = createButtonSprite(tool, bx, by, btnW, btnH, false);
             _collapsibleContainer.addChild(sp.btn);
@@ -942,23 +997,21 @@ class CustomWidgetInstance extends Sprite {
     public function toggleCollapse():Void {
         def.isCollapsed = !def.isCollapsed;
         ApiToolsWidget.saveWidgets();
-        if (_txtCollapse != null) {
-            _txtCollapse.text = def.isCollapsed ? "+" : "_";
-        }
+        renderCollapseIcon(def.isCollapsed, false);
         updateLayout();
     }
 
     private function updateLayout():Void {
-        var h:Float = 22;
+        var h:Float = 24;
         if (def.isCollapsed) {
             if (_fixedRows > 0) {
-                h = 22 + (_fixedRows * 30) + 4;
+                h = 24 + (_fixedRows * 30) + 4;
             } else {
-                h = 22;
+                h = 24;
             }
             _collapsibleContainer.visible = false;
         } else {
-            h = 22 + (_totalRows * 30) + 4;
+            h = 24 + (_totalRows * 30) + 4;
             _collapsibleContainer.visible = true;
         }
 
@@ -1097,6 +1150,11 @@ class CustomWidgetInstance extends Sprite {
     }
 
     private function onEnterFrame(e:Event):Void {
+        var inGame = ApiMenus.isInGame();
+        if (!inGame) {
+            this.visible = false;
+            return;
+        }
         if (!def.enabled) {
             this.visible = false;
             return;

@@ -26,7 +26,29 @@ import util.HelperSetting;
 class ApiMenus {
     private static var _injected:Bool = false;
     private static var _overlay:Overlay;
+    private static var _pocket:Dynamic = null;
     private static var _floatingMenuBtn:Sprite = null;
+
+    public static function isInGame():Bool {
+        try {
+            if (Api.game == null || Api.game.world == null) return false;
+            var w:Dynamic = Api.game.world;
+            if (w.myAvatar == null) return false;
+            if (w.myAvatar.objData == null || w.myAvatar.objData.strUsername == null) return false;
+            var mapStr:String = (w.strMapName != null) ? Std.string(w.strMapName) : "";
+            if (mapStr == "" || mapStr == "null") return false;
+
+            var p:Dynamic = (_pocket != null) ? _pocket : untyped __global__["Pocket"].SINGLETON;
+            if (p != null && p.gameCore != null && p.gameCore.currentFrame != null) {
+                var frame:String = Std.string(p.gameCore.currentFrame);
+                if (frame != "Game") return false;
+            }
+            if (Api.game.sfc != null && Api.game.sfc.isConnected == false) return false;
+            return true;
+        } catch (_:Dynamic) {
+            return false;
+        }
+    }
 
     public static function resetMenuButtonPosition():Void {
         HelperSetting.setInt("api_floating_menu_x", 80);
@@ -50,6 +72,7 @@ class ApiMenus {
         if (pocket == null && overlay.parent != null) {
             pocket = overlay.parent;
         }
+        _pocket = pocket;
 
         anthonyMenus = overlay.menus;
 
@@ -570,10 +593,11 @@ class ApiMenus {
             }
         });
 
-        // Hide floating button while dashboard or host panel is open
+        // Hide floating button while dashboard or host panel is open, or when not inside the game
         overlay.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            var inGame = isInGame();
             var isPanelOpen:Bool = (overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen());
-            icon.visible = !isPanelOpen;
+            icon.visible = inGame && !isPanelOpen;
         });
     }
 

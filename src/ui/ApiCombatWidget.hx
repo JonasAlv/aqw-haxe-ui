@@ -52,7 +52,6 @@ class ApiCombatWidget {
     private static var _targetInput:TextField = null;
     private static var _btnGetTarget:Sprite = null;
     private static var _btnCollapse:Sprite = null;
-    private static var _txtCollapse:TextField = null;
 
     // State
     private static var _isHunting:Bool = false;
@@ -61,10 +60,81 @@ class ApiCombatWidget {
     private static var _selectedMode:String = "Auto";
     private static var _isCollapsed:Bool = false;
     private static var _lastEquippedClass:String = "";
+    private static var _hasRescannedBagOnEntry:Bool = false;
 
     private static inline var WIDGET_W:Float = 230;
     private static inline var HEIGHT_EXPANDED:Float = 118;
     private static inline var HEIGHT_COLLAPSED:Float = 56;
+
+    private static function renderCollapseIcon(collapsed:Bool, hover:Bool = false):Void {
+        if (_btnCollapse == null) return;
+        var g = _btnCollapse.graphics;
+        g.clear();
+
+        // Extended touch hit area for mobile
+        g.beginFill(0x000000, 0.0);
+        g.drawRect(-4, -2, 28, 24);
+        g.endFill();
+
+        var bg = hover ? 0x2A2A2A : 0x1A1A1A;
+        var border = hover ? 0x444444 : 0x282828;
+        g.beginFill(bg, 0.85);
+        g.lineStyle(1, border);
+        g.drawRoundRect(0, 0, 20, 18, 4, 4);
+        g.endFill();
+
+        var color:Int = hover ? 0x00FF88 : 0xAAAAAA;
+        g.lineStyle(2.2, color, 1.0, true);
+        var cx = 10.0;
+        var cy = 9.0;
+        if (collapsed) {
+            // Modern Chevron Down (closed, tap to expand)
+            g.moveTo(cx - 4.5, cy - 2.5);
+            g.lineTo(cx, cy + 2.5);
+            g.lineTo(cx + 4.5, cy - 2.5);
+        } else {
+            // Modern Chevron Up (open, tap to fold)
+            g.moveTo(cx - 4.5, cy + 2.5);
+            g.lineTo(cx, cy - 2.5);
+            g.lineTo(cx + 4.5, cy + 2.5);
+        }
+    }
+
+    private static function renderGetTargetBtn(hover:Bool = false, active:Bool = false):Void {
+        if (_btnGetTarget == null) return;
+        var g = _btnGetTarget.graphics;
+        g.clear();
+
+        // Extended touch hit boundary for mobile
+        g.beginFill(0x000000, 0.0);
+        g.drawRect(-4, -4, 38, 32);
+        g.endFill();
+
+        var bg = active ? 0x0C2A18 : (hover ? 0x2A2A2A : 0x1A1A1A);
+        var border = active ? 0x00FF88 : (hover ? 0x666666 : 0x3E3E3E);
+        var iconColor = active ? 0x00FF88 : (hover ? 0xFFFFFF : 0xCCCCCC);
+
+        g.beginFill(bg, 0.95);
+        g.lineStyle(1, border);
+        g.drawRoundRect(0, 0, 30, 24, 4, 4);
+        g.endFill();
+
+        // Tactical Reticle Icon
+        var cx = 15.0;
+        var cy = 12.0;
+        g.lineStyle(1.8, iconColor, 1.0, true);
+        g.drawCircle(cx, cy, 5.0);
+        // Crosshair ticks
+        g.moveTo(cx - 7.5, cy); g.lineTo(cx - 3.5, cy);
+        g.moveTo(cx + 3.5, cy); g.lineTo(cx + 7.5, cy);
+        g.moveTo(cx, cy - 7.5); g.lineTo(cx, cy - 3.5);
+        g.moveTo(cx, cy + 3.5); g.lineTo(cx, cy + 7.5);
+        // Center pip
+        g.lineStyle(0, 0, 0);
+        g.beginFill(iconColor, 1.0);
+        g.drawCircle(cx, cy, 1.5);
+        g.endFill();
+    }
 
     public static function init(pocket:Dynamic, overlay:Overlay):Void {
         if (_initialized) return;
@@ -124,58 +194,49 @@ class ApiCombatWidget {
         _headerBar.buttonMode = true;
         _headerBar.useHandCursor = true;
 
-        // Full transparent hit plate for the entire 230x22 header area
+        // Full transparent hit plate for the entire 230x24 header area
         _headerBar.graphics.beginFill(0x000000, 0.0);
-        _headerBar.graphics.drawRect(0, 0, WIDGET_W, 22);
+        _headerBar.graphics.drawRect(0, 0, WIDGET_W, 24);
         _headerBar.graphics.endFill();
         _widget.addChild(_headerBar);
 
         // Header Crimson Accent
         var redAccent = new Shape();
         redAccent.graphics.beginFill(0xC82333, 1.0);
-        redAccent.graphics.drawRoundRect(6, 4, 3, 12, 1, 1);
+        redAccent.graphics.drawRoundRect(6, 4, 3, 14, 1, 1);
         redAccent.graphics.endFill();
         _headerBar.addChild(redAccent);
 
         // Header Title
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat("_sans", 10, 0xBBBBBB, true);
+        var titleFmt = new TextFormat("_sans", 11, 0xBBBBBB, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = "Combat & Hunt";
         titleTxt.x = 13;
         titleTxt.y = 3;
         titleTxt.width = 150;
-        titleTxt.height = 16;
+        titleTxt.height = 18;
         titleTxt.selectable = false;
         titleTxt.mouseEnabled = false;
         _headerBar.addChild(titleTxt);
 
-        // Header Collapse Indicator [-] / [+]
+        // Header Collapse Indicator (Vector Chevron)
         _btnCollapse = new Sprite();
         _btnCollapse.mouseEnabled = false;
         _btnCollapse.mouseChildren = false;
-        _btnCollapse.x = WIDGET_W - 22;
-        _btnCollapse.y = 2;
-        _txtCollapse = new TextField();
-        var colFmt = new TextFormat("_sans", 11, 0x888888, true);
-        colFmt.align = TextFormatAlign.CENTER;
-        _txtCollapse.defaultTextFormat = colFmt;
-        _txtCollapse.text = _isCollapsed ? "+" : "_";
-        _txtCollapse.width = 18;
-        _txtCollapse.height = 18;
-        _txtCollapse.selectable = false;
-        _txtCollapse.mouseEnabled = false;
-        _btnCollapse.addChild(_txtCollapse);
+        _btnCollapse.x = WIDGET_W - 25;
+        _btnCollapse.y = 3;
+        renderCollapseIcon(_isCollapsed, false);
         _headerBar.addChild(_btnCollapse);
 
         // Subtle hover brightness feedback on title bar
         _headerBar.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             titleTxt.textColor = 0xFFFFFF;
-            _txtCollapse.textColor = 0xCCCCCC;
+            renderCollapseIcon(_isCollapsed, true);
         });
         _headerBar.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             titleTxt.textColor = 0xBBBBBB;
-            _txtCollapse.textColor = 0x888888;
+            renderCollapseIcon(_isCollapsed, false);
         });
 
         // 3. Row 1: Action Buttons (Atk & Hunt)
@@ -184,13 +245,13 @@ class ApiCombatWidget {
 
         _btnAtk = createActionButton(btnW, btnH);
         _btnAtk.x = 8;
-        _btnAtk.y = 22;
+        _btnAtk.y = 23;
         _widget.addChild(_btnAtk);
         _txtAtk = cast _btnAtk.getChildByName("label");
 
         _btnHunt = createActionButton(btnW, btnH);
         _btnHunt.x = 118;
-        _btnHunt.y = 22;
+        _btnHunt.y = 23;
         _widget.addChild(_btnHunt);
         _txtHunt = cast _btnHunt.getChildByName("label");
 
@@ -213,6 +274,12 @@ class ApiCombatWidget {
 
         // 6. Live frame state loop
         _widget.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            var inGame = ApiMenus.isInGame();
+            if (!inGame) {
+                _widget.visible = false;
+                _hasRescannedBagOnEntry = false;
+                return;
+            }
             var isEnabled = HelperSetting.getBool("api_widget_combat_enabled", true);
             if (!isEnabled) {
                 _widget.visible = false;
@@ -221,6 +288,10 @@ class ApiCombatWidget {
             var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
             _widget.visible = !isPanelOpen;
             if (_widget.visible) {
+                if (!_hasRescannedBagOnEntry) {
+                    _hasRescannedBagOnEntry = true;
+                    refreshClassOptions();
+                }
                 updateButtonVisuals();
                 if (_selectedClass == "Current") {
                     var curClass = "";
@@ -419,35 +490,16 @@ class ApiCombatWidget {
 
         _bodyContainer.addChild(_targetInput);
 
-        // Target Grabber Button [Get]
+        // Target Grabber Button (Tactical Reticle)
         _btnGetTarget = new Sprite();
         _btnGetTarget.buttonMode = true;
         _btnGetTarget.x = 192;
         _btnGetTarget.y = 82;
 
-        var renderGetBtn = function(hover:Bool):Void {
-            _btnGetTarget.graphics.clear();
-            _btnGetTarget.graphics.beginFill(hover ? 0x2A2A2A : 0x1A1A1A, 0.95);
-            _btnGetTarget.graphics.lineStyle(1, hover ? 0x666666 : 0x3E3E3E);
-            _btnGetTarget.graphics.drawRoundRect(0, 0, 30, 24, 4, 4);
-            _btnGetTarget.graphics.endFill();
-        };
-        renderGetBtn(false);
+        renderGetTargetBtn(false, false);
 
-        var txtGet = new TextField();
-        var getFmt = new TextFormat("_sans", 10, 0xDDDDDD, true);
-        getFmt.align = TextFormatAlign.CENTER;
-        txtGet.defaultTextFormat = getFmt;
-        txtGet.text = "Get";
-        txtGet.width = 30;
-        txtGet.height = 18;
-        txtGet.y = 3;
-        txtGet.selectable = false;
-        txtGet.mouseEnabled = false;
-        _btnGetTarget.addChild(txtGet);
-
-        _btnGetTarget.addEventListener(MouseEvent.MOUSE_OVER, function(e) renderGetBtn(true));
-        _btnGetTarget.addEventListener(MouseEvent.MOUSE_OUT, function(e) renderGetBtn(false));
+        _btnGetTarget.addEventListener(MouseEvent.MOUSE_OVER, function(e) renderGetTargetBtn(true, false));
+        _btnGetTarget.addEventListener(MouseEvent.MOUSE_OUT, function(e) renderGetTargetBtn(false, false));
 
         _btnGetTarget.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             var ent = (Api.player != null) ? Api.player.target : null;
@@ -455,6 +507,10 @@ class ApiCombatWidget {
                 _targetInput.text = ent.name;
                 _targetInput.textColor = 0xFFFFFF;
                 HelperSetting.setString("api_widget_hunt_target", ent.name);
+                renderGetTargetBtn(false, true);
+                haxe.Timer.delay(function():Void {
+                    renderGetTargetBtn(false, false);
+                }, 180);
                 ApiNotificationManager.notify("Target set: " + ent.name);
                 return;
             }
@@ -656,9 +712,7 @@ class ApiCombatWidget {
     public static function toggleCollapse():Void {
         _isCollapsed = !_isCollapsed;
         HelperSetting.setBool("api_widget_combat_collapsed", _isCollapsed);
-        if (_txtCollapse != null) {
-            _txtCollapse.text = _isCollapsed ? "+" : "_";
-        }
+        renderCollapseIcon(_isCollapsed, false);
         updateLayout();
     }
 
