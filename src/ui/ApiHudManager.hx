@@ -196,6 +196,25 @@ class ApiHudManager {
                     }
                     ApiNotificationManager.notify("Provoke All: " + (next ? "Enabled" : "Disabled"));
                 }
+            },
+            {
+                id: "lag_killer",
+                label: "Lag Killer",
+                defaultX: 996,
+                defaultY: 10,
+                activeText: "Lag: ON",
+                inactiveText: "Lag: OFF",
+                getState: function():Bool {
+                    return (Api.visual != null && Api.visual.lagKiller);
+                },
+                onToggle: function():Void {
+                    var cur = (Api.visual != null && Api.visual.lagKiller);
+                    var next = !cur;
+                    if (Api.visual != null) {
+                        Api.visual.lagKiller = next;
+                    }
+                    ApiNotificationManager.notify("Lag Killer: " + (next ? "Enabled (High FPS)" : "Disabled"));
+                }
             }
         ];
     }

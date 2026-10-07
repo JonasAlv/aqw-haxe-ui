@@ -1330,6 +1330,24 @@ class ApiDashboardModal extends Sprite {
             }
         );
 
+        // 8. HUD: Lag Killer Button
+        addItemRow(
+            "HUD: Lag Killer Button",
+            "Places an on-screen toggle button to enable/disable Lag Killer mode (high FPS boost) instantly.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiHudManager.isButtonEnabled("lag_killer");
+                var next = !cur;
+                ApiHudManager.setButtonEnabled("lag_killer", next);
+                ApiNotificationManager.notify("HUD Lag Killer: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return ApiHudManager.isButtonEnabled("lag_killer");
+            }
+        );
+
         addSectionHeader("Layout Controls");
 
         // 7. Reset HUD Button Positions
@@ -1553,6 +1571,117 @@ class ApiDashboardModal extends Sprite {
             function():Void {
                 close();
                 ApiPrompts.showShopPrompt(_overlay);
+            }
+        );
+
+        addSectionHeader("Graphics & Lag Killer");
+
+        // 11. Master Lag Killer
+        addItemRow(
+            "Lag Killer (FPS Boost)",
+            "Master performance switch. Disables other player avatars, skill FX particles, and freezes monster loops while preserving 60 FPS combat.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.lagKiller : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.lagKiller = next;
+                ApiNotificationManager.notify("Lag Killer: " + (next ? "Enabled (High FPS)" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.lagKiller : false;
+            }
+        );
+
+        // 12. Hide Other Players
+        addItemRow(
+            "Hide Other Players",
+            "Hides character models of other players in the room to eliminate vector rasterization lag in crowded fights.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.hidePlayers : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hidePlayers = next;
+                ApiNotificationManager.notify("Hide Players: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hidePlayers : false;
+            }
+        );
+
+        // 13. Disable Skill FX
+        addItemRow(
+            "Disable Skill FX",
+            "Disables all skill spell effects and projectile particles, clearing the special effects queue.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.disableSkillAnims : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.disableSkillAnims = next;
+                ApiNotificationManager.notify("Skill FX: " + (next ? "Disabled" : "Enabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.disableSkillAnims : false;
+            }
+        );
+
+        // 14. Freeze Monster Animations
+        addItemRow(
+            "Freeze Monster Animations",
+            "Halts animation frame loops on monsters without affecting hitboxes or combat targeting.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.disableMonsterAnims : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.disableMonsterAnims = next;
+                ApiNotificationManager.notify("Freeze Monster Anims: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.disableMonsterAnims : false;
+            }
+        );
+
+        // 15. Clean Arena (Hide Map Art)
+        addItemRow(
+            "Clean Arena (Hide Map)",
+            "Hides static background map artwork to maximize rendering speed in crowded rooms.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.cleanArena : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.cleanArena = next;
+                ApiNotificationManager.notify("Clean Arena: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.cleanArena : false;
+            }
+        );
+
+        // 16. Show Names When Hidden
+        addItemRow(
+            "Show Names When Hidden",
+            "Keep username labels visible above players even when player character models are hidden.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    Api.visual.showNames = !Api.visual.showNames;
+                    Api.visual.apply();
+                    ApiNotificationManager.notify("Player Names: " + (Api.visual.showNames ? "Visible" : "Hidden"));
+                }
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.showNames : true;
             }
         );
     }
