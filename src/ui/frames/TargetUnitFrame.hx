@@ -35,7 +35,7 @@ class TargetUnitFrame {
 
     // Dimensions
     public static inline var FRAME_W:Float = 180;
-    public static inline var FRAME_H:Float = 42;
+    public static inline var FRAME_H:Float = 32;
 
     // Visual elements
     private static var _bg:Sprite = null;
@@ -115,12 +115,12 @@ class TargetUnitFrame {
 
         // 2. Header text: [Level] TargetName - Race/Class
         _headerTxt = new TextField();
-        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 9, ApiStyle.COLOR_ACCENT_YELLOW, true);
+        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, ApiStyle.COLOR_ACCENT_YELLOW, true);
         _headerTxt.defaultTextFormat = hdrFmt;
         _headerTxt.x = 4;
         _headerTxt.y = 1;
-        _headerTxt.width = FRAME_W - 22; // Leave room for close button
-        _headerTxt.height = 14;
+        _headerTxt.width = FRAME_W - 20; // Leave room for close button
+        _headerTxt.height = 12;
         _headerTxt.selectable = false;
         _headerTxt.mouseEnabled = false;
         _widget.addChild(_headerTxt);
@@ -128,7 +128,7 @@ class TargetUnitFrame {
         // 3. Quick Cancel Target [X] Button
         _btnClose = new Sprite();
         _btnClose.buttonMode = true;
-        _btnClose.x = FRAME_W - 16;
+        _btnClose.x = FRAME_W - 15;
         _btnClose.y = 2;
         renderCloseBtn(false);
 
@@ -141,61 +141,53 @@ class TargetUnitFrame {
         });
         _widget.addChild(_btnClose);
 
-        // 4. Health Bar (y: 15, h: 15)
+        // 4. Health Bar (y: 13, h: 11)
         _hpBarBg = new Shape();
         _hpBarBg.x = 4;
-        _hpBarBg.y = 15;
+        _hpBarBg.y = 13;
         _hpBarBg.graphics.beginFill(0x2A1115, 0.95);
-        _hpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 15);
+        _hpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 11);
         _hpBarBg.graphics.endFill();
         _widget.addChild(_hpBarBg);
 
         _hpBarFill = new Shape();
         _hpBarFill.x = 4;
-        _hpBarFill.y = 15;
+        _hpBarFill.y = 13;
         _widget.addChild(_hpBarFill);
 
         _shieldBarFill = new Shape();
         _shieldBarFill.x = 4;
-        _shieldBarFill.y = 15;
+        _shieldBarFill.y = 13;
         _widget.addChild(_shieldBarFill);
 
         _hpTxt = new TextField();
-        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 9, 0xFFFFFF, true);
+        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, 0xFFFFFF, true);
         hpFmt.align = TextFormatAlign.CENTER;
         _hpTxt.defaultTextFormat = hpFmt;
         _hpTxt.x = 4;
-        _hpTxt.y = 15;
+        _hpTxt.y = 12;
         _hpTxt.width = FRAME_W - 8;
-        _hpTxt.height = 15;
+        _hpTxt.height = 13;
         _hpTxt.selectable = false;
         _hpTxt.mouseEnabled = false;
         _widget.addChild(_hpTxt);
 
-        // 5. Mana / Energy Bar (y: 31, h: 8)
+        // 5. Mana / Energy Bar (y: 25, h: 5)
         _mpBarBg = new Shape();
         _mpBarBg.x = 4;
-        _mpBarBg.y = 31;
+        _mpBarBg.y = 25;
         _mpBarBg.graphics.beginFill(0x0A1828, 0.95);
-        _mpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 8);
+        _mpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 5);
         _mpBarBg.graphics.endFill();
         _widget.addChild(_mpBarBg);
 
         _mpBarFill = new Shape();
         _mpBarFill.x = 4;
-        _mpBarFill.y = 31;
+        _mpBarFill.y = 25;
         _widget.addChild(_mpBarFill);
 
         _mpTxt = new TextField();
-        var mpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8, 0xEEEEF2, false);
-        mpFmt.align = TextFormatAlign.CENTER;
-        _mpTxt.defaultTextFormat = mpFmt;
-        _mpTxt.x = 4;
-        _mpTxt.y = 29;
-        _mpTxt.width = FRAME_W - 8;
-        _mpTxt.height = 12;
-        _mpTxt.selectable = false;
-        _mpTxt.mouseEnabled = false;
+        _mpTxt.visible = false;
         _widget.addChild(_mpTxt);
 
         // 6. Dragging Handling
@@ -240,13 +232,13 @@ class TargetUnitFrame {
         g.clear();
         g.beginFill(hover ? ApiStyle.COLOR_STATUS_ERROR : ApiStyle.COLOR_BG_CARD, 0.85);
         g.lineStyle(1, hover ? ApiStyle.COLOR_STATUS_ERROR_HOVER : ApiStyle.COLOR_BORDER_DEFAULT);
-        g.drawRoundRect(0, 0, 12, 11, 2, 2);
+        g.drawRoundRect(0, 0, 11, 10, 2, 2);
         g.endFill();
 
         var col:Int = hover ? 0xFFFFFF : ApiStyle.COLOR_TEXT_MUTED;
         g.lineStyle(1.4, col, 1.0, true);
-        g.moveTo(3, 2.5); g.lineTo(9, 8.5);
-        g.moveTo(9, 2.5); g.lineTo(3, 8.5);
+        g.moveTo(2.5, 2.0); g.lineTo(8.5, 8.0);
+        g.moveTo(8.5, 2.0); g.lineTo(2.5, 8.0);
     }
 
     public static function cancelTarget():Void {
@@ -325,7 +317,7 @@ class TargetUnitFrame {
             g.clear();
             if (fillW > 0) {
                 g.beginFill(ApiStyle.COLOR_STATUS_ERROR, 0.95);
-                g.drawRect(0, 0, fillW, 15);
+                g.drawRect(0, 0, fillW, 11);
                 g.endFill();
             }
 
@@ -335,7 +327,7 @@ class TargetUnitFrame {
                 var shieldRatio = Math.min(1.0, shield / maxHp);
                 var shieldW = Math.round(barW * shieldRatio);
                 sg.beginFill(ApiStyle.COLOR_ACCENT_CYAN, 0.45);
-                sg.drawRect(0, 0, shieldW, 15);
+                sg.drawRect(0, 0, shieldW, 11);
                 sg.endFill();
             }
 
@@ -356,7 +348,7 @@ class TargetUnitFrame {
             g.clear();
             if (fillW > 0) {
                 g.beginFill(0x2563EB, 0.95);
-                g.drawRect(0, 0, fillW, 8);
+                g.drawRect(0, 0, fillW, 5);
                 g.endFill();
             }
 

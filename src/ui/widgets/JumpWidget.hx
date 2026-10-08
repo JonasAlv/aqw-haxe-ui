@@ -19,6 +19,7 @@ import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.Dropdown;
 import ui.Overlay;
+import ui.prompts.ApiPromptModal;
 import util.HelperSetting;
 
 /**
@@ -369,8 +370,8 @@ class JumpWidget {
                 _widget.visible = false;
                 return;
             }
-            var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
-            _widget.visible = !isPanelOpen;
+            var isBlocked:Bool = isBlockedByWindowOrModal();
+            _widget.visible = !isBlocked;
             if (_widget.visible) {
                 updateLiveState();
             }
@@ -378,6 +379,19 @@ class JumpWidget {
 
         updateLayout();
         theStage.addChild(_widget);
+    }
+
+    public static function isBlockedByWindowOrModal():Bool {
+        if (_overlay != null && _overlay.currentFrameLabel == "Panel") return true;
+        if (ApiDashboardModal.isOpen()) return true;
+        if (ApiPromptModal.isOpen()) return true;
+        try {
+            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPopup != null) {
+                var cur = Std.string(Api.game.ui.mcPopup.currentLabel);
+                if (cur != null && cur != "" && cur != "Idle" && cur != "null") return true;
+            }
+        } catch (_:Dynamic) {}
+        return false;
     }
 
     private static function setupBodyComponents():Void {
@@ -517,6 +531,7 @@ class JumpWidget {
             lbl.height = 18;
             lbl.selectable = false;
             lbl.mouseEnabled = false;
+            lbl.text = label;
             btn.addChild(lbl);
         } else {
             lbl.text = label;

@@ -308,8 +308,9 @@ class DamageNumbers {
         var hp:Int = (r.hp != null) ? Std.int(r.hp) : 0;
         var type:String = (r.type != null) ? Std.string(r.type) : "hit";
         var isDot:Bool = (r.typ != null && Std.string(r.typ) == "d");
+        var isHot:Bool = (r.typ != null && Std.string(r.typ) == "h");
 
-        spawnCombatNumber(cInf, tInf, hp, type, isDot);
+        spawnCombatNumber(cInf, tInf, hp, type, isDot, isHot);
     }
 
     private static function processMultiResult(m:Dynamic):Void {
@@ -324,7 +325,8 @@ class DamageNumbers {
                 var hp:Int = (hit.hp != null) ? Std.int(hit.hp) : 0;
                 var type:String = (hit.type != null) ? Std.string(hit.type) : "hit";
                 var isDot:Bool = (hit.typ != null && Std.string(hit.typ) == "d");
-                spawnCombatNumber(cInf, tInf, hp, type, isDot);
+                var isHot:Bool = (hit.typ != null && Std.string(hit.typ) == "h");
+                spawnCombatNumber(cInf, tInf, hp, type, isDot, isHot);
             }
         }
     }
@@ -333,14 +335,34 @@ class DamageNumbers {
         if (d == null) return;
         var tInf:String = (d.tInf != null) ? Std.string(d.tInf) : "";
         var hp:Int = (d.hp != null) ? Std.int(d.hp) : 0;
-        spawnCombatNumber("", tInf, hp, "dot", true);
+        spawnCombatNumber("", tInf, hp, "dot", true, false);
     }
 
     // -------------------------------------------------------------------------
     // Combat Number Generation & Center Positioning
     // -------------------------------------------------------------------------
 
-    private static function spawnCombatNumber(cInf:String, tInf:String, hp:Int, type:String, isDot:Bool):Void {
+    private static function hasDecayAura(tInf:String):Bool {
+        try {
+            var myUid:Dynamic = (Api.game != null && Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
+            var isSelf = (myUid != null && tInf == ("p:" + myUid));
+            var raw:Dynamic = Api.aura.getRawAuras(isSelf ? "player" : "target");
+            if (raw != null && Std.isOfType(raw, Array)) {
+                var arr:Array<Dynamic> = cast raw;
+                for (a in arr) {
+                    if (a != null && a.nam != null) {
+                        var nam:String = Std.string(a.nam).toLowerCase();
+                        if (nam.indexOf("decay") >= 0 || nam.indexOf("revert") >= 0 || nam.indexOf("reverse") >= 0 || nam.indexOf("invert") >= 0) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (_:Dynamic) {}
+        return false;
+    }
+
+    private static function spawnCombatNumber(cInf:String, tInf:String, hp:Int, type:String, isDot:Bool, isHot:Bool = false):Void {
         if (tInf == "" || _container == null) return;
 
         // Avoid DoT if disabled
@@ -379,9 +401,15 @@ class DamageNumbers {
 
         if (!passesFilter) return;
 
-        // Skip heals if disabled
-        var isHeal:Bool = (hp < 0);
-        if (isHeal && !isShowHeals()) return;
+        // Inverted heal detection (Decay / reverse healing mechanic in AQW):
+        // If a heal action deals positive damage to unit OR target has an active decay/reversal aura
+        var isHealAction:Bool = (hp < 0 || isHot || type == "heal");
+        var isDecayed:Bool = isHealAction && hasDecayAura(tInf);
+        var isInvertedHeal:Bool = isHealAction && (hp > 0 || isDecayed);
+        var isNormalHeal:Bool = isHealAction && !isInvertedHeal;
+
+        // Skip normal heals if disabled
+        if (isNormalHeal && !isShowHeals()) return;
 
         // Locate target character MovieClip
         var targetMC:Dynamic = getTargetMC(tInf);
@@ -411,9 +439,28 @@ class DamageNumbers {
 
         var screenCenter:Point = _container.globalToLocal(globalCenter);
 
-        // Add subtle random jitter (+/- 12px X, +/- 8px Y) to prevent identical overlaps
-        var spawnX:Float = screenCenter.x + (Math.random() - 0.5) * 24;
-        var spawnY:Float = screenCenter.y + (Math.random() - 0.5) * 16;
+        // ---------------------------------------------------------------------
+        // POSITION DECOUPLING (Dots & Hots do NOT overlap direct hits)
+        // ---------------------------------------------------------------------
+        var spawnX:Float = screenCenter.x;
+        var spawnY:Float = screenCenter.y;
+
+        if (isDot || isHot) {
+            // Offset DoTs and HoTs horizontally to flanking columns (+/- 38 to 44px)
+            // so they don't clutter the center direct attack numbers!
+            var sideOffset:Float = (Math.random() > 0.5 ? 40.0 : -40.0);
+            spawnX += sideOffset + (Math.random() - 0.5) * 12.0;
+            spawnY += -12.0 + (Math.random() - 0.5) * 16.0;
+        } else if (isNormalHeal) {
+            // Normal direct heals offset slightly to upper chest
+            var sideOffset:Float = (Math.random() > 0.5 ? 28.0 : -28.0);
+            spawnX += sideOffset + (Math.random() - 0.5) * 10.0;
+            spawnY += -20.0 + (Math.random() - 0.5) * 12.0;
+        } else {
+            // Direct hits, crits, and misses spawn around chest center
+            spawnX += (Math.random() - 0.5) * 20.0;
+            spawnY += (Math.random() - 0.5) * 14.0;
+        }
 
         // Determine formatting, text, color, and size
         var isCrit:Bool = (type == "crit");
@@ -421,26 +468,37 @@ class DamageNumbers {
         var textColor:Int = COLOR_HIT;
         var fontSize:Int = 14;
 
-        if (isHeal) {
-            var healAmount:Int = -hp;
+        if (isInvertedHeal) {
+            // Inverted healing (Decay / reverse heal): dealt as damage to unit!
+            // Red text with '-' prefix, inverted colors for inverted values!
+            var dmgAmount:Int = (hp > 0) ? hp : (-hp);
+            textStr = "-" + formatNumber(dmgAmount);
+            textColor = COLOR_AVOID; // Red text (0xEF4444)
+            fontSize = isCrit ? 22 : 14;
+        } else if (isNormalHeal) {
+            // Normal heal or HoT: '+' prefix in vibrant green
+            var healAmount:Int = (hp < 0) ? (-hp) : hp;
             textStr = "+" + formatNumber(healAmount);
-            textColor = COLOR_HEAL; // Direct heals and HoTs use the same vibrant green
+            textColor = COLOR_HEAL; // Vibrant green (0x00FF8A)
             fontSize = isCrit ? 22 : 14;
         } else if (type == "crit") {
-            textStr = formatNumber(hp);
-            textColor = COLOR_CRIT; // Crits are radiant orange with thick, large font
+            // Direct Crit: '-' prefix, radiant orange thick font
+            textStr = "-" + formatNumber(hp);
+            textColor = COLOR_CRIT; // Radiant orange (0xFF9944)
             fontSize = 24;
         } else if (isDot || type == "dot") {
-            textStr = formatNumber(hp);
-            textColor = COLOR_DOT; // DoTs are orange and float continuously straight up
+            // DoT: '-' prefix, amber/orange font, floats straight up
+            textStr = "-" + formatNumber(hp);
+            textColor = COLOR_DOT; // Amber/orange (0xEE9900)
             fontSize = 13;
         } else if (type == "hit") {
-            textStr = formatNumber(hp);
-            textColor = COLOR_HIT; // Normal hits are crisp white
+            // Normal hit: '-' prefix, crisp white
+            textStr = "-" + formatNumber(hp);
+            textColor = COLOR_HIT; // Crisp white (0xFFFFFF)
             fontSize = 14;
         } else if (type == "miss") {
             textStr = "Miss!";
-            textColor = COLOR_AVOID; // Dodge, Miss, Parry, Block are red text
+            textColor = COLOR_AVOID; // Avoidance is red text
             fontSize = 14;
         } else if (type == "dodge") {
             textStr = "Dodge!";
@@ -455,7 +513,7 @@ class DamageNumbers {
             textColor = COLOR_AVOID;
             fontSize = 14;
         } else {
-            textStr = formatNumber(hp);
+            textStr = "-" + formatNumber(hp);
             textColor = COLOR_HIT;
             fontSize = 14;
         }
@@ -463,7 +521,7 @@ class DamageNumbers {
         // Acquire particle from pool
         var p = acquireParticle();
         if (p != null) {
-            p.spawn(textStr, textColor, fontSize, isCrit, spawnX, spawnY, (isDot || type == "dot"));
+            p.spawn(textStr, textColor, fontSize, isCrit, spawnX, spawnY, (isDot || isHot || type == "dot"));
         }
     }
 

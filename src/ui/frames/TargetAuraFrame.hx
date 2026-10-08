@@ -24,6 +24,7 @@ class TargetAuraFrame {
     private static var _widget:Sprite = null;
     private static var _dragBar:Sprite = null;
     private static var _initialized:Bool = false;
+    private static var _lastTargetId:String = "";
 
     private static inline var ICON_W:Float = 32.0;
     private static inline var ICON_H:Float = 28.0;
@@ -106,10 +107,25 @@ class TargetAuraFrame {
             if (t == null || !t.isAlive) {
                 _widget.visible = false;
                 hideNativeTargetAuras();
+                _lastTargetId = "";
                 return;
             }
 
+            var curTargetId:String = (t.id != null) ? Std.string(t.id) : (t.name != null ? t.name : "");
+            if (curTargetId != _lastTargetId) {
+                _lastTargetId = curTargetId;
+                var g:Dynamic = Api.game;
+                if (g != null && g.tAurasUI != null) {
+                    try {
+                        if (Reflect.hasField(g.tAurasUI, "clearMCs")) {
+                            Reflect.callMethod(g.tAurasUI, Reflect.field(g.tAurasUI, "clearMCs"), []);
+                        }
+                    } catch (_:Dynamic) {}
+                }
+            }
+
             _widget.visible = true;
+            syncTargetAuras();
             updatePosition();
         });
 
@@ -243,10 +259,19 @@ class TargetAuraFrame {
                 var tfx:Float = TargetUnitFrame.getFrameX();
                 var tfy:Float = TargetUnitFrame.getFrameY();
                 targetStageX = tfx;
-                if (tfy + TargetUnitFrame.FRAME_H + 35.0 <= sh) {
-                    targetStageY = tfy + TargetUnitFrame.FRAME_H + 2.0;
+
+                var spaceBelow:Float = sh - (tfy + TargetUnitFrame.FRAME_H);
+                var spaceAbove:Float = tfy;
+
+                var numRows:Int = (numAuras > 4) ? Math.ceil(numAuras / 4.0) : 1;
+                var totalH:Float = numRows * 28.0;
+
+                if (spaceAbove > spaceBelow) {
+                    // More room above -> show UP
+                    targetStageY = tfy - totalH - 3.0;
                 } else {
-                    targetStageY = tfy - ICON_H - 2.0;
+                    // More room below -> show DOWN
+                    targetStageY = tfy + TargetUnitFrame.FRAME_H + 3.0;
                 }
             } else if (mode == UnitFramesManager.AURA_ANCHOR_UNITS) {
                 // Anchored below target feet in world
@@ -284,6 +309,55 @@ class TargetAuraFrame {
             tUI.x = localPt.x;
             tUI.y = localPt.y;
             tUI.visible = true;
+        } catch (_:Dynamic) {}
+    }
+
+    public static function syncTargetAuras():Void {
+        try {
+            var g:Dynamic = Api.game;
+            if (g == null || g.world == null || g.world.myAvatar == null) return;
+            var tObj:Dynamic = g.world.myAvatar.target;
+            if (tObj == null) return;
+
+            var rawAuras:Dynamic = Api.aura.getRawAuras("target");
+            if (rawAuras != null) {
+                if (tObj.dataLeaf != null) {
+                    tObj.dataLeaf.auras = rawAuras;
+                }
+                var tUI:Dynamic = g.tAurasUI;
+                if (tUI != null && Std.isOfType(rawAuras, Array)) {
+                    var arr:Array<Dynamic> = cast rawAuras;
+                    var tInfStr:String = "";
+                    if (tObj.dataLeaf != null && tObj.dataLeaf.MonID != null && tObj.dataLeaf.MonMapID != null) {
+                        tInfStr = "m:" + tObj.dataLeaf.MonMapID;
+                    } else if (tObj.dataLeaf != null && tObj.dataLeaf.entID != null) {
+                        tInfStr = "p:" + tObj.dataLeaf.entID;
+                    }
+
+                    // Feed any missing raw aura into tAurasUI.handleAura
+                    for (auraItem in arr) {
+                        if (auraItem != null && auraItem.nam != null) {
+                            var nam:String = Std.string(auraItem.nam);
+                            var hasIcon:Bool = false;
+                            if (tUI.icons != null && Reflect.hasField(tUI.icons, nam)) {
+                                hasIcon = true;
+                            }
+                            if (!hasIcon && tInfStr != "") {
+                                var packet = {
+                                    a: [
+                                        {
+                                            tInf: tInfStr,
+                                            auras: [ auraItem ],
+                                            cmd: "+auras"
+                                        }
+                                    ]
+                                };
+                                tUI.handleAura(packet);
+                            }
+                        }
+                    }
+                }
+            }
         } catch (_:Dynamic) {}
     }
 

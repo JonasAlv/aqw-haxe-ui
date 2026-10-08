@@ -15,6 +15,7 @@ import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.Overlay;
+import ui.prompts.ApiPromptModal;
 import com.aqwapi.utils.ApiConfig;
 
 typedef MapPlayerInfo = {
@@ -213,8 +214,8 @@ class PlayersWidget {
                 _widget.visible = false;
                 return;
             }
-            var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
-            if (isPanelOpen) {
+            var isBlocked:Bool = isBlockedByWindowOrModal();
+            if (isBlocked) {
                 _widget.visible = false;
                 return;
             }
@@ -224,6 +225,19 @@ class PlayersWidget {
 
         updateLayout();
         theStage.addChild(_widget);
+    }
+
+    public static function isBlockedByWindowOrModal():Bool {
+        if (_overlay != null && _overlay.currentFrameLabel == "Panel") return true;
+        if (ApiDashboardModal.isOpen()) return true;
+        if (ApiPromptModal.isOpen()) return true;
+        try {
+            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPopup != null) {
+                var cur = Std.string(Api.game.ui.mcPopup.currentLabel);
+                if (cur != null && cur != "" && cur != "Idle" && cur != "null") return true;
+            }
+        } catch (_:Dynamic) {}
+        return false;
     }
 
     private static function setupBodyComponents(theStage:Dynamic):Void {

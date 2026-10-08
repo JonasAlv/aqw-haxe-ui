@@ -78,6 +78,16 @@ class ClassModeSelector extends Sprite {
             if (_classKey != null) {
                 try { ApiConfig.setString(_classKey, sel); } catch (_:Dynamic) {}
             }
+            if (sel != null && sel != "" && sel.toLowerCase() != "current") {
+                if (Api.inventory != null) {
+                    try {
+                        var cur = CombatEngine.getCurrentClassName();
+                        if (cur == "" || cur.toLowerCase() != sel.toLowerCase()) {
+                            Api.inventory.equip(sel);
+                        }
+                    } catch (_:Dynamic) {}
+                }
+            }
             refreshModes();
             notifyChange();
         });

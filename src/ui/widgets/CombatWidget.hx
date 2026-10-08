@@ -23,6 +23,7 @@ import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.prompts.ApiPrompts;
+import ui.prompts.ApiPromptModal;
 import ui.components.ClassModeSelector;
 import util.HelperSetting;
 
@@ -564,8 +565,8 @@ class CombatWidget {
                 _widget.visible = false;
                 return;
             }
-            var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
-            _widget.visible = !isPanelOpen;
+            var isBlocked:Bool = isBlockedByWindowOrModal();
+            _widget.visible = !isBlocked;
             if (_widget.visible) {
                 if (!_hasRescannedBagOnEntry) {
                     _hasRescannedBagOnEntry = true;
@@ -587,6 +588,19 @@ class CombatWidget {
         updateButtonVisuals();
 
         theStage.addChild(_widget);
+    }
+
+    public static function isBlockedByWindowOrModal():Bool {
+        if (_overlay != null && _overlay.currentFrameLabel == "Panel") return true;
+        if (ApiDashboardModal.isOpen()) return true;
+        if (ApiPromptModal.isOpen()) return true;
+        try {
+            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPopup != null) {
+                var cur = Std.string(Api.game.ui.mcPopup.currentLabel);
+                if (cur != null && cur != "" && cur != "Idle" && cur != "null") return true;
+            }
+        } catch (_:Dynamic) {}
+        return false;
     }
 
     public static inline function getModesForClass(cName:String):Array<String> {

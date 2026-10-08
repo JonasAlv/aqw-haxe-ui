@@ -222,10 +222,19 @@ class PlayerAuraFrame {
                 var fx:Float = PlayerUnitFrame.getFrameX();
                 var fy:Float = PlayerUnitFrame.getFrameY();
                 targetStageX = fx;
-                if (fy + PlayerUnitFrame.FRAME_H + 35.0 <= sh) {
-                    targetStageY = fy + PlayerUnitFrame.FRAME_H + 2.0;
+
+                var spaceBelow:Float = sh - (fy + PlayerUnitFrame.FRAME_H);
+                var spaceAbove:Float = fy;
+
+                var numRows:Int = (numAuras > 4) ? Math.ceil(numAuras / 4.0) : 1;
+                var totalH:Float = numRows * 28.0;
+
+                if (spaceAbove > spaceBelow) {
+                    // More room above -> show UP
+                    targetStageY = fy - totalH - 3.0;
                 } else {
-                    targetStageY = fy - ICON_H - 2.0;
+                    // More room below -> show DOWN
+                    targetStageY = fy + PlayerUnitFrame.FRAME_H + 3.0;
                 }
             } else if (mode == UnitFramesManager.AURA_ANCHOR_UNITS) {
                 // Anchored below character feet in world
