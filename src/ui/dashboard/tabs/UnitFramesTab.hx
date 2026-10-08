@@ -189,7 +189,7 @@ class UnitFramesTab implements IDashboardTab {
         // 4. Show Incoming Damage
         modal.addItemRow(
             "Show Damage Taken",
-            "Display crimson red numbers when monsters attack your character.",
+            "Display combat numbers when monsters attack your character.",
             "toggle",
             "",
             false,

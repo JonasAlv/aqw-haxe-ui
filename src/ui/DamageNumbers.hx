@@ -28,6 +28,7 @@ class DamageParticle extends Sprite {
     public var life:Float = 0;
     public var maxLife:Float = 0.85;
     public var isCrit:Bool = false;
+    public var isDot:Bool = false;
     public var inUse:Bool = false;
     public var baseScale:Float = 1.0;
 
@@ -44,11 +45,12 @@ class DamageParticle extends Sprite {
         addChild(tf);
     }
 
-    public function spawn(text:String, color:Int, fontSize:Int, isCritical:Bool, startX:Float, startY:Float, isDot:Bool) {
+    public function spawn(text:String, color:Int, fontSize:Int, isCritical:Bool, startX:Float, startY:Float, isDamageOverTime:Bool) {
         isCrit = isCritical;
+        isDot = isDamageOverTime;
         inUse = true;
         life = 0;
-        maxLife = isCrit ? 0.95 : (isDot ? 0.70 : 0.80);
+        maxLife = isCrit ? 1.05 : (isDot ? 0.95 : 0.85);
 
         var fmt = new TextFormat(ApiStyle.FONT_FAMILY, fontSize, color, true);
         fmt.align = TextFormatAlign.CENTER;
@@ -56,7 +58,10 @@ class DamageParticle extends Sprite {
         tf.text = text;
 
         // Dark outline glow for high contrast against spell effects
-        var glow = new GlowFilter(0x000000, 0.95, isCrit ? 4 : 3, isCrit ? 4 : 3, isCrit ? 4 : 3, 1);
+        // Crits get an extra-thick, heavy black outline so they feel thick and punchy
+        var glow = isCrit
+            ? new GlowFilter(0x000000, 1.0, 5, 5, 6, 2)
+            : new GlowFilter(0x000000, 0.95, 3, 3, 4, 1);
         tf.filters = [glow];
 
         tf.x = -tf.width * 0.5;
@@ -67,17 +72,18 @@ class DamageParticle extends Sprite {
         alpha = 1.0;
 
         if (isCrit) {
-            baseScale = 1.35;
+            baseScale = 1.75;
             scaleX = baseScale;
             scaleY = baseScale;
-            vx = (Math.random() - 0.5) * 1.0;
-            vy = -4.5;
+            vx = (Math.random() - 0.5) * 0.6;
+            vy = -4.8;
         } else if (isDot) {
-            baseScale = 0.9;
+            baseScale = 0.95;
             scaleX = baseScale;
             scaleY = baseScale;
-            vx = (Math.random() > 0.5 ? 1 : -1) * (1.0 + Math.random() * 1.2);
-            vy = -2.2;
+            // Straight continuous upward floating text (minimal horizontal variance)
+            vx = (Math.random() - 0.5) * 0.3;
+            vy = -2.6;
         } else {
             baseScale = 1.0;
             scaleX = baseScale;
@@ -102,11 +108,15 @@ class DamageParticle extends Sprite {
 
         if (isCrit) {
             vy *= 0.88;
-            if (scaleX > 1.05) {
-                scaleX -= dt * 1.6;
-                if (scaleX < 1.05) scaleX = 1.05;
+            // Punchy impact pop: quickly collapse from 1.75 down to 1.25 thick font
+            if (scaleX > 1.25) {
+                scaleX -= dt * 2.5;
+                if (scaleX < 1.25) scaleX = 1.25;
                 scaleY = scaleX;
             }
+        } else if (isDot) {
+            // Smooth continuous upward drift with very gentle deceleration
+            vy *= 0.97;
         } else {
             vy *= 0.90;
         }
@@ -145,13 +155,14 @@ class DamageNumbers {
     private static var _lastFrameTime:Int = 0;
 
     // Colors
-    private static inline var COLOR_HIT:Int       = 0xFFFFFF; // Crisp white
-    private static inline var COLOR_CRIT:Int      = 0xFFB020; // Radiant amber / gold
-    private static inline var COLOR_HEAL:Int      = 0x34D399; // Emerald / mint green
-    private static inline var COLOR_DOT:Int       = 0xC084FC; // Soft violet / purple
-    private static inline var COLOR_DODGE:Int     = 0x38BDF8; // Sky cyan
-    private static inline var COLOR_MISS:Int      = 0x94A3B8; // Slate grey
-    private static inline var COLOR_INCOMING:Int  = 0xEF4444; // Danger red (damage taken)
+    private static inline var COLOR_HIT:Int       = 0xFFFFFF; // Crisp white (native AQW: 16777215)
+    private static inline var COLOR_CRIT:Int      = 0xFF9944; // Native AQW radiant orange (16750916)
+    private static inline var COLOR_HEAL:Int      = 0x00FF8A; // Native AQW vibrant green (65450)
+    private static inline var COLOR_DOT:Int       = 0xEE9900; // Native AQW DoT amber/orange (15636736)
+    private static inline var COLOR_AVOID:Int     = 0xEF4444; // Native AQW red (Dodge, Miss, Parry, Block)
+    private static inline var COLOR_DODGE:Int     = COLOR_AVOID;
+    private static inline var COLOR_MISS:Int      = COLOR_AVOID;
+    private static inline var COLOR_INCOMING:Int  = 0xEF4444;
 
     public static function init(pocket:Dynamic, overlay:Overlay):Void {
         if (_initialized) return;
@@ -312,7 +323,8 @@ class DamageNumbers {
                 var tInf:String = (hit.tInf != null) ? Std.string(hit.tInf) : "";
                 var hp:Int = (hit.hp != null) ? Std.int(hit.hp) : 0;
                 var type:String = (hit.type != null) ? Std.string(hit.type) : "hit";
-                spawnCombatNumber(cInf, tInf, hp, type, false);
+                var isDot:Bool = (hit.typ != null && Std.string(hit.typ) == "d");
+                spawnCombatNumber(cInf, tInf, hp, type, isDot);
             }
         }
     }
@@ -412,46 +424,46 @@ class DamageNumbers {
         if (isHeal) {
             var healAmount:Int = -hp;
             textStr = "+" + formatNumber(healAmount);
-            textColor = COLOR_HEAL;
-            fontSize = isCrit ? 16 : 13;
-        } else if (type == "hit") {
-            textStr = formatNumber(hp);
-            textColor = isTargetingMe ? COLOR_INCOMING : COLOR_HIT;
-            fontSize = 13;
+            textColor = COLOR_HEAL; // Direct heals and HoTs use the same vibrant green
+            fontSize = isCrit ? 22 : 14;
         } else if (type == "crit") {
             textStr = formatNumber(hp);
-            textColor = isTargetingMe ? COLOR_INCOMING : COLOR_CRIT;
-            fontSize = 18;
-        } else if (type == "miss") {
-            textStr = "Miss";
-            textColor = COLOR_MISS;
-            fontSize = 12;
-        } else if (type == "dodge") {
-            textStr = "Dodge";
-            textColor = COLOR_DODGE;
-            fontSize = 12;
-        } else if (type == "parry") {
-            textStr = "Parry";
-            textColor = COLOR_CRIT;
-            fontSize = 12;
-        } else if (type == "block") {
-            textStr = "Block";
-            textColor = COLOR_DODGE;
-            fontSize = 12;
-        } else if (isDot) {
+            textColor = COLOR_CRIT; // Crits are radiant orange with thick, large font
+            fontSize = 24;
+        } else if (isDot || type == "dot") {
             textStr = formatNumber(hp);
-            textColor = isTargetingMe ? COLOR_INCOMING : COLOR_DOT;
-            fontSize = 12;
+            textColor = COLOR_DOT; // DoTs are orange and float continuously straight up
+            fontSize = 13;
+        } else if (type == "hit") {
+            textStr = formatNumber(hp);
+            textColor = COLOR_HIT; // Normal hits are crisp white
+            fontSize = 14;
+        } else if (type == "miss") {
+            textStr = "Miss!";
+            textColor = COLOR_AVOID; // Dodge, Miss, Parry, Block are red text
+            fontSize = 14;
+        } else if (type == "dodge") {
+            textStr = "Dodge!";
+            textColor = COLOR_AVOID;
+            fontSize = 14;
+        } else if (type == "parry") {
+            textStr = "Parry!";
+            textColor = COLOR_AVOID;
+            fontSize = 14;
+        } else if (type == "block") {
+            textStr = "Block!";
+            textColor = COLOR_AVOID;
+            fontSize = 14;
         } else {
             textStr = formatNumber(hp);
             textColor = COLOR_HIT;
-            fontSize = 13;
+            fontSize = 14;
         }
 
         // Acquire particle from pool
         var p = acquireParticle();
         if (p != null) {
-            p.spawn(textStr, textColor, fontSize, isCrit, spawnX, spawnY, isDot);
+            p.spawn(textStr, textColor, fontSize, isCrit, spawnX, spawnY, (isDot || type == "dot"));
         }
     }
 
