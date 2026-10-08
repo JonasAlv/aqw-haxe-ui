@@ -1,6 +1,7 @@
 # Build output
 bin/
 *.swc
+dump/
 
 # Tooling / IDE
 .haxelib

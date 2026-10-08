@@ -244,6 +244,23 @@ class ApiMenus {
         });
         opts.push(smartCombatCheck);
 
+        var counterCheck = new Check(null, false, "Counter Handler", "Automatically pause attacks when target has Counter Attack or reflect shields.", true, function(o:Dynamic):Void {
+            tryAction("Counter Handler", function() {
+                var c:Check = cast o;
+                if (Api.combat != null) Api.combat.enableCounterHandler(c.state);
+                else CombatEngine.counterHandler = c.state;
+                ApiConfig.setBool("api_counter_handler", c.state);
+                ApiNotificationManager.notify("Counter Handler: " + (c.state ? "Enabled" : "Disabled"));
+            });
+        });
+        counterCheck.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            if (counterCheck.state != CombatEngine.counterHandler) {
+                counterCheck.state = CombatEngine.counterHandler;
+                counterCheck.syncState();
+            }
+        });
+        opts.push(counterCheck);
+
         opts.push(new Button(null, "Smart Combat (Setup)", "Configure class and mode for standalone smart combat.", "Setup", function(o:Dynamic):Void {
             tryAction("Smart Combat (Setup)", function() {
                 overlay.gotoAndStop("Init");

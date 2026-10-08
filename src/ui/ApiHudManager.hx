@@ -45,179 +45,19 @@ class ApiHudManager {
     }
 
     private static function setupDefs():Void {
-        _defs = [
-            {
-                id: "smart_combat",
-                label: "Smart Combat",
-                defaultX: 205,
-                defaultY: 10,
-                activeText: "Combat: ON",
-                inactiveText: "Combat: OFF",
-                getState: function():Bool {
-                    return (Api.combat != null && Api.combat.isRunning());
-                },
-                onToggle: function():Void {
-                    var current = (Api.combat != null && Api.combat.isRunning());
-                    var next = !current;
-                    HelperSetting.setBool("api_smart_combat_active", next);
-                    if (Api.combat != null) {
-                        if (next) {
-                            var confClass = HelperSetting.getString("api_smart_class", "Current");
-                            var confMode = HelperSetting.getString("api_smart_mode", "Auto");
-                            Api.combat.startSmartStandalone(confClass, confMode);
-                        } else {
-                            Api.combat.stop();
-                        }
-                    }
-                    ApiNotificationManager.notify("Smart Combat: " + (next ? "Enabled" : "Disabled"));
-                }
-            },
-            {
-                id: "script_runner",
-                label: "Script Runner",
-                defaultX: 318,
-                defaultY: 10,
-                activeText: "Script: RUN",
-                inactiveText: "Script: STOP",
-                getState: function():Bool {
-                    return ScriptManager.SINGLETON.isRunning;
-                },
-                onToggle: function():Void {
-                    if (ScriptManager.SINGLETON.isRunning) {
-                        ScriptManager.SINGLETON.stop();
-                        ApiNotificationManager.notify("Script stopped.");
-                    } else {
-                        ScriptManager.SINGLETON.start();
-                        if (ScriptManager.SINGLETON.isRunning) {
-                            ApiNotificationManager.notify("Script started.");
-                        } else {
-                            ApiNotificationManager.notify("No script loaded! Open Script Manager to select one.");
-                        }
-                    }
-                }
-            },
-            {
-                id: "smart_enhance",
-                label: "Smart Enhance",
-                defaultX: 431,
-                defaultY: 10,
-                activeText: "Enhancing...",
-                inactiveText: "Smart Enhance",
-                getState: function():Bool {
-                    return (Api.enhancement != null && Api.enhancement.isBusy);
-                },
-                onToggle: function():Void {
-                    if (Api.enhancement != null) {
-                        if (Api.enhancement.isBusy) {
-                            ApiNotificationManager.notify("Enhancement queue is busy!");
-                            return;
-                        }
-                        var curClass = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "Equipped Class";
-                        ApiNotificationManager.notify("SmartEnhancing " + curClass + "...");
-                        Api.enhancement.smartEnhance(null, function():Void {
-                            ApiNotificationManager.notify("SmartEnhance finished!");
-                        });
-                    }
-                }
-            },
-            {
-                id: "toggle_bank",
-                label: "Bank",
-                defaultX: 544,
-                defaultY: 10,
-                activeText: "Bank",
-                inactiveText: "Bank",
-                getState: null,
-                onToggle: function():Void {
-                    if (Api.inventory != null) {
-                        Api.inventory.toggleBank();
-                    }
-                }
-            },
-            {
-                id: "infinite_range",
-                label: "Infinite Range",
-                defaultX: 205,
-                defaultY: 45,
-                activeText: "Range: ON",
-                inactiveText: "Range: OFF",
-                getState: function():Bool {
-                    return (Api.combat != null && Api.combat.infiniteRange);
-                },
-                onToggle: function():Void {
-                    var cur = HelperSetting.getBool("api_infinite_range", false);
-                    var next = !cur;
-                    HelperSetting.setBool("api_infinite_range", next);
-                    if (Api.combat != null) {
-                        Api.combat.infiniteRange = next;
-                        if (next) Api.combat.applyInfiniteRange();
-                    }
-                    ApiNotificationManager.notify("Infinite Range: " + (next ? "Enabled" : "Disabled"));
-                }
-            },
-            {
-                id: "accept_loot",
-                label: "Accept Loot",
-                defaultX: 318,
-                defaultY: 45,
-                activeText: "Loot: ON",
-                inactiveText: "Loot: OFF",
-                getState: function():Bool {
-                    return (Api.drop != null && Api.drop.acceptAll);
-                },
-                onToggle: function():Void {
-                    var cur = HelperSetting.getBool("api_accept_loot", false);
-                    var next = !cur;
-                    HelperSetting.setBool("api_accept_loot", next);
-                    if (Api.drop != null) {
-                        Api.drop.acceptAll = next;
-                        if (next) {
-                            Api.drop.scanScreenDrops();
-                            Api.drop.acceptAllDrops();
-                        }
-                    }
-                    ApiNotificationManager.notify("Accept Loot: " + (next ? "Enabled" : "Disabled"));
-                }
-            },
-            {
-                id: "provoke_all",
-                label: "Provoke All",
-                defaultX: 431,
-                defaultY: 45,
-                activeText: "Provoke: ON",
-                inactiveText: "Provoke: OFF",
-                getState: function():Bool {
-                    return (Api.combat != null && Api.combat.autoProvoke);
-                },
-                onToggle: function():Void {
-                    var cur = (Api.combat != null && Api.combat.autoProvoke);
-                    var next = !cur;
-                    if (Api.combat != null) {
-                        Api.combat.provokeAll(next);
-                    }
-                    ApiNotificationManager.notify("Provoke All: " + (next ? "Enabled" : "Disabled"));
-                }
-            },
-            {
-                id: "lag_killer",
-                label: "Lag Killer",
-                defaultX: 544,
-                defaultY: 45,
-                activeText: "Lag: ON",
-                inactiveText: "Lag: OFF",
-                getState: function():Bool {
-                    return (Api.visual != null && Api.visual.lagKiller);
-                },
-                onToggle: function():Void {
-                    var cur = (Api.visual != null && Api.visual.lagKiller);
-                    var next = !cur;
-                    if (Api.visual != null) {
-                        Api.visual.lagKiller = next;
-                    }
-                    ApiNotificationManager.notify("Lag Killer: " + (next ? "Enabled (High FPS)" : "Disabled"));
-                }
-            }
-        ];
+        _defs = [];
+        for (t in ApiToolRegistry.getHudDefs()) {
+            _defs.push({
+                id: t.id,
+                label: t.name,
+                defaultX: t.defaultHudX,
+                defaultY: t.defaultHudY,
+                activeText: t.activeText,
+                inactiveText: t.inactiveText,
+                getState: t.getState,
+                onToggle: t.onAction
+            });
+        }
     }
 
     private static function buildButtons():Void {

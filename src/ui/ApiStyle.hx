@@ -20,7 +20,7 @@ class ApiStyle {
     private static inline var _PALETTE_BG_LIGHT:Int      = 0x1B1D27; // Clean elevated cards & resting button plates
     private static inline var _PALETTE_BG_LIGHTER:Int    = 0x252836; // Hover plate for cards & buttons
     private static inline var _PALETTE_BORDER:Int        = 0x2A2D3C; // Crisp, subtle hairline structural border
-    private static inline var _PALETTE_MUTED:Int         = 0x646C8A; // Slate muted text, subtle bevels & inactive dots
+    private static inline var _PALETTE_MUTED:Int         = 0x8E95AA; // Clean readable slate muted text & inactive dots
     private static inline var _PALETTE_FG:Int            = 0xEEEEF2; // High-contrast clean readable text
     private static inline var _PALETTE_WHITE:Int         = 0xFFFFFF; // Pure white title headings
 
@@ -28,13 +28,14 @@ class ApiStyle {
     private static inline var _PALETTE_ACCENT:Int        = 0xFA2D4B; // Radiant Red primary accent
     private static inline var _PALETTE_ACCENT_HOVER:Int  = 0xFF4D68; // Bright radiant red hover
     private static inline var _PALETTE_PINK:Int          = 0xF43F7E; // Vibrant rose/pink accent
+    private static inline var _PALETTE_PURPLE:Int        = 0xC084FC; // Radiant soft violet
     private static inline var _PALETTE_CYAN:Int          = 0x38BDF8; // Modern sky cyan
-    private static inline var _PALETTE_SUCCESS:Int       = 0x10B981; // Modern emerald green (active ON)
-    private static inline var _PALETTE_SUCCESS_HOVER:Int = 0x34D399; // Bright emerald green hover
-    private static inline var _PALETTE_WARNING:Int       = 0xF59E0B; // Modern amber warning (enhancing)
+    private static inline var _PALETTE_SUCCESS:Int       = 0x34D399; // Crisp emerald/mint green (active ON)
+    private static inline var _PALETTE_SUCCESS_HOVER:Int = 0x5EEAD4; // Bright emerald green hover
+    private static inline var _PALETTE_WARNING:Int       = 0xFBBF24; // Modern radiant amber/gold warning
     private static inline var _PALETTE_SPECIAL:Int       = 0xFBBF24; // Radiant gold/yellow (current class)
     private static inline var _PALETTE_DANGER:Int        = 0xEF4444; // Clean danger red (close hover, delete)
-    private static inline var _PALETTE_DANGER_HOVER:Int  = 0xFF5C5C; // Bright danger hover
+    private static inline var _PALETTE_DANGER_HOVER:Int  = 0xFF6B6B; // Bright danger hover
 
     // =========================================================================
     // 1. GENERIC SURFACES & BACKGROUNDS
@@ -102,6 +103,14 @@ class ApiStyle {
     public static inline var COLOR_BTN_BG_DANGER:Int        = _PALETTE_DANGER;
     public static inline var COLOR_BTN_BG_DANGER_HOVER:Int  = _PALETTE_DANGER_HOVER;
 
+    // Semantic category buttons for filters & quick inserts
+    public static inline var COLOR_BTN_BG_SUCCESS:Int       = 0x14261C;
+    public static inline var COLOR_BTN_BORDER_SUCCESS:Int   = 0x225235;
+    public static inline var COLOR_BTN_BG_PURPLE:Int        = 0x211A2E;
+    public static inline var COLOR_BTN_BORDER_PURPLE:Int    = 0x3E2958;
+    public static inline var COLOR_BTN_BG_WARN:Int          = 0x281F14;
+    public static inline var COLOR_BTN_BORDER_WARN:Int      = 0x4D361B;
+
     // =========================================================================
     // 6. GENERIC TYPOGRAPHY
     // =========================================================================
@@ -115,6 +124,7 @@ class ApiStyle {
     public static inline var COLOR_TEXT_DANGER:Int     = _PALETTE_DANGER;      // Red text
     public static inline var COLOR_TEXT_CYAN:Int       = _PALETTE_CYAN;        // Cyan text
     public static inline var COLOR_TEXT_PINK:Int       = _PALETTE_PINK;        // Pink text
+    public static inline var COLOR_TEXT_PURPLE:Int     = _PALETTE_PURPLE;      // Radiant soft violet text
     public static inline var COLOR_TEXT_YELLOW:Int     = _PALETTE_SPECIAL;     // Yellow text
     public static inline var COLOR_TEXT_ON_ACCENT:Int  = 0xFFFFFF;             // Crisp white text on rad/red button
 
@@ -123,9 +133,9 @@ class ApiStyle {
     // =========================================================================
     public static inline var FONT_FAMILY:String = "_sans";
 
-    public static inline var ALPHA_BACKDROP:Float  = 0.80;
+    public static inline var ALPHA_BACKDROP:Float  = 0.85;
     public static inline var ALPHA_DASHBOARD:Float = 0.98;
-    public static inline var ALPHA_DIALOG:Float    = 0.98;
+    public static inline var ALPHA_DIALOG:Float    = 1.0;  // Fully opaque, no background ghosting
     public static inline var ALPHA_WIDGET:Float    = 0.95;
     public static inline var ALPHA_CARD:Float      = 0.97;
 

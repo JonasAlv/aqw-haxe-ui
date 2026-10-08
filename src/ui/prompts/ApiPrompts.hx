@@ -14,6 +14,10 @@ import flash.text.TextField;
 import flash.text.TextFieldType;
 import ui.Dropdown;
 import ui.EnhancementColors;
+import ui.ApiStyle;
+import ui.prompts.combat.CombatModeEditorModal;
+import ui.prompts.scripts.ScriptManagerModal;
+import ui.components.ClassModeSelector;
 import util.HelperSetting;
 
 class ApiPrompts {
@@ -40,7 +44,7 @@ class ApiPrompts {
         input.y = 62;
         dlg.addChild(input);
 
-        var statusColor = isRunning ? 0x00FF88 : 0x888888;
+        var statusColor = isRunning ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_STATUS_INACTIVE;
         var statusMsg = isRunning ? "Status: Active (Safe looping accept & turn-in)" : "Status: Inactive (Stopped)";
         var lblStatus = ApiPromptModal.createLabel(statusMsg, 300, 11, false);
         lblStatus.x = 20;
@@ -198,8 +202,8 @@ class ApiPrompts {
         var listContainer = new Sprite();
         listContainer.x = 20;
         listContainer.y = listY;
-        listContainer.graphics.beginFill(0x161616, 0.95);
-        listContainer.graphics.lineStyle(1, 0x333333);
+        listContainer.graphics.beginFill(ApiStyle.COLOR_BG_PANEL, 0.95);
+        listContainer.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
         listContainer.graphics.drawRoundRect(0, 0, listW, listH, 6, 6);
         listContainer.graphics.endFill();
         dlg.addChild(listContainer);
@@ -238,7 +242,7 @@ class ApiPrompts {
 
             var sbW:Float = 4;
             var sbX:Float = listW - sbW - 3;
-            scrollbarTrack.graphics.beginFill(0x222222, 0.7);
+            scrollbarTrack.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.7);
             scrollbarTrack.graphics.drawRoundRect(sbX, 4, sbW, listH - 8, 2, 2);
             scrollbarTrack.graphics.endFill();
 
@@ -247,7 +251,7 @@ class ApiPrompts {
             var scrollRatio:Float = -listContent.y / (totalRowsH - listH);
             var thumbY:Float = 4 + scrollRatio * (listH - 8 - thumbH);
 
-            scrollbarThumb.graphics.beginFill(0x666666, 0.9);
+            scrollbarThumb.graphics.beginFill(ApiStyle.COLOR_BORDER_HIGHLIGHT, 0.9);
             scrollbarThumb.graphics.drawRoundRect(sbX, thumbY, sbW, thumbH, 2, 2);
             scrollbarThumb.graphics.endFill();
         };
@@ -266,7 +270,7 @@ class ApiPrompts {
                 row.y = i * rowH + 6;
 
                 if (i % 2 == 1) {
-                    row.graphics.beginFill(0x222222, 0.4);
+                    row.graphics.beginFill(ApiStyle.COLOR_BG_CARD, 0.4);
                     row.graphics.drawRoundRect(0, 0, innerRowW, rowH - 4, 4, 4);
                     row.graphics.endFill();
                 }
@@ -669,7 +673,7 @@ class ApiPrompts {
             var lblSub = ApiPromptModal.createLabel(subText, 412, 11);
             lblSub.x = 24;
             lblSub.y = 38;
-            lblSub.textColor = 0x888888;
+            lblSub.textColor = ApiStyle.COLOR_TEXT_MUTED;
             dlg.addChild(lblSub);
 
             var lblClass = ApiPromptModal.createLabel("Class:", 196, 12, true);
@@ -682,80 +686,56 @@ class ApiPrompts {
             lblMode.y = 66;
             dlg.addChild(lblMode);
 
-            var availableClasses = getAvailableClasses();
-            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
+            var selectedClassStr:String = "Current";
+            var selectedModeStr:String = "Auto (First Available)";
 
-            var selectedClassStr = ApiConfig.getString("api_smart_class", "Current");
-            if (selectedClassStr == "" || availableClasses.indexOf(selectedClassStr) == -1) {
-                selectedClassStr = "Current";
-            }
+            var selector = new ClassModeSelector(196, 196, 26, 20, true, "Auto (First Available)", function(c:String, m:String):Void {
+                selectedClassStr = c;
+                selectedModeStr = m;
+            });
+            selector.x = 24;
+            selector.y = 88;
+            selector.bindConfig("api_smart_class", "api_smart_mode");
+            selectedClassStr = selector.selectedClass;
+            selectedModeStr = selector.selectedMode;
+            dlg.addChild(selector);
 
-            var getModesForClass = function(cName:String):Array<String> {
-                var modes:Array<String> = [];
-                var isCurrent = (cName == null || cName == "" || cName.toLowerCase() == "current");
-                if (isCurrent) {
-                    modes.push("Auto (First Available)");
-                    var curName = CombatEngine.getCurrentClassName();
-                    if (curName != "") {
-                        try {
-                            var detectedModes = CombatEngine.getAvailableModes(curName);
-                            if (detectedModes != null) {
-                                for (m in detectedModes) if (modes.indexOf(m) == -1) modes.push(m);
-                            }
-                        } catch (_:Dynamic) {}
+            var currentCounter:Bool = CombatEngine.counterHandler;
+            var counterBtn:flash.display.Sprite = null;
+            var updateCounterBtnText:Void->Void = function():Void {
+                if (counterBtn != null) {
+                    var lbl:flash.text.TextField = cast counterBtn.getChildByName("label");
+                    if (lbl != null) {
+                        lbl.text = "Counter Handler: " + (currentCounter ? "ON (Hold Attacks on Reflect/Shields)" : "OFF");
+                        lbl.textColor = currentCounter ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_TEXT_MUTED;
                     }
-                } else {
-                    try {
-                        modes = CombatEngine.getAvailableModes(cName);
-                    } catch (_:Dynamic) {}
                 }
-                if (modes == null || modes.length == 0) modes = ["Base"];
-                return modes;
             };
 
-            var availableModes:Array<String> = getModesForClass(selectedClassStr);
-            var selectedModeStr = ApiConfig.getString("api_smart_mode", "Auto");
-            if (selectedClassStr == "Current" && (selectedModeStr == "" || selectedModeStr == "Auto")) {
-                selectedModeStr = "Auto (First Available)";
-            } else if (selectedModeStr == null || selectedModeStr == "" || availableModes.indexOf(selectedModeStr) == -1) {
-                selectedModeStr = availableModes.length > 0 ? availableModes[0] : "Base";
-            }
-
-            var ddMode:Dropdown = null;
-            ddMode = new Dropdown(196, 26, availableModes, function(sel:String):Void {
-                selectedModeStr = sel;
-            });
-            ddMode.x = 240;
-            ddMode.y = 88;
-            ddMode.setSelectedItem(selectedModeStr);
-
-            var ddClass:Dropdown = null;
-            ddClass = new Dropdown(196, 26, availableClasses, function(sel:String):Void {
-                selectedClassStr = sel;
-                var modes = getModesForClass(selectedClassStr);
-                ddMode.setOptions(modes);
-                if (modes.indexOf(selectedModeStr) == -1) {
-                    selectedModeStr = (selectedClassStr == "Current") ? "Auto (First Available)" : (modes.length > 0 ? modes[0] : "Base");
-                }
-                ddMode.setSelectedItem(selectedModeStr);
-            });
-            ddClass.x = 24;
-            ddClass.y = 88;
-            ddClass.setSelectedItem(selectedClassStr);
-
-            dlg.addChild(ddMode);
-            dlg.addChild(ddClass);
+            counterBtn = ApiPromptModal.createButton(
+                "Counter Handler: " + (currentCounter ? "ON (Hold Attacks on Reflect/Shields)" : "OFF"),
+                412, 28, function():Void {
+                    currentCounter = !currentCounter;
+                    updateCounterBtnText();
+                }, false
+            );
+            counterBtn.x = 24;
+            counterBtn.y = 124;
+            updateCounterBtnText();
+            dlg.addChild(counterBtn);
 
             var saveBtn = ApiPromptModal.createButton("Save Config", 130, 35, function():Void {
                 var saveModeVal = (selectedModeStr == "Auto (First Available)") ? "Auto" : selectedModeStr;
                 ApiConfig.setString("api_smart_class", selectedClassStr);
                 ApiConfig.setString("api_smart_mode", saveModeVal);
+                ApiConfig.setBool("api_counter_handler", currentCounter);
+                CombatEngine.counterHandler = currentCounter;
                 CombatEngine.smartClass = selectedClassStr;
                 CombatEngine.skillMode = saveModeVal;
                 if (Api.combat != null) {
                     Api.combat.mode = saveModeVal;
                 }
-                ApiNotificationManager.notify("Smart Combat Config: " + selectedClassStr + " [" + saveModeVal + "]");
+                ApiNotificationManager.notify("Smart Combat: " + selectedClassStr + " [" + saveModeVal + "], Ctr: " + (currentCounter ? "ON" : "OFF"));
                 ApiPromptModal.close();
             }, true);
             saveBtn.x = 26;
@@ -790,748 +770,8 @@ class ApiPrompts {
         }
     }
 
-    public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {
-        try {
-            try { SkillManager.ensureStorageInitialized(); } catch (_:Dynamic) {}
-            var dlg = ApiPromptModal.createDialog(800, 494, "Combat Mode Editor");
-
-            // Gather class options (Strictly classes currently in inventory + Current)
-            var classOptions:Array<String> = getAvailableClasses();
-            var curEquipped = CombatEngine.getCurrentClassName();
-            var selectedClass = (initialClass != null && initialClass != "" && classOptions.indexOf(initialClass) != -1)
-                ? initialClass
-                : "Current";
-            if (selectedClass == null || selectedClass == "" || classOptions.indexOf(selectedClass) == -1) {
-                selectedClass = classOptions.length > 0 ? classOptions[0] : "Current";
-            }
-
-            var initialInputClass = selectedClass;
-            if (selectedClass.toLowerCase() == "current" && curEquipped != null && curEquipped != "" && curEquipped.toLowerCase() != "current") {
-                initialInputClass = curEquipped;
-            }
-
-            var lblClass = ApiPromptModal.createLabel("Select Class:", 250);
-            lblClass.x = 25;
-            lblClass.y = 36;
-            dlg.addChild(lblClass);
-
-            var lblCustomClass = ApiPromptModal.createLabel("Class Name:", 250);
-            lblCustomClass.x = 415;
-            lblCustomClass.y = 36;
-            dlg.addChild(lblCustomClass);
-
-            var inputClass = ApiPromptModal.createInput(360, 26, initialInputClass);
-            inputClass.x = 415;
-            inputClass.y = 54;
-            dlg.addChild(inputClass);
-
-            var lblMode = ApiPromptModal.createLabel("Select Mode:", 250);
-            lblMode.x = 25;
-            lblMode.y = 85;
-            dlg.addChild(lblMode);
-
-            var lblCustomMode = ApiPromptModal.createLabel("Mode Name:", 100);
-            lblCustomMode.x = 415;
-            lblCustomMode.y = 85;
-            dlg.addChild(lblCustomMode);
-
-            var lblBadge = ApiPromptModal.createLabel("[Bundled Mode]", 260, 11, true);
-            var bFmt = new flash.text.TextFormat("_sans", 11, 0x888888, true);
-            bFmt.align = flash.text.TextFormatAlign.RIGHT;
-            lblBadge.defaultTextFormat = bFmt;
-            lblBadge.x = 515;
-            lblBadge.y = 85;
-            dlg.addChild(lblBadge);
-
-            var updateBadge = function(text:String, color:Int):Void {
-                if (lblBadge == null) return;
-                var fmt = new flash.text.TextFormat("_sans", 11, color, true);
-                fmt.align = flash.text.TextFormatAlign.RIGHT;
-                lblBadge.defaultTextFormat = fmt;
-                lblBadge.text = text;
-                lblBadge.textColor = color;
-            };
-
-            var inputMode = ApiPromptModal.createInput(360, 26, "Base");
-            inputMode.x = 415;
-            inputMode.y = 103;
-            dlg.addChild(inputMode);
-
-            var lblExecMode = ApiPromptModal.createLabel("Execution Mode:", 250);
-            lblExecMode.x = 25;
-            lblExecMode.y = 134;
-            dlg.addChild(lblExecMode);
-
-            var lblTimeout = ApiPromptModal.createLabel("Timeout (ms):", 90);
-            lblTimeout.x = 415;
-            lblTimeout.y = 134;
-            dlg.addChild(lblTimeout);
-
-            var lblBehavior = ApiPromptModal.createLabel("Combat Behavior:", 250);
-            lblBehavior.x = 505;
-            lblBehavior.y = 134;
-            dlg.addChild(lblBehavior);
-
-            var inputTimeout = ApiPromptModal.createInput(80, 26, "0");
-            inputTimeout.x = 415;
-            inputTimeout.y = 152;
-            dlg.addChild(inputTimeout);
-
-            var currentResetOnTarget:Bool = false;
-            var btnResetTarget:flash.display.Sprite = null;
-            var updateResetTargetBtn = function():Void {
-                if (btnResetTarget == null) return;
-                var targetText = currentResetOnTarget ? "Reset: ON" : "Reset: OFF";
-                var targetColor = currentResetOnTarget ? 0x55FF55 : 0xAAAAAA;
-                var txt = (btnResetTarget.numChildren > 0 && Std.isOfType(btnResetTarget.getChildAt(0), flash.text.TextField))
-                    ? cast(btnResetTarget.getChildAt(0), flash.text.TextField)
-                    : null;
-                if (txt != null) {
-                    txt.text = targetText;
-                    txt.textColor = targetColor;
-                }
-            };
-
-            btnResetTarget = ApiPromptModal.createButton("Reset: OFF", 125, 26, function():Void {
-                currentResetOnTarget = !currentResetOnTarget;
-                updateResetTargetBtn();
-            }, false);
-            btnResetTarget.x = 505;
-            btnResetTarget.y = 152;
-            dlg.addChild(btnResetTarget);
-
-            // Tri-state Auto Attack: null = inherit (the class default decides), true/false = mode
-            // override. The mode is the more specific setting, so it always wins; the class object is
-            // only a default for modes that do not declare their own. That is why "Mode ON" is
-            // meaningful here unconditionally - it used to be greyed out whenever the class had a flag.
-            var currentAutoAttack:Null<Bool> = null;
-            var btnAutoAttack:flash.display.Sprite = null;
-            var updateAutoAttackBtn = function():Void {
-                if (btnAutoAttack == null) return;
-                var targetText:String = "";
-                var targetColor:Int = 0xAAAAAA;
-                if (currentAutoAttack == null) {
-                    targetText = "AA: Inherit";
-                    targetColor = 0xAAAAAA;
-                } else if (currentAutoAttack == true) {
-                    targetText = "AA: Mode ON";
-                    targetColor = 0x55FF55;
-                } else {
-                    targetText = "AA: Mode OFF";
-                    targetColor = 0xFFAA55;
-                }
-                var txt = (btnAutoAttack.numChildren > 0 && Std.isOfType(btnAutoAttack.getChildAt(0), flash.text.TextField))
-                    ? cast(btnAutoAttack.getChildAt(0), flash.text.TextField)
-                    : null;
-                if (txt != null) {
-                    txt.text = targetText;
-                    txt.textColor = targetColor;
-                }
-            };
-
-            btnAutoAttack = ApiPromptModal.createButton("AA: Inherit", 135, 26, function():Void {
-                currentAutoAttack = (currentAutoAttack == null) ? true : ((currentAutoAttack == true) ? false : null);
-                updateAutoAttackBtn();
-            }, false);
-            btnAutoAttack.x = 640;
-            btnAutoAttack.y = 152;
-            dlg.addChild(btnAutoAttack);
-
-            var lblStopAuras = ApiPromptModal.createLabel("Stop on Target Auras (Reflect / Shields - comma separated):", 750);
-            lblStopAuras.x = 25;
-            lblStopAuras.y = 184;
-            dlg.addChild(lblStopAuras);
-
-            var inputStopAuras = ApiPromptModal.createInput(750, 24, "");
-            inputStopAuras.x = 25;
-            inputStopAuras.y = 202;
-            dlg.addChild(inputStopAuras);
-
-            var lblCombo = ApiPromptModal.createLabel("Skill Combo / Rotation (1-Liner DSL):", 750);
-            lblCombo.x = 25;
-            lblCombo.y = 230;
-            dlg.addChild(lblCombo);
-
-            var inputCombo = ApiPromptModal.createInput(750, 44, "", true);
-            inputCombo.x = 25;
-            inputCombo.y = 248;
-            dlg.addChild(inputCombo);
-
-            var ddExecMode:Dropdown = null;
-            var ddMode:Dropdown = null;
-            var ddClass:Dropdown = null;
-            var helperButtons:Array<flash.display.Sprite> = [];
-            helperButtons.push(btnResetTarget);
-            helperButtons.push(btnAutoAttack);
-            var saveBtn:flash.display.Sprite = null;
-            var applyBtn:flash.display.Sprite = null;
-            var delBtn:flash.display.Sprite = null;
-            var cloneBtn:flash.display.Sprite = null;
-
-            var setInputEnabled = function(tf:TextField, enabled:Bool):Void {
-                if (tf == null) return;
-                #if flash
-                tf.type = enabled ? flash.text.TextFieldType.INPUT : flash.text.TextFieldType.DYNAMIC;
-                #end
-                tf.selectable = true;
-                tf.mouseEnabled = true;
-                tf.backgroundColor = enabled ? 0x222222 : 0x141414;
-                tf.borderColor = enabled ? 0x555555 : 0x333333;
-                tf.textColor = enabled ? 0xFFFFFF : 0xAAAAAA;
-                tf.alpha = enabled ? 1.0 : 0.8;
-            };
-
-            var setButtonEnabled = function(btn:flash.display.Sprite, enabled:Bool):Void {
-                if (btn == null) return;
-                btn.mouseEnabled = enabled;
-                btn.mouseChildren = false;
-                btn.buttonMode = enabled;
-                btn.alpha = enabled ? 1.0 : 0.35;
-            };
-
-            var setFormEditable = function(isEditable:Bool, isNewMode:Bool):Void {
-                setInputEnabled(inputClass, isEditable);
-                setInputEnabled(inputMode, isEditable);
-                setInputEnabled(inputTimeout, isEditable);
-                setInputEnabled(inputStopAuras, isEditable);
-                setInputEnabled(inputCombo, isEditable);
-
-                if (ddExecMode != null) {
-                    ddExecMode.mouseEnabled = isEditable;
-                    ddExecMode.mouseChildren = isEditable;
-                    ddExecMode.alpha = isEditable ? 1.0 : 0.4;
-                }
-
-                if (helperButtons != null) {
-                    for (b in helperButtons) {
-                        setButtonEnabled(b, isEditable);
-                    }
-                }
-
-                setButtonEnabled(saveBtn, isEditable);
-                setButtonEnabled(delBtn, isEditable && !isNewMode);
-                setButtonEnabled(applyBtn, !isNewMode);
-
-                if (cloneBtn != null) {
-                    cloneBtn.visible = (!isEditable && !isNewMode);
-                }
-                if (delBtn != null) {
-                    delBtn.visible = (isEditable && !isNewMode);
-                }
-            };
-
-            var loadModeDetails = function(cName:String, mName:String):Void {
-                if (mName == null || mName == "" || mName == "[+ New Mode]") {
-                    if (inputMode != null) inputMode.text = "CustomMode";
-                    if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    if (inputTimeout != null) inputTimeout.text = "0";
-                    currentResetOnTarget = false;
-                    updateResetTargetBtn();
-                    currentAutoAttack = null;
-                    updateAutoAttackBtn();
-                    if (inputStopAuras != null) inputStopAuras.text = "";
-                    if (inputCombo != null) inputCombo.text = "";
-                    updateBadge("[New Mode]", 0x55FF55);
-                    setFormEditable(true, true);
-                    return;
-                }
-
-                var effectiveClass = cName;
-                if (effectiveClass == null || effectiveClass == "" || effectiveClass.toLowerCase() == "current") {
-                    var cur = CombatEngine.getCurrentClassName();
-                    if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                        effectiveClass = cur;
-                    }
-                }
-
-                if (inputMode != null) inputMode.text = (mName != null) ? mName : "";
-                var details = SkillManager.getModeDetails(effectiveClass, mName);
-                if (details == null && effectiveClass != cName) {
-                    details = SkillManager.getModeDetails(cName, mName);
-                }
-                if (details != null) {
-                    if (ddExecMode != null) {
-                        var eMode:String = (details.skillUseMode != null && details.skillUseMode != "") ? details.skillUseMode : "WaitForCooldown";
-                        ddExecMode.setSelectedItem(eMode);
-                    }
-                    if (inputTimeout != null) {
-                        var toVal:Int = (details.timeout != null) ? details.timeout : 0;
-                        inputTimeout.text = (toVal > 1500) ? Std.string(toVal) : "0";
-                    }
-                    if (inputStopAuras != null) inputStopAuras.text = (details.stopOnTargetAuras != null) ? details.stopOnTargetAuras : "";
-                    if (inputCombo != null) inputCombo.text = (details.combo != null) ? details.combo : "";
-
-                    currentResetOnTarget = (details.resetComboOnTargetChange == true);
-                    updateResetTargetBtn();
-
-                    var aaRaw = (details != null && details.autoattack != null) ? details.autoattack : null;
-                    currentAutoAttack = (aaRaw == true) ? true : ((aaRaw == false) ? false : null);
-                    updateAutoAttackBtn();
-
-                    var isUser:Bool = (details.isUser == true) || SkillManager.isUserMode(effectiveClass, mName) || SkillManager.isUserMode(cName, mName);
-                    var classAA = SkillManager.getClassAutoAttackFlag(effectiveClass);
-                    var aaSuffix = (classAA == null) ? "" : (classAA ? "  (Class AA: ON)" : "  (Class AA: OFF)");
-                    if (isUser) {
-                        updateBadge("[User Mode]" + aaSuffix, 0x00D9FF);
-                    } else {
-                        updateBadge("[Bundled Mode]" + aaSuffix, 0x888888);
-                    }
-                    setFormEditable(isUser, false);
-                } else {
-                    if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    if (inputTimeout != null) inputTimeout.text = "0";
-                    currentResetOnTarget = false;
-                    updateResetTargetBtn();
-                    currentAutoAttack = null;
-                    updateAutoAttackBtn();
-                    if (inputStopAuras != null) inputStopAuras.text = "";
-                    if (inputCombo != null) inputCombo.text = "";
-                    updateBadge("[New Mode]", 0x55FF55);
-                    setFormEditable(true, true);
-                }
-            };
-
-            var getModeListForClass = function(cName:String):Array<String> {
-                var list:Array<String> = [];
-                try {
-                    var modes = CombatEngine.getAvailableModes(cName);
-                    if (modes != null) {
-                        for (m in modes) {
-                            // "Auto" is a resolver sentinel ("use the class default"), not a mode
-                            // that can be edited - no class defines one, so never offer it here.
-                            if (m != null && m != "" && m.toLowerCase() != "auto" && list.indexOf(m) == -1) list.push(m);
-                        }
-                    }
-                } catch (_:Dynamic) {}
-                list.push("[+ New Mode]");
-                return list;
-            };
-
-            ddExecMode = new Dropdown(360, 26, ["WaitForCooldown", "UseIfAvailable"], function(sel:String):Void {});
-            ddExecMode.x = 25;
-            ddExecMode.y = 152;
-            ddExecMode.setSelectedItem("WaitForCooldown");
-
-            var initialModes = getModeListForClass(selectedClass);
-            var initialSelMode = (initialMode != null && initialMode != "" && initialModes.indexOf(initialMode) != -1) ? initialMode : (initialModes.length > 0 ? initialModes[0] : "[+ New Mode]");
-
-            ddMode = new Dropdown(360, 26, initialModes, function(selMode:String):Void {
-                var currentClass = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
-                if (currentClass == "") currentClass = selectedClass;
-                loadModeDetails(currentClass, selMode);
-            });
-            ddMode.x = 25;
-            ddMode.y = 103;
-            ddMode.setSelectedItem(initialSelMode);
-
-            ddClass = new Dropdown(360, 26, classOptions, function(selClass:String):Void {
-                selectedClass = selClass;
-                if (inputClass != null) {
-                    if (selClass.toLowerCase() == "current") {
-                        var cur = CombatEngine.getCurrentClassName();
-                        inputClass.text = (cur != null && cur != "" && cur.toLowerCase() != "current") ? cur : "";
-                    } else {
-                        inputClass.text = selClass;
-                    }
-                }
-
-                var modes = getModeListForClass(selClass);
-                if (ddMode != null) ddMode.setOptions(modes);
-                var firstMode = (modes.length > 0 && modes[0] != null) ? modes[0] : "[+ New Mode]";
-                if (ddMode != null) ddMode.setSelectedItem(firstMode);
-                loadModeDetails(selClass, firstMode);
-            });
-            ddClass.x = 25;
-            ddClass.y = 54;
-            ddClass.setSelectedItem(classOptions.indexOf(selectedClass) != -1 ? selectedClass : (classOptions.length > 0 ? classOptions[0] : ""));
-
-            dlg.addChild(ddExecMode);
-            dlg.addChild(ddMode);
-            dlg.addChild(ddClass);
-
-            var appendSkill = function(sid:String):Void {
-                var cur = StringTools.trim(inputCombo.text);
-                if (cur.length == 0) {
-                    inputCombo.text = sid;
-                } else if (StringTools.endsWith(cur, ">")) {
-                    inputCombo.text = cur + " " + sid;
-                } else {
-                    inputCombo.text = cur + " > " + sid;
-                }
-            };
-
-            var appendRule = function(rule:String):Void {
-                var cur = StringTools.trim(inputCombo.text);
-                if (cur.length == 0) {
-                    inputCombo.text = "1" + rule;
-                } else if (StringTools.endsWith(cur, ">")) {
-                    inputCombo.text = cur + " 1" + rule;
-                } else {
-                    if (StringTools.endsWith(cur, "]")) {
-                        var innerRule = rule.substring(1, rule.length - 1);
-                        inputCombo.text = cur.substring(0, cur.length - 1) + " & " + innerRule + "]";
-                    } else {
-                        inputCombo.text = cur + rule;
-                    }
-                }
-            };
-
-            // Quick helper row 1: Skills & Flow (left) + HP/MP/Party triggers (right)
-            var b1 = ApiPromptModal.createButton("1", 32, 24, function() appendSkill("1"), false, 0x1E242B, 0x2C3D52, 12);
-            b1.x = 25; b1.y = 298; dlg.addChild(b1); helperButtons.push(b1);
-
-            var b2 = ApiPromptModal.createButton("2", 32, 24, function() appendSkill("2"), false, 0x1E242B, 0x2C3D52, 12);
-            b2.x = 62; b2.y = 298; dlg.addChild(b2); helperButtons.push(b2);
-
-            var b3 = ApiPromptModal.createButton("3", 32, 24, function() appendSkill("3"), false, 0x1E242B, 0x2C3D52, 12);
-            b3.x = 99; b3.y = 298; dlg.addChild(b3); helperButtons.push(b3);
-
-            var b4 = ApiPromptModal.createButton("4", 32, 24, function() appendSkill("4"), false, 0x1E242B, 0x2C3D52, 12);
-            b4.x = 136; b4.y = 298; dlg.addChild(b4); helperButtons.push(b4);
-
-            var b5 = ApiPromptModal.createButton("5", 32, 24, function() appendSkill("5"), false, 0x1E242B, 0x2C3D52, 12);
-            b5.x = 173; b5.y = 298; dlg.addChild(b5); helperButtons.push(b5);
-
-            var bArrow = ApiPromptModal.createButton(">", 36, 24, function():Void {
-                var cur = StringTools.trim(inputCombo.text);
-                if (cur.length > 0 && !StringTools.endsWith(cur, ">")) {
-                    inputCombo.text = cur + " >";
-                }
-            }, false, 0x222222, 0x444444, 12);
-            bArrow.x = 210; bArrow.y = 298; dlg.addChild(bArrow); helperButtons.push(bArrow);
-
-            var b14 = ApiPromptModal.createButton("1-4", 46, 24, function():Void {
-                var cur = StringTools.trim(inputCombo.text);
-                if (cur.length == 0) {
-                    inputCombo.text = "1 > 2 > 3 > 4";
-                } else if (StringTools.endsWith(cur, ">")) {
-                    inputCombo.text = cur + " 1 > 2 > 3 > 4";
-                } else {
-                    inputCombo.text = cur + " > 1 > 2 > 3 > 4";
-                }
-            }, false, 0x222222, 0x444444, 12);
-            b14.x = 251; b14.y = 298; dlg.addChild(b14); helperButtons.push(b14);
-
-            var bClear = ApiPromptModal.createButton("Clear", 52, 24, function():Void {
-                inputCombo.text = "";
-            }, false, 0x222222, 0x444444, 11);
-            bClear.x = 302; bClear.y = 298; dlg.addChild(bClear); helperButtons.push(bClear);
-
-            var bHp = ApiPromptModal.createButton("hp < 50%", 90, 24, function() appendRule("[hp < 50%]"), false, 0x1A2920, 0x2D4D33, 11);
-            bHp.x = 370; bHp.y = 298; dlg.addChild(bHp); helperButtons.push(bHp);
-
-            var bTgtHp = ApiPromptModal.createButton("tgt:hp < 50%", 110, 24, function() appendRule("[tgt:hp < 50%]"), false, 0x1A2920, 0x2D4D33, 11);
-            bTgtHp.x = 468; bTgtHp.y = 298; dlg.addChild(bTgtHp); helperButtons.push(bTgtHp);
-
-            var bMp = ApiPromptModal.createButton("mp < 20%", 85, 24, function() appendRule("[mp < 20%]"), false, 0x1A2920, 0x2D4D33, 11);
-            bMp.x = 586; bMp.y = 298; dlg.addChild(bMp); helperButtons.push(bMp);
-
-            var bParty = ApiPromptModal.createButton("party < 50%", 96, 24, function() appendRule("[party:hp < 50%]"), false, 0x1A2920, 0x2D4D33, 11);
-            bParty.x = 679; bParty.y = 298; dlg.addChild(bParty); helperButtons.push(bParty);
-
-            // Quick helper row 2: Auras & Timers
-            var bAuraSelf = ApiPromptModal.createButton("!aura(self)", 135, 24, function() appendRule("[!aura(self:Name)]"), false, 0x231C2D, 0x3E2C52, 11);
-            bAuraSelf.x = 25; bAuraSelf.y = 328; dlg.addChild(bAuraSelf); helperButtons.push(bAuraSelf);
-
-            var bAuraSelfHas = ApiPromptModal.createButton("aura(self)", 130, 24, function() appendRule("[aura(self:Name)]"), false, 0x231C2D, 0x3E2C52, 11);
-            bAuraSelfHas.x = 168; bAuraSelfHas.y = 328; dlg.addChild(bAuraSelfHas); helperButtons.push(bAuraSelfHas);
-
-            var bAuraTgt = ApiPromptModal.createButton("aura(target)", 135, 24, function() appendRule("[aura(target:Name)]"), false, 0x231C2D, 0x3E2C52, 11);
-            bAuraTgt.x = 306; bAuraTgt.y = 328; dlg.addChild(bAuraTgt); helperButtons.push(bAuraTgt);
-
-            var bAuraTime = ApiPromptModal.createButton("auraTime <= 1.5s", 175, 24, function() appendRule("[auraTime(self:Name) <= 1.5s]"), false, 0x231C2D, 0x3E2C52, 11);
-            bAuraTime.x = 449; bAuraTime.y = 328; dlg.addChild(bAuraTime); helperButtons.push(bAuraTime);
-
-            var bWait = ApiPromptModal.createButton("wait(500ms)", 143, 24, function() appendRule("[wait(500ms)]"), false, 0x231C2D, 0x3E2C52, 11);
-            bWait.x = 632; bWait.y = 328; dlg.addChild(bWait); helperButtons.push(bWait);
-
-            // Quick helper row 3: Attack Counter Conditions
-            var bCounterPlain = ApiPromptModal.createButton("[counter]", 120, 24, function() appendRule("[counter]"), false, 0x2B221A, 0x4D3826, 11);
-            bCounterPlain.x = 25; bCounterPlain.y = 358; dlg.addChild(bCounterPlain); helperButtons.push(bCounterPlain);
-
-            var bCounter = ApiPromptModal.createButton("[counter <= 1.5s]", 165, 24, function() appendRule("[counter <= 1.5s]"), false, 0x2B221A, 0x4D3826, 11);
-            bCounter.x = 153; bCounter.y = 358; dlg.addChild(bCounter); helperButtons.push(bCounter);
-
-            var bCounterMiss = ApiPromptModal.createButton("[counter=miss]", 140, 24, function() appendRule("[counter=miss]"), false, 0x2B221A, 0x4D3826, 11);
-            bCounterMiss.x = 326; bCounterMiss.y = 358; dlg.addChild(bCounterMiss); helperButtons.push(bCounterMiss);
-
-            var bCounterDodge = ApiPromptModal.createButton("[counter=dodge]", 145, 24, function() appendRule("[counter=dodge]"), false, 0x2B221A, 0x4D3826, 11);
-            bCounterDodge.x = 474; bCounterDodge.y = 358; dlg.addChild(bCounterDodge); helperButtons.push(bCounterDodge);
-
-            var bCounterCount = ApiPromptModal.createButton("[counter x2]", 148, 24, function() appendRule("[counter x2]"), false, 0x2B221A, 0x4D3826, 11);
-            bCounterCount.x = 627; bCounterCount.y = 358; dlg.addChild(bCounterCount); helperButtons.push(bCounterCount);
-
-            var lblCounterHint = ApiPromptModal.createLabel(
-                "Quick-insert appends to the combo. Syntax: 3[auraTime(target:Seal) <= 1.5s] > 4 | 2[tgt:hp < 50%] | 1[hp < 50%]\n" +
-                "[counter] gates skill until enemy attacks (packet-based). Use time window (<= 1.5s) to avoid hard locking.",
-                750, 11);
-            lblCounterHint.x = 25;
-            lblCounterHint.y = 388;
-            lblCounterHint.textColor = 0x888888;
-            dlg.addChild(lblCounterHint);
-
-            saveBtn = ApiPromptModal.createButton("Save Mode", 125, 30, function():Void {
-                try {
-                    if (lblBadge != null && lblBadge.text != null && lblBadge.text.indexOf("[Bundled Mode]") != -1) {
-                        ApiNotificationManager.notify("Cannot overwrite default bundled mode!");
-                        return;
-                    }
-
-                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
-                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
-                    var execMode = (ddExecMode != null && ddExecMode.selectedItem != null && ddExecMode.selectedItem != "") ? ddExecMode.selectedItem : "WaitForCooldown";
-                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "0";
-                    var pTimeout:Null<Int> = Std.parseInt(timeoutStr);
-                    var rawTimeout = (pTimeout != null) ? pTimeout : 0;
-                    var timeout = (rawTimeout > 1500) ? rawTimeout : 0;
-                    var stopAuras = (inputStopAuras != null && inputStopAuras.text != null) ? StringTools.trim(inputStopAuras.text) : "";
-                    var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
-
-                    if (cName == "" || cName.toLowerCase() == "current") {
-                        var cur = CombatEngine.getCurrentClassName();
-                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                            cName = cur;
-                            if (inputClass != null) inputClass.text = cur;
-                        } else {
-                            ApiNotificationManager.notify("Error: Please provide a specific class name (cannot save under 'Current')!");
-                            return;
-                        }
-                    }
-                    if (mName == "" || mName == "[+ New Mode]") {
-                        ApiNotificationManager.notify("Error: Please provide a valid mode name!");
-                        return;
-                    }
-                    if (combo == "") {
-                        ApiNotificationManager.notify("Error: Skill combo rotation cannot be empty!");
-                        return;
-                    }
-
-                    var ok = SkillManager.saveMode(cName, mName, execMode, timeout, combo, stopAuras, currentResetOnTarget, currentAutoAttack);
-                    if (ok) {
-                        ApiNotificationManager.notify("Saved [" + cName + " : " + mName + "] to userSkills.json!");
-
-                        try {
-                            var freshClassOpts = getAvailableClasses();
-                            if (ddClass != null) {
-                                ddClass.setOptions(freshClassOpts);
-                                ddClass.setSelectedItem(cName);
-                            }
-
-                            var freshModes = getModeListForClass(cName);
-                            if (ddMode != null) {
-                                ddMode.setOptions(freshModes);
-                                ddMode.setSelectedItem(mName);
-                            }
-                            loadModeDetails(cName, mName);
-                        } catch (ue:Dynamic) {}
-                    } else {
-                        ApiNotificationManager.notify("Error: Failed to write to userSkills.json!");
-                    }
-                } catch (e:Dynamic) {
-                    var errDetail:String = Std.string(e);
-                    #if flash
-                    try {
-                        if (Std.isOfType(e, flash.errors.Error)) {
-                            var fe:flash.errors.Error = cast e;
-                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
-                            var st:String = fe.getStackTrace();
-                            if (st != null && st != "") {
-                                var lines = st.split("\n");
-                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
-                            }
-                        }
-                    } catch (_:Dynamic) {}
-                    #end
-                    ApiLogger.error("Prompt", "Save error: " + errDetail);
-                    ApiNotificationManager.notify("Save error: " + errDetail);
-                }
-            }, true);
-            saveBtn.x = 25;
-            saveBtn.y = 448;
-            dlg.addChild(saveBtn);
-
-            applyBtn = ApiPromptModal.createButton("Apply Mode", 125, 30, function():Void {
-                try {
-                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
-                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
-                    if (cName == "" || mName == "" || mName == "[+ New Mode]") {
-                        ApiNotificationManager.notify("Error: Select a valid class and mode to apply!");
-                        return;
-                    }
-                    if (cName.toLowerCase() == "current") {
-                        var cur = CombatEngine.getCurrentClassName();
-                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                            cName = cur;
-                        }
-                    }
-                    try {
-                        ApiConfig.setString("api_smart_class", cName);
-                        ApiConfig.setString("api_smart_mode", mName);
-                    } catch (se:Dynamic) {}
-                    CombatEngine.smartClass = cName;
-                    CombatEngine.skillMode = mName;
-                    try {
-                        if (Api.combat != null) {
-                            Api.combat.mode = mName;
-                        }
-                    } catch (_:Dynamic) {}
-                    ApiNotificationManager.notify("Activated [" + cName + " : " + mName + "] for Smart Combat!");
-                } catch (e:Dynamic) {
-                    var errDetail:String = Std.string(e);
-                    #if flash
-                    try {
-                        if (Std.isOfType(e, flash.errors.Error)) {
-                            var fe:flash.errors.Error = cast e;
-                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
-                            var st:String = fe.getStackTrace();
-                            if (st != null && st != "") {
-                                var lines = st.split("\n");
-                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
-                            }
-                        }
-                    } catch (_:Dynamic) {}
-                    #end
-                    ApiLogger.error("Prompt", "Apply error: " + errDetail);
-                    ApiNotificationManager.notify("Apply error: " + errDetail);
-                }
-            }, false, 0x005588, 0x007ACC);
-            applyBtn.x = 158;
-            applyBtn.y = 448;
-            dlg.addChild(applyBtn);
-
-            cloneBtn = ApiPromptModal.createButton("Clone Mode", 120, 30, function():Void {
-                try {
-                    var baseName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "Mode";
-                    if (baseName == "" || baseName == "[+ New Mode]") baseName = "CustomMode";
-                    if (inputMode != null) inputMode.text = baseName + " Custom";
-                    updateBadge("[New Mode]", 0x55FF55);
-                    setFormEditable(true, true);
-                    cloneBtn.visible = false;
-                    delBtn.visible = false;
-                    ApiNotificationManager.notify("Cloned [" + baseName + "] into editable New Mode!");
-                } catch (ce:Dynamic) {
-                    ApiNotificationManager.notify("Clone error: " + ce);
-                }
-            }, false);
-            cloneBtn.x = 291;
-            cloneBtn.y = 448;
-            cloneBtn.visible = false;
-            dlg.addChild(cloneBtn);
-
-            delBtn = ApiPromptModal.createButton("Delete Mode", 120, 30, function():Void {
-                try {
-                    var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
-                    var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
-
-                    if (cName == "" && ddClass != null && ddClass.selectedItem != null) {
-                        cName = StringTools.trim(ddClass.selectedItem);
-                    }
-
-                    if (cName == "" || cName.toLowerCase() == "current") {
-                        var cur = CombatEngine.getCurrentClassName();
-                        if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                            cName = cur;
-                        } else if (CombatEngine.smartClass != null && CombatEngine.smartClass != "" && CombatEngine.smartClass.toLowerCase() != "current") {
-                            cName = CombatEngine.smartClass;
-                        }
-                    }
-
-                    if ((mName == "" || mName == "[+ New Mode]") && ddMode != null && ddMode.selectedItem != null && ddMode.selectedItem != "[+ New Mode]") {
-                        mName = StringTools.trim(ddMode.selectedItem);
-                    }
-
-                    if (cName == "" || mName == "" || mName == "[+ New Mode]") {
-                        ApiNotificationManager.notify("Error: Select a valid mode to delete!");
-                        return;
-                    }
-
-                    if (!SkillManager.isUserMode(cName, mName)) {
-                        ApiNotificationManager.notify("Cannot delete default bundled mode from skills.json!");
-                        return;
-                    }
-
-                    var deleted = SkillManager.deleteMode(cName, mName);
-                    if (deleted) {
-                        ApiNotificationManager.notify("Deleted [" + cName + " : " + mName + "] from userSkills.json!");
-                        try {
-                            // If active smart mode was the one deleted, fall back
-                            if (CombatEngine.skillMode != null && CombatEngine.skillMode.toLowerCase() == mName.toLowerCase()) {
-                                var remainingModes = CombatEngine.getAvailableModes(cName);
-                                var fallbackMode = (remainingModes.length > 0 && remainingModes[0] != "[+ New Mode]") ? remainingModes[0] : "Base";
-                                CombatEngine.skillMode = fallbackMode;
-                                try { ApiConfig.setString("api_smart_mode", fallbackMode); } catch (_:Dynamic) {}
-                                try { if (Api.combat != null) Api.combat.mode = fallbackMode; } catch (_:Dynamic) {}
-                            }
-
-                            var freshClassOpts = getAvailableClasses();
-                            var classToSelect = (freshClassOpts.indexOf(cName) != -1) ? cName : (freshClassOpts.length > 0 ? freshClassOpts[0] : "");
-                            if (ddClass != null) {
-                                ddClass.setOptions(freshClassOpts);
-                                ddClass.setSelectedItem(classToSelect);
-                            }
-                            var modes = getModeListForClass(classToSelect);
-                            if (ddMode != null) {
-                                ddMode.setOptions(modes);
-                                var nextMode = (modes.length > 0 && modes[0] != "[+ New Mode]") ? modes[0] : (modes.length > 1 ? modes[0] : "[+ New Mode]");
-                                ddMode.setSelectedItem(nextMode);
-                                loadModeDetails(classToSelect, nextMode);
-                            }
-                        } catch (de:Dynamic) {}
-                    } else {
-                        ApiNotificationManager.notify("Mode was not found in userSkills.json!");
-                    }
-                } catch (e:Dynamic) {
-                    var errDetail:String = Std.string(e);
-                    #if flash
-                    try {
-                        if (Std.isOfType(e, flash.errors.Error)) {
-                            var fe:flash.errors.Error = cast e;
-                            if (fe.message != null && fe.message != "") errDetail += " (" + fe.message + ")";
-                            var st:String = fe.getStackTrace();
-                            if (st != null && st != "") {
-                                var lines = st.split("\n");
-                                if (lines.length > 1) errDetail += " at " + StringTools.trim(lines[1]);
-                            }
-                        }
-                    } catch (_:Dynamic) {}
-                    #end
-                    ApiLogger.error("Prompt", "Delete error: " + errDetail);
-                    ApiNotificationManager.notify("Delete error: " + errDetail);
-                }
-            }, false, 0x661818, 0x882222);
-            delBtn.x = 291;
-            delBtn.y = 448;
-            dlg.addChild(delBtn);
-
-            var backBtn = ApiPromptModal.createButton("AutoCombat Setup", 155, 30, function():Void {
-                ApiPromptModal.close();
-                showSmartCombatPrompt(overlay);
-            }, false);
-            backBtn.x = 502;
-            backBtn.y = 448;
-            dlg.addChild(backBtn);
-
-            var closeBtn = ApiPromptModal.createButton("Close", 110, 30, function():Void {
-                ApiPromptModal.close();
-            }, false);
-            closeBtn.x = 665;
-            closeBtn.y = 448;
-            dlg.addChild(closeBtn);
-
-            // Initial load of selected mode details now that all UI elements and buttons exist
-            loadModeDetails(selectedClass, initialSelMode);
-
-            ApiPromptModal.show(overlay, dlg);
-        } catch (e:Dynamic) {
-            var msg = Std.string(e);
-            #if flash
-            if (Std.isOfType(e, flash.errors.Error)) {
-                msg += "\n" + (cast e : flash.errors.Error).getStackTrace();
-            }
-            #end
-            ApiLogger.error("Prompt", "Failed to show Combat Mode Editor: " + msg);
-            ApiNotificationManager.notify("Error opening editor: " + e);
-        }
+    public static inline function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {
+        CombatModeEditorModal.show(overlay, initialClass, initialMode);
     }
 
     public static function showLoadoutsPrompt(overlay:Dynamic):Void {
@@ -1544,13 +784,13 @@ class ApiPrompts {
             var lblClassHdr = ApiPromptModal.createLabel("Class:", 210, 11, true);
             lblClassHdr.x = 24;
             lblClassHdr.y = 34;
-            lblClassHdr.textColor = 0x888888;
+            lblClassHdr.textColor = ApiStyle.COLOR_TEXT_MUTED;
             dlg.addChild(lblClassHdr);
 
             var lblModeHdr = ApiPromptModal.createLabel("Combat Mode:", 188, 11, true);
             lblModeHdr.x = 248;
             lblModeHdr.y = 34;
-            lblModeHdr.textColor = 0x888888;
+            lblModeHdr.textColor = ApiStyle.COLOR_TEXT_MUTED;
             dlg.addChild(lblModeHdr);
 
             setupLoadoutRow(dlg, "FARM Loadout:", 52, 74, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
@@ -1609,546 +849,36 @@ class ApiPrompts {
         lbl.y = lblY;
         dlg.addChild(lbl);
 
-        var getModesForClass = function(cName:String):Array<String> {
-            var modes:Array<String> = [];
-            var isCurrent = (cName == null || cName == "" || cName.toLowerCase() == "current");
-            if (isCurrent) {
-                modes.push("Auto (First Available)");
-                var curName = CombatEngine.getCurrentClassName();
-                if (curName != "") {
-                    try {
-                        var detectedModes = CombatEngine.getAvailableModes(curName);
-                        if (detectedModes != null) {
-                            for (m in detectedModes) if (modes.indexOf(m) == -1) modes.push(m);
-                        }
-                    } catch (_:Dynamic) {}
-                }
-            } else {
-                try {
-                    modes = CombatEngine.getAvailableModes(cName);
-                } catch (_:Dynamic) {}
-            }
-            if (modes == null || modes.length == 0) modes = ["Base"];
-            return modes;
-        };
-
-        var curClass = ApiConfig.getString(classKey, "Current");
-        if (classes.indexOf(curClass) == -1) curClass = classes[0];
-
-        var modes:Array<String> = getModesForClass(curClass);
-        var curMode = ApiConfig.getString(modeKey, "Auto");
-        if (curClass == "Current" && (curMode == "" || curMode == "Auto")) {
-            curMode = "Auto (First Available)";
-        } else if (curMode == null || curMode == "" || modes.indexOf(curMode) == -1) {
-            curMode = modes.length > 0 ? modes[0] : "Base";
-        }
-
-        var ddMode:Dropdown = null;
-        ddMode = new Dropdown(188, 25, modes, function(sel:String):Void {
-            curMode = sel;
-            var saveMode = (sel == "Auto (First Available)") ? "Auto" : sel;
-            ApiConfig.setString(modeKey, saveMode);
-            if (onUpdate != null) onUpdate(curClass, saveMode);
-        });
-        ddMode.x = 248;
-        ddMode.y = ddY;
-
-        var ddClass:Dropdown = null;
-        ddClass = new Dropdown(215, 25, classes, function(sel:String):Void {
-            curClass = sel;
-            ApiConfig.setString(classKey, sel);
-            var nm:Array<String> = getModesForClass(curClass);
-            ddMode.setOptions(nm);
-            if (curClass == "Current") {
-                curMode = "Auto (First Available)";
-            } else if (nm.indexOf(curMode) == -1) {
-                curMode = nm.length > 0 ? nm[0] : "Base";
-            }
-            ddMode.setSelectedItem(curMode);
-            var saveMode = (curMode == "Auto (First Available)") ? "Auto" : curMode;
-            ApiConfig.setString(modeKey, saveMode);
-            if (onUpdate != null) onUpdate(curClass, saveMode);
-        });
-        ddClass.x = 24;
-        ddClass.y = ddY;
-
-        ddClass.setSelectedItem(curClass);
-        ddMode.setSelectedItem(curMode);
-        dlg.addChild(ddMode);
-        dlg.addChild(ddClass);
+        var selector = new ClassModeSelector(215, 188, 25, 9, false, "Auto (First Available)", onUpdate);
+        selector.x = 24;
+        selector.y = ddY;
+        selector.bindConfig(classKey, modeKey);
+        dlg.addChild(selector);
     }
 
-    public static var lastInventoryClassKeys:Map<String, Bool> = new Map<String, Bool>();
-
-    public static function getAvailableClasses(includeAllKnown:Bool = true):Array<String> {
-        var classMap:Map<String, String> = new Map<String, String>();
-        var invClasses:Array<String> = [];
-        var otherClasses:Array<String> = [];
-        lastInventoryClassKeys = new Map<String, Bool>();
-
-        var addClass = function(name:Dynamic, isInventory:Bool = false):Void {
-            if (name == null) return;
-            var str:String = Std.string(name);
-            var trimmed:String = StringTools.trim(str);
-            if (trimmed == "" || trimmed == "null" || trimmed == "No Classes Found" || trimmed.toLowerCase() == "current") return;
-            var key:String = trimmed.toLowerCase();
-            if (!classMap.exists(key)) {
-                classMap.set(key, trimmed);
-                if (isInventory) {
-                    invClasses.push(trimmed);
-                    lastInventoryClassKeys.set(key, true);
-                } else {
-                    otherClasses.push(trimmed);
-                }
-            }
-        };
-
-        // 1. Currently equipped class
-        try {
-            var cur:String = getCurrentClass();
-            if (cur != "" && cur.toLowerCase() != "current") {
-                addClass(cur, true);
-            }
-        } catch (e:Dynamic) {}
-
-        // 2. Inventory classes
-        try {
-            var rawItems:Array<Dynamic> = null;
-            if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.items != null) {
-                if (Std.isOfType(Api.game.world.myAvatar.items, Array)) {
-                    rawItems = cast Api.game.world.myAvatar.items;
-                }
-            }
-            if (rawItems == null && Api.inventory != null) {
-                var dtoList = Api.inventory.getItems();
-                if (dtoList != null && dtoList.length > 0) {
-                    rawItems = [];
-                    for (d in dtoList) {
-                        if (d != null && d.raw != null) rawItems.push(d.raw);
-                    }
-                }
-            }
-            if (rawItems != null) {
-                for (item in rawItems) {
-                    if (item == null || item.sName == null) continue;
-                    var isClass:Bool = false;
-                    var sTypeStr:String = (item.sType != null) ? Std.string(item.sType).toLowerCase() : "";
-                    if (sTypeStr == "class" || item.bClass == 1 || item.bClass == true || item.bClass == "1") {
-                        isClass = true;
-                    } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
-                        if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
-                    }
-                    if (isClass) addClass(item.sName, true);
-                }
-            }
-        } catch (e:Dynamic) {}
-
-        // 3. All known built-in classes from CombatEngine (only when requested)
-        if (includeAllKnown) {
-            try {
-                var known = CombatEngine.getKnownClasses();
-                if (known != null) {
-                    for (kc in known) {
-                        addClass(kc, false);
-                    }
-                }
-            } catch (e:Dynamic) {}
-        }
-
-        try {
-            invClasses.sort(function(a, b) {
-                var la:String = a.toLowerCase();
-                var lb:String = b.toLowerCase();
-                if (la < lb) return -1;
-                if (la > lb) return 1;
-                return 0;
-            });
-            if (includeAllKnown) {
-                otherClasses.sort(function(a, b) {
-                    var la:String = a.toLowerCase();
-                    var lb:String = b.toLowerCase();
-                    if (la < lb) return -1;
-                    if (la > lb) return 1;
-                    return 0;
-                });
-            }
-        } catch (e:Dynamic) {}
-
-        var result:Array<String> = ["Current"];
-        for (c in invClasses) {
-            result.push(c);
-        }
-        if (includeAllKnown) {
-            for (c in otherClasses) {
-                result.push(c);
-            }
-        }
-        return result;
+    public static var lastInventoryClassKeys(get, never):Map<String, Bool>;
+    private static inline function get_lastInventoryClassKeys():Map<String, Bool> {
+        return ClassModeSelector.lastInventoryClassKeys;
     }
 
-    public static function getCurrentClass():String {
-        try {
-            var cur:String = CombatEngine.getCurrentClassName();
-            if (cur != "" && cur.toLowerCase() != "current") return cur;
-            if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) {
-                var av:Dynamic = Api.game.world.myAvatar;
-                if (av.objData != null && av.objData.strClassName != null) {
-                    var c:String = Std.string(av.objData.strClassName);
-                    if (c != "" && c != "null") return c;
-                }
-            }
-        } catch (e:Dynamic) {}
-        return "";
+    public static inline function getAvailableClasses(includeAllKnown:Bool = true):Array<String> {
+        return ClassModeSelector.getAvailableClasses(includeAllKnown);
     }
 
-    public static function showScriptManager(overlay:Dynamic):Void {
-        try {
-            var dlg = ApiPromptModal.createDialog(620, 500, "Script Manager & Editor");
+    public static inline function getCurrentClass():String {
+        return ClassModeSelector.getCurrentClass();
+    }
 
-            var currentScriptName:String = "";
-            var isUser:Bool = false;
-            var isBundled:Bool = false;
-            var currentCategory:String = "All Scripts";
-
-            // Category Selection Dropdown
-            var lblCategory = ApiPromptModal.createLabel("Category:", 130);
-            lblCategory.x = 20;
-            lblCategory.y = 36;
-            dlg.addChild(lblCategory);
-
-            // Script Selection Dropdown
-            var lblSelect = ApiPromptModal.createLabel("Select Script:", 205);
-            lblSelect.x = 160;
-            lblSelect.y = 36;
-            dlg.addChild(lblSelect);
-
-            // Script Name Input
-            var lblName = ApiPromptModal.createLabel("Script Name (.hxs):", 225);
-            lblName.x = 375;
-            lblName.y = 36;
-            dlg.addChild(lblName);
-
-            var inputName = ApiPromptModal.createInput(225, 26, "");
-            inputName.x = 375;
-            inputName.y = 56;
-            dlg.addChild(inputName);
-
-            // Live Status Indicator (Native vector LED dot + ASCII label)
-            var statusDot = new flash.display.Shape();
-            statusDot.x = 28;
-            statusDot.y = 96;
-            dlg.addChild(statusDot);
-
-            var lblStatus = ApiPromptModal.createLabel("STATUS: STOPPED", 540, 12, true);
-            lblStatus.x = 38;
-            lblStatus.y = 89;
-            lblStatus.textColor = 0x888888;
-            dlg.addChild(lblStatus);
-
-            // Code Editor
-            var lblCode = ApiPromptModal.createLabel("Script Code (HScript / .hxs):", 300);
-            lblCode.x = 20;
-            lblCode.y = 114;
-            dlg.addChild(lblCode);
-
-            var inputCode = ApiPromptModal.createInput(580, 290, "", true);
-            var codeFmt = new flash.text.TextFormat("_typewriter", 12, 0xFFFFFF);
-            inputCode.defaultTextFormat = codeFmt;
-            inputCode.x = 20;
-            inputCode.y = 136;
-            dlg.addChild(inputCode);
-
-            // Buttons
-            var runBtn:Sprite = null;
-            var runBtnTxt:TextField = null;
-            var saveBtn:Sprite = null;
-            var deleteBtn:Sprite = null;
-
-            var ddScript:Dropdown = null;
-            var ddCategory:Dropdown = null;
-
-            // Map option labels to raw script paths
-            var optToRaw:Map<String, String> = new Map<String, String>();
-
-            var getCategoryForScript = function(rawName:String):String {
-                if (StringTools.startsWith(rawName, "saga/")) return "Lord of Chaos";
-                if (StringTools.startsWith(rawName, "rep/")) return "Reputation";
-                if (ScriptManager.SINGLETON.isBundledScript(rawName)) return "General";
-                return "User Scripts";
-            };
-
-            var formatScriptLabel = function(rawName:String, category:String):String {
-                if (rawName == "[+ New Script]") return rawName;
-                if (category == "Lord of Chaos") {
-                    var s = rawName;
-                    if (StringTools.startsWith(s, "saga/LordofChaos/")) s = s.substring(17);
-                    else if (StringTools.startsWith(s, "saga/")) s = s.substring(5);
-                    return s;
-                } else if (category == "Reputation") {
-                    var s = rawName;
-                    if (StringTools.startsWith(s, "rep/")) s = s.substring(4);
-                    return s;
-                } else if (category == "General") {
-                    return rawName;
-                } else if (category == "User Scripts") {
-                    return rawName;
-                } else {
-                    // All Scripts: prefix category tag
-                    var cat = getCategoryForScript(rawName);
-                    var shortTag = (cat == "Lord of Chaos") ? "[Chaos] " : (cat == "Reputation") ? "[Rep] " : (cat == "General") ? "[Gen] " : "[User] ";
-                    var clean = rawName;
-                    if (StringTools.startsWith(clean, "saga/LordofChaos/")) clean = clean.substring(17);
-                    else if (StringTools.startsWith(clean, "rep/")) clean = clean.substring(4);
-                    return shortTag + clean;
-                }
-            };
-
-            var buildFilteredOptions = function(category:String):Array<String> {
-                optToRaw = new Map<String, String>();
-                var rawScripts = ScriptManager.SINGLETON.listScripts();
-                var opts:Array<String> = [];
-
-                for (s in rawScripts) {
-                    var scriptCat = getCategoryForScript(s);
-                    if (category == "All Scripts" || category == scriptCat) {
-                        var lbl = formatScriptLabel(s, category);
-                        if (optToRaw.exists(lbl)) {
-                            lbl = "[" + s + "]";
-                        }
-                        optToRaw.set(lbl, s);
-                        opts.push(lbl);
-                    }
-                }
-
-                if (category == "All Scripts" || category == "User Scripts") {
-                    opts.push("[+ New Script]");
-                    optToRaw.set("[+ New Script]", "[+ New Script]");
-                }
-
-                return opts;
-            };
-
-            var updateStatusDisplay = function():Void {
-                var running = ScriptManager.SINGLETON.isRunning;
-                statusDot.graphics.clear();
-                if (running) {
-                    var actName = ScriptManager.SINGLETON.activeScriptName;
-                    statusDot.graphics.beginFill(0x2ECC71, 0.35);
-                    statusDot.graphics.drawCircle(0, 0, 4.5);
-                    statusDot.graphics.endFill();
-                    statusDot.graphics.beginFill(0x00E676, 1.0);
-                    statusDot.graphics.drawCircle(0, 0, 2.5);
-                    statusDot.graphics.endFill();
-
-                    lblStatus.text = "STATUS: RUNNING (" + (actName != null ? actName : "Custom Script") + ")";
-                    lblStatus.textColor = 0x55FF55;
-                    if (runBtnTxt != null) runBtnTxt.text = "Stop Script";
-                } else {
-                    statusDot.graphics.beginFill(0x555555, 0.9);
-                    statusDot.graphics.drawCircle(0, 0, 2.5);
-                    statusDot.graphics.endFill();
-
-                    lblStatus.text = "STATUS: STOPPED";
-                    lblStatus.textColor = 0x888888;
-                    if (runBtnTxt != null) runBtnTxt.text = "Start Script";
-                }
-            };
-
-            var setDeleteEnabled = function(enabled:Bool):Void {
-                if (deleteBtn != null) {
-                    deleteBtn.mouseEnabled = enabled;
-                    deleteBtn.alpha = enabled ? 1.0 : 0.35;
-                }
-            };
-
-            var loadSelectedScript = function(optLabel:String):Void {
-                var raw = optToRaw.exists(optLabel) ? optToRaw.get(optLabel) : optLabel;
-                if (raw == "[+ New Script]" || optLabel == "[+ New Script]") {
-                    currentScriptName = "MyScript";
-                    isUser = true;
-                    isBundled = false;
-                    lblName.text = "New Script Name (.hxs):";
-                    inputName.type = TextFieldType.INPUT;
-                    inputName.text = "MyScript";
-                    inputName.selectable = true;
-                    inputCode.text = "// New HScript\nfunction onStart() {\n    bot.log(\"Started script!\");\n}\n\nfunction onTick() {\n    // Bot logic here\n}\n\nfunction onStop() {\n    bot.log(\"Stopped script!\");\n}\n";
-                    try { inputCode.setTextFormat(codeFmt); } catch (_:Dynamic) {}
-                    setDeleteEnabled(false);
-                } else {
-                    currentScriptName = raw;
-                    isBundled = ScriptManager.SINGLETON.isBundledScript(raw);
-                    isUser = !isBundled;
-                    if (isBundled) {
-                        lblName.text = "Save As User Script (.hxs):";
-                        var leafName = raw;
-                        if (leafName.indexOf("/") != -1) leafName = leafName.substring(leafName.lastIndexOf("/") + 1);
-                        inputName.text = leafName + "_Edited";
-                        setDeleteEnabled(false);
-                    } else {
-                        lblName.text = "Script Name (.hxs):";
-                        inputName.text = raw;
-                        setDeleteEnabled(true);
-                    }
-                    inputName.type = TextFieldType.INPUT;
-                    inputName.selectable = true;
-                    inputCode.text = ScriptManager.SINGLETON.getScriptContent(raw);
-                    try { inputCode.setTextFormat(codeFmt); } catch (_:Dynamic) {}
-                }
-                updateStatusDisplay();
-            };
-
-            var categories = ["All Scripts", "Lord of Chaos", "Reputation", "General", "User Scripts"];
-            var scriptOptions = buildFilteredOptions(currentCategory);
-
-            ddScript = new Dropdown(205, 26, scriptOptions, function(sel:String):Void {
-                loadSelectedScript(sel);
-            });
-            ddScript.x = 160;
-            ddScript.y = 56;
-
-            ddCategory = new Dropdown(130, 26, categories, function(cat:String):Void {
-                currentCategory = cat;
-                var filtered = buildFilteredOptions(cat);
-                ddScript.setOptions(filtered);
-                var sel = filtered.length > 0 ? filtered[0] : "[+ New Script]";
-                ddScript.setSelectedItem(sel);
-                loadSelectedScript(sel);
-            });
-            ddCategory.x = 20;
-            ddCategory.y = 56;
-
-            dlg.addChild(ddCategory);
-            dlg.addChild(ddScript);
-
-            var initialLabel = scriptOptions.length > 0 ? scriptOptions[0] : "[+ New Script]";
-            if (ScriptManager.SINGLETON.activeScriptName != null) {
-                var act = ScriptManager.SINGLETON.activeScriptName;
-                for (k in optToRaw.keys()) {
-                    if (optToRaw.get(k) == act) {
-                        initialLabel = k;
-                        break;
-                    }
-                }
-            }
-            ddScript.setSelectedItem(initialLabel);
-            loadSelectedScript(initialLabel);
-
-            // Bottom action buttons (y = 445)
-            runBtn = ApiPromptModal.createButton(ScriptManager.SINGLETON.isRunning ? "Stop Script" : "Start Script", 130, 32, function():Void {
-                if (ScriptManager.SINGLETON.isRunning) {
-                    ScriptManager.SINGLETON.stop();
-                    ApiNotificationManager.notify("Script stopped.");
-                } else {
-                    var code = inputCode.text;
-                    if (code == null || StringTools.trim(code) == "") {
-                        ApiNotificationManager.notify("Cannot run empty script!");
-                        return;
-                    }
-                    var sName = StringTools.trim(inputName.text);
-                    if (isBundled && sName.indexOf("_Edited") != -1) {
-                        sName = currentScriptName;
-                    } else if (sName == "") {
-                        sName = currentScriptName != "" ? currentScriptName : "CustomScript";
-                    }
-                    ScriptManager.SINGLETON.loadScript(code);
-                    ScriptManager.SINGLETON.start();
-                    ScriptManager.SINGLETON.activeScriptName = sName;
-                    ApiNotificationManager.notify("Started script: " + sName);
-                }
-                updateStatusDisplay();
-            }, false);
-            runBtn.x = 24;
-            runBtn.y = 445;
-            for (i in 0...runBtn.numChildren) {
-                if (Std.isOfType(runBtn.getChildAt(i), TextField)) {
-                    runBtnTxt = cast runBtn.getChildAt(i);
-                    break;
-                }
-            }
-            dlg.addChild(runBtn);
-
-            saveBtn = ApiPromptModal.createButton("Save Script", 130, 32, function():Void {
-                var sName = StringTools.trim(inputName.text);
-                if (StringTools.endsWith(sName.toLowerCase(), ".hxs")) {
-                    sName = sName.substring(0, sName.length - 4);
-                }
-                if (sName == "") {
-                    ApiNotificationManager.notify("Please enter a valid script name.");
-                    return;
-                }
-                if (ScriptManager.SINGLETON.isBundledScript(sName)) {
-                    sName = sName + "_Edited";
-                }
-                var code = inputCode.text;
-                var saved = ScriptManager.SINGLETON.saveScript(sName, code);
-                if (saved) {
-                    ApiNotificationManager.notify("Saved script: " + sName);
-                    var refreshed = buildFilteredOptions(currentCategory);
-                    ddScript.setOptions(refreshed);
-                    var newSel = optToRaw.exists(sName) ? sName : (refreshed.length > 0 ? refreshed[0] : "[+ New Script]");
-                    ddScript.setSelectedItem(newSel);
-                    loadSelectedScript(newSel);
-                } else {
-                    ApiNotificationManager.notify("Failed to save script.");
-                }
-            }, false);
-            saveBtn.x = 178;
-            saveBtn.y = 445;
-            dlg.addChild(saveBtn);
-
-            deleteBtn = ApiPromptModal.createButton("Delete Script", 130, 32, function():Void {
-                if (isBundled || ScriptManager.SINGLETON.isBundledScript(currentScriptName)) {
-                    ApiNotificationManager.notify("Cannot delete bundled scripts!");
-                    return;
-                }
-                var toDelete = currentScriptName;
-                if (toDelete == "" || toDelete == "MyScript") return;
-                var deleted = ScriptManager.SINGLETON.deleteScript(toDelete);
-                if (deleted) {
-                    ApiNotificationManager.notify("Deleted script: " + toDelete);
-                    var refreshed = buildFilteredOptions(currentCategory);
-                    ddScript.setOptions(refreshed);
-                    var nextSel = refreshed.length > 0 ? refreshed[0] : "[+ New Script]";
-                    ddScript.setSelectedItem(nextSel);
-                    loadSelectedScript(nextSel);
-                } else {
-                    ApiNotificationManager.notify("Failed to delete script.");
-                }
-            }, false);
-            deleteBtn.x = 332;
-            deleteBtn.y = 445;
-            dlg.addChild(deleteBtn);
-            setDeleteEnabled(!isBundled && currentScriptName != "MyScript" && currentScriptName != "");
-
-            var closeBtn = ApiPromptModal.createButton("Close", 110, 32, function():Void {
-                ApiPromptModal.close();
-            }, false);
-            closeBtn.x = 486;
-            closeBtn.y = 445;
-            dlg.addChild(closeBtn);
-
-            // Real-time synchronization
-            var onFrame:Event->Void = null;
-            onFrame = function(e:Event):Void {
-                if (dlg.parent == null) {
-                    dlg.removeEventListener(Event.ENTER_FRAME, onFrame);
-                    return;
-                }
-                updateStatusDisplay();
-            };
-            dlg.addEventListener(Event.ENTER_FRAME, onFrame);
-
-            ApiPromptModal.show(overlay, dlg);
-        } catch (e:Dynamic) {
-            com.aqwapi.utils.ApiLogger.error("UI", "Script Manager error: " + e);
-            ApiNotificationManager.notify("Script Manager error: " + e);
-        }
+    public static inline function showScriptManager(overlay:Dynamic):Void {
+        ScriptManagerModal.show(overlay);
     }
 }
 #else
 class ApiPrompts {
     public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {}
     public static function showScriptManager(overlay:Dynamic):Void {}
+    public static function getAvailableClasses(includeAllKnown:Bool = true):Array<String> return ["Current"];
+    public static function getCurrentClass():String return "";
 }
 #end
 

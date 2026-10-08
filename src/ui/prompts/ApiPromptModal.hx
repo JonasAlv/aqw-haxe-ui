@@ -164,18 +164,19 @@ class ApiPromptModal {
         isPrimary:Bool = false,
         customBg:Null<Int> = null,
         customBorder:Null<Int> = null,
-        fontSize:Int = 11
+        fontSize:Int = 11,
+        customTextColor:Null<Int> = null
     ):Sprite {
         var btn = new Sprite();
         var baseBg = customBg != null ? customBg : (isPrimary ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_BG_CARD);
         var baseBorder = customBorder != null ? customBorder : (isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BORDER_DEFAULT);
-        var textColor = (customBorder != null) ? ApiStyle.COLOR_ACCENT_PINK : (isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_PRIMARY);
+        var textColor = customTextColor != null ? customTextColor : (isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_PRIMARY);
 
         var redraw = function(hover:Bool):Void {
             btn.graphics.clear();
             var bg = hover ? (isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BTN_BG_HOVER) : baseBg;
             var border = hover ? (isPrimary ? ApiStyle.COLOR_TEXT_TITLE : ApiStyle.COLOR_BORDER_HIGHLIGHT) : baseBorder;
-            btn.graphics.beginFill(bg, 0.95);
+            btn.graphics.beginFill(bg, 1.0);
             btn.graphics.lineStyle(1, border);
             btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
             btn.graphics.endFill();
@@ -202,7 +203,7 @@ class ApiPromptModal {
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             redraw(true);
-            txt.textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_TITLE;
+            txt.textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : (customTextColor != null ? customTextColor : ApiStyle.COLOR_TEXT_TITLE);
         });
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
             redraw(false);

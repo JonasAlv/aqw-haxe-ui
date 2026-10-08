@@ -2,7 +2,10 @@ package ui;
 
 #if flash
 import flash.display.Sprite;
-import ui.ApiCombatWidget;
+import ui.widgets.CombatWidget;
+import ui.widgets.JumpWidget;
+import ui.widgets.PlayersWidget;
+import ui.frames.UnitFramesManager;
 import ui.ApiHudManager;
 import ui.ApiToolsWidget;
 import ui.ApiNotificationManager;
@@ -34,7 +37,11 @@ class ApiMenuHubWidget {
         _overlay = overlay;
 
         // Initialize all modular widget subsystems
-        ApiCombatWidget.init(pocket, overlay);
+        CombatWidget.init(pocket, overlay);
+        JumpWidget.init(pocket, overlay);
+        PlayersWidget.init(pocket, overlay);
+        UnitFramesManager.init(pocket, overlay);
+        DamageNumbers.init(pocket, overlay);
         ApiToolsWidget.init(pocket, overlay);
         ApiHudManager.init(pocket, overlay);
     }
@@ -64,15 +71,55 @@ class ApiMenuHubWidget {
     // --- Combat & Hunt Widget ---
 
     public static function isCombatWidgetEnabled():Bool {
-        return ApiCombatWidget.isWidgetEnabled();
+        return CombatWidget.isWidgetEnabled();
     }
 
     public static function setCombatWidgetEnabled(enabled:Bool):Void {
-        ApiCombatWidget.setWidgetEnabled(enabled);
+        CombatWidget.setWidgetEnabled(enabled);
     }
 
     public static function resetCombatWidgetPosition():Void {
-        ApiCombatWidget.resetPosition();
+        CombatWidget.resetPosition();
+    }
+
+    public static function openCombatConfig():Void {
+        CombatWidget.openConfigModal();
+    }
+
+    // --- Jump / Room Navigation Widget ---
+
+    public static function isJumpWidgetEnabled():Bool {
+        return JumpWidget.isWidgetEnabled();
+    }
+
+    public static function setJumpWidgetEnabled(enabled:Bool):Void {
+        JumpWidget.setWidgetEnabled(enabled);
+    }
+
+    public static function resetJumpWidgetPosition():Void {
+        JumpWidget.resetPosition();
+    }
+
+    public static function openJumpConfig():Void {
+        JumpWidget.openConfigModal();
+    }
+
+    // --- Area Players Widget ---
+
+    public static function isPlayersWidgetEnabled():Bool {
+        return PlayersWidget.isWidgetEnabled();
+    }
+
+    public static function setPlayersWidgetEnabled(enabled:Bool):Void {
+        PlayersWidget.setWidgetEnabled(enabled);
+    }
+
+    public static function resetPlayersWidgetPosition():Void {
+        PlayersWidget.resetPosition();
+    }
+
+    public static function openPlayersConfig():Void {
+        PlayersWidget.openConfigModal();
     }
 
     // --- Reset All Widgets ---
@@ -82,7 +129,10 @@ class ApiMenuHubWidget {
     }
 
     public static function resetAllWidgets():Void {
-        ApiCombatWidget.resetPosition();
+        CombatWidget.resetPosition();
+        JumpWidget.resetPosition();
+        PlayersWidget.resetPosition();
+        UnitFramesManager.resetAllPositions();
         ApiToolsWidget.resetAllPositions();
         ApiHudManager.resetAllPositions();
         ApiNotificationManager.notify("All widgets reset to default positions!");
@@ -98,6 +148,13 @@ class ApiMenuHubWidget {
     public static function setWidgetEnabled(idOrEnabled:Dynamic, ?enabledVal:Null<Bool>):Void {}
     public static function isCombatWidgetEnabled():Bool return false;
     public static function setCombatWidgetEnabled(enabled:Bool):Void {}
+    public static function openCombatConfig():Void {}
+    public static function isJumpWidgetEnabled():Bool return false;
+    public static function setJumpWidgetEnabled(enabled:Bool):Void {}
+    public static function openJumpConfig():Void {}
+    public static function isPlayersWidgetEnabled():Bool return false;
+    public static function setPlayersWidgetEnabled(enabled:Bool):Void {}
+    public static function openPlayersConfig():Void {}
     public static function resetPosition():Void {}
     public static function resetAllWidgets():Void {}
 }
