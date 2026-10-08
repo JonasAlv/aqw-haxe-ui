@@ -63,7 +63,7 @@ class ApiDashboardModal extends Sprite {
 
     public static function refreshCurrentTab():Void {
         if (_instance != null && _instance.parent != null) {
-            _instance.renderTabContent(_instance._currentTab);
+            _instance.renderTabContent(_instance._currentTab, true);
         }
     }
 
@@ -72,8 +72,10 @@ class ApiDashboardModal extends Sprite {
 
     private var _stageW:Float = 960;
     private var _stageH:Float = 550;
-    private var _contentWidth:Float = 750;
-    private var _contentHeight:Float = 480;
+    private var _winW:Float = 780;
+    private var _winH:Float = 470;
+    private var _contentWidth:Float = 560;
+    private var _contentHeight:Float = 402;
 
     private var _overlay:Dynamic;
     private var _pocket:Dynamic;
@@ -138,10 +140,10 @@ class ApiDashboardModal extends Sprite {
         });
         addChild(_backdrop);
 
-        // 2. Main Fullscreen Window
+        // 2. Main Centered Window
         _window = new Sprite();
-        _window.x = 0;
-        _window.y = 0;
+        _window.x = Math.max(8, Math.round((_stageW - _winW) / 2));
+        _window.y = Math.max(8, Math.round((_stageH - _winH) / 2));
         addChild(_window);
 
         redrawWindowChrome();
@@ -167,8 +169,18 @@ class ApiDashboardModal extends Sprite {
         var targetStage:Dynamic = (stage != null) ? stage : ((_overlay != null && _overlay.stage != null) ? _overlay.stage : ((_pocket != null && _pocket.stage != null) ? _pocket.stage : null));
         _stageW = (targetStage != null && targetStage.stageWidth > 0) ? targetStage.stageWidth : 960;
         _stageH = (targetStage != null && targetStage.stageHeight > 0) ? targetStage.stageHeight : 550;
-        _contentWidth = Math.max(300, _stageW - (SIDEBAR_WIDTH + 26) - 16);
-        _contentHeight = Math.max(200, _stageH - 56 - 12);
+
+        // Centered modal window: comfortable margins so game is visible behind darkened backdrop
+        var targetW:Float = (_stageW >= 1200) ? 840 : 780;
+        var maxW:Float = Math.min(targetW, _stageW - 48);
+        _winW = Math.max(380, maxW);
+
+        var targetH:Float = (_stageH >= 720) ? 540 : 470;
+        var maxH:Float = Math.min(targetH, _stageH - 40);
+        _winH = Math.max(260, maxH);
+
+        _contentWidth = Math.max(260, _winW - (SIDEBAR_WIDTH + 26) - 16);
+        _contentHeight = Math.max(180, _winH - 56 - 12);
     }
 
     private function redrawWindowChrome():Void {
@@ -180,20 +192,20 @@ class ApiDashboardModal extends Sprite {
         _window.graphics.clear();
         _window.graphics.beginFill(ApiStyle.COLOR_BG_DASHBOARD, ApiStyle.ALPHA_DASHBOARD);
         _window.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_PANEL);
-        _window.graphics.drawRect(0, 0, _stageW, _stageH);
+        _window.graphics.drawRoundRect(0, 0, _winW, _winH, 8, 8);
         _window.graphics.endFill();
 
         // Divider line below header
         _window.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DIVIDER);
         _window.graphics.moveTo(0, 48);
-        _window.graphics.lineTo(_stageW, 48);
+        _window.graphics.lineTo(_winW, 48);
 
         // Vertical divider line between sidebar and content
         _window.graphics.moveTo(SIDEBAR_WIDTH + 14, 48);
-        _window.graphics.lineTo(SIDEBAR_WIDTH + 14, _stageH);
+        _window.graphics.lineTo(SIDEBAR_WIDTH + 14, _winH);
 
         if (_closeBtn != null) {
-            _closeBtn.x = _stageW - 32 - 14;
+            _closeBtn.x = _winW - 32 - 14;
         }
     }
 
@@ -216,6 +228,8 @@ class ApiDashboardModal extends Sprite {
 
     private function onStageResize(e:Event):Void {
         updateDimensions();
+        _window.x = Math.max(8, Math.round((_stageW - _winW) / 2));
+        _window.y = Math.max(8, Math.round((_stageH - _winH) / 2));
         redrawWindowChrome();
         if (_contentMask != null) {
             _contentMask.graphics.clear();
@@ -227,7 +241,7 @@ class ApiDashboardModal extends Sprite {
             _scrollbarTrack.x = _contentViewport.x + _contentWidth - 8;
             _scrollbarThumb.x = _scrollbarTrack.x;
         }
-        renderTabContent(_currentTab);
+        renderTabContent(_currentTab, true);
     }
 
     private function onKeyDown(e:KeyboardEvent):Void {
@@ -275,7 +289,7 @@ class ApiDashboardModal extends Sprite {
         var cbW:Float = 32;
         var cbH:Float = 28;
         _closeBtn.buttonMode = true;
-        _closeBtn.x = _stageW - cbW - 14;
+        _closeBtn.x = _winW - cbW - 14;
         _closeBtn.y = 10;
 
         var renderCloseBtn = function(isHover:Bool):Void {
@@ -407,6 +421,7 @@ class ApiDashboardModal extends Sprite {
     }
 
     private function switchTab(tabId:DashboardTab):Void {
+        var isSameTab = (_currentTab == tabId);
         _currentTab = tabId;
 
         var tabW:Float = SIDEBAR_WIDTH - 12;
@@ -420,7 +435,7 @@ class ApiDashboardModal extends Sprite {
             txt.textColor = isActive ? ApiStyle.COLOR_ACCENT_PRIMARY : ApiStyle.COLOR_TEXT_SECONDARY;
         }
 
-        renderTabContent(tabId);
+        renderTabContent(tabId, isSameTab);
     }
 
     // =========================================================================
@@ -541,12 +556,14 @@ class ApiDashboardModal extends Sprite {
     // ITEM ROW RENDERERS
     // =========================================================================
 
-    private function clearContent():Void {
+    private function clearContent(preserveScroll:Bool = false):Void {
         while (_contentContainer.numChildren > 0) {
             _contentContainer.removeChildAt(0);
         }
         _totalContentHeight = 0;
-        _contentContainer.y = 0;
+        if (!preserveScroll) {
+            _contentContainer.y = 0;
+        }
         updateScrollbar();
     }
 
@@ -623,7 +640,8 @@ class ApiDashboardModal extends Sprite {
         actionLabel:String,
         isPrimary:Bool,
         onClick:Void->Void,
-        getToggleState:Void->Bool = null
+        getToggleState:Void->Bool = null,
+        getButtonLabel:Void->String = null
     ):Void {
         var rowW:Float = _contentWidth - 20;
         var btnW:Float = 116;
@@ -679,7 +697,7 @@ class ApiDashboardModal extends Sprite {
             toggleBtn.y = actionY;
             card.addChild(toggleBtn);
         } else {
-            var btn = createActionButton(actionLabel, btnW, btnH, isPrimary, onClick);
+            var btn = createActionButton(actionLabel, btnW, btnH, isPrimary, onClick, getButtonLabel);
             btn.x = actionX;
             btn.y = actionY;
             card.addChild(btn);
@@ -714,7 +732,7 @@ class ApiDashboardModal extends Sprite {
         updateScrollbar();
     }
 
-    private function createActionButton(label:String, w:Float, h:Float, isPrimary:Bool, onClick:Void->Void):Sprite {
+    private function createActionButton(label:String, w:Float, h:Float, isPrimary:Bool, onClick:Void->Void, getLabel:Void->String = null):Sprite {
         var btn = new Sprite();
         btn.buttonMode = true;
 
@@ -729,17 +747,25 @@ class ApiDashboardModal extends Sprite {
         btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
         btn.graphics.endFill();
 
+        var initialText = (getLabel != null) ? getLabel() : label;
         var txt = new TextField();
         var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 12, textColor, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
-        txt.text = label;
+        txt.text = initialText;
         txt.width = w;
         txt.height = 20;
         txt.y = (h - 20) / 2;
         txt.selectable = false;
         txt.mouseEnabled = false;
         btn.addChild(txt);
+
+        var updateLabel = function():Void {
+            if (getLabel != null) {
+                var newTxt = getLabel();
+                if (txt.text != newTxt) txt.text = newTxt;
+            }
+        };
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
             btn.graphics.clear();
@@ -762,7 +788,14 @@ class ApiDashboardModal extends Sprite {
         btn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             if (_isDraggingScroll || _hasDraggedScroll) return;
             if (onClick != null) onClick();
+            updateLabel();
         });
+
+        if (getLabel != null) {
+            btn.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+                updateLabel();
+            });
+        }
 
         return btn;
     }
@@ -820,12 +853,22 @@ class ApiDashboardModal extends Sprite {
     // TAB CONTENTS
     // =========================================================================
 
-    private function renderTabContent(tabId:DashboardTab):Void {
-        clearContent();
+    private function renderTabContent(tabId:DashboardTab, preserveScroll:Bool = false):Void {
+        var savedScrollY:Float = _contentContainer.y;
+        clearContent(preserveScroll);
 
         var handler = _tabHandlers.get(tabId);
         if (handler != null) {
             handler.render(this);
+        }
+
+        if (preserveScroll) {
+            var totalH = getTotalContentHeight();
+            var maxScroll = (totalH > _contentHeight) ? (_contentHeight - totalH) : 0;
+            if (savedScrollY > 0) savedScrollY = 0;
+            if (savedScrollY < maxScroll) savedScrollY = maxScroll;
+            _contentContainer.y = savedScrollY;
+            updateScrollbar();
         }
     }
 }

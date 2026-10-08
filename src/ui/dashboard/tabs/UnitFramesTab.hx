@@ -71,18 +71,20 @@ class UnitFramesTab implements IDashboardTab {
 
         // 4. Player Aura Anchor
         var anchorLabels = ["Unit Frame", "Unit (Feet)", "Free (Draggable)"];
-        var playerAnchor = UnitFramesManager.getPlayerAuraAnchorMode();
         modal.addItemRow(
             "Player Aura Anchor",
             "Anchor player buff icons attached to Player Frame, below character feet, or freely draggable.",
             "button",
-            anchorLabels[playerAnchor],
+            "",
             false,
             function():Void {
                 var next = (UnitFramesManager.getPlayerAuraAnchorMode() + 1) % 3;
                 UnitFramesManager.setPlayerAuraAnchorMode(next);
                 ApiNotificationManager.notify("Player Aura Anchor: " + anchorLabels[next]);
-                ApiDashboardModal.refreshCurrentTab();
+            },
+            null,
+            function():String {
+                return anchorLabels[UnitFramesManager.getPlayerAuraAnchorMode()];
             }
         );
 
@@ -105,18 +107,20 @@ class UnitFramesTab implements IDashboardTab {
         );
 
         // 6. Target Aura Anchor
-        var targetAnchor = UnitFramesManager.getTargetAuraAnchorMode();
         modal.addItemRow(
             "Target Aura Anchor",
             "Anchor target debuff icons attached to Target Frame, below enemy feet, or freely draggable.",
             "button",
-            anchorLabels[targetAnchor],
+            "",
             false,
             function():Void {
                 var next = (UnitFramesManager.getTargetAuraAnchorMode() + 1) % 3;
                 UnitFramesManager.setTargetAuraAnchorMode(next);
                 ApiNotificationManager.notify("Target Aura Anchor: " + anchorLabels[next]);
-                ApiDashboardModal.refreshCurrentTab();
+            },
+            null,
+            function():String {
+                return anchorLabels[UnitFramesManager.getTargetAuraAnchorMode()];
             }
         );
 
@@ -158,13 +162,16 @@ class UnitFramesTab implements IDashboardTab {
             "Filter Mode",
             "Filter which combat hits are shown on screen.",
             "button",
-            filterNames[DamageNumbers.getFilterMode()],
+            "",
             false,
             function():Void {
                 var nextMode = (DamageNumbers.getFilterMode() + 1) % filterNames.length;
                 DamageNumbers.setFilterMode(nextMode);
                 ApiNotificationManager.notify("FCT Filter: " + filterNames[nextMode]);
-                ApiDashboardModal.refreshCurrentTab();
+            },
+            null,
+            function():String {
+                return filterNames[DamageNumbers.getFilterMode()];
             }
         );
 

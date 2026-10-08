@@ -85,7 +85,9 @@ class UnitFramesManager {
             var g:Dynamic = com.aqwapi.Api.game;
             if (g == null || g.ui == null) return;
 
-            var shouldHide:Bool = (isPlayerFrameEnabled() || isTargetFrameEnabled());
+            var playerFrameOn:Bool = isPlayerFrameEnabled();
+            var targetFrameOn:Bool = isTargetFrameEnabled();
+            var shouldHideAny:Bool = (playerFrameOn || targetFrameOn);
 
             // Ensure bHideUI is false so native playerAuras and targetAuras continue running!
             if (g.litePreference != null && g.litePreference.data != null) {
@@ -95,7 +97,7 @@ class UnitFramesManager {
                 }
             }
 
-            if (shouldHide) {
+            if (shouldHideAny) {
                 // Ensure native aura frames are re-parented out of mcPortrait/mcPortraitTarget into g.ui
                 if (g.pAurasUI != null && g.pAurasUI.parent != null && g.pAurasUI.parent != g.ui) {
                     try {
@@ -109,43 +111,45 @@ class UnitFramesManager {
                         g.ui.addChild(g.tAurasUI);
                     } catch (_:Dynamic) {}
                 }
+            }
 
-                // Hide native portraits
-                if (g.ui.mcPortrait != null) {
+            // 1. Player portrait control
+            if (g.ui.mcPortrait != null) {
+                if (playerFrameOn) {
                     g.ui.mcPortrait.visible = false;
                     g.ui.mcPortrait.y = -9999;
-                }
-                if (g.ui.mcPortraitTarget != null) {
-                    g.ui.mcPortraitTarget.visible = false;
-                    g.ui.mcPortraitTarget.y = -9999;
-                }
-                if (g.ui.monsterIcon != null) g.ui.monsterIcon.visible = false;
-                if (g.ui.iconQuest != null) g.ui.iconQuest.visible = false;
-                if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
-                if (g.ui.mcInterface != null && g.ui.mcInterface.areaList != null) {
-                    g.ui.mcInterface.areaList.visible = false;
-                }
-            } else {
-                // Restore native portraits
-                if (g.ui.mcPortrait != null) {
+                } else {
                     g.ui.mcPortrait.y = 0;
                     g.ui.mcPortrait.visible = true;
-                }
-                if (g.ui.mcPortraitTarget != null) {
-                    g.ui.mcPortraitTarget.y = 0;
-                    g.ui.mcPortraitTarget.visible = true;
-                }
-                if (g.ui.mcInterface != null && g.ui.mcInterface.areaList != null) {
-                    g.ui.mcInterface.areaList.visible = true;
-                }
-                if (g.world != null && g.world.myAvatar != null) {
-                    if (Reflect.isFunction(g.showPortrait)) {
+                    if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
                         try { g.showPortrait(g.world.myAvatar); } catch (_:Dynamic) {}
                     }
-                    if (g.world.myAvatar.target != null && Reflect.isFunction(g.showPortraitTarget)) {
+                }
+            }
+
+            // 2. Target portrait control
+            var hasTarget:Bool = (g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null);
+            if (g.ui.mcPortraitTarget != null) {
+                if (targetFrameOn) {
+                    g.ui.mcPortraitTarget.visible = false;
+                    g.ui.mcPortraitTarget.y = -9999;
+                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
+                } else {
+                    g.ui.mcPortraitTarget.y = 0;
+                    g.ui.mcPortraitTarget.visible = hasTarget;
+                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
+                    if (hasTarget && Reflect.isFunction(g.showPortraitTarget)) {
                         try { g.showPortraitTarget(g.world.myAvatar.target); } catch (_:Dynamic) {}
                     }
                 }
+            }
+
+            if (g.ui.monsterIcon != null) g.ui.monsterIcon.visible = (!targetFrameOn && hasTarget);
+            if (g.ui.iconQuest != null) g.ui.iconQuest.visible = (!targetFrameOn && hasTarget);
+
+            // Area list (quest / area tracker)
+            if (g.ui.mcInterface != null && g.ui.mcInterface.areaList != null) {
+                g.ui.mcInterface.areaList.visible = !playerFrameOn;
             }
         } catch (_:Dynamic) {}
     }

@@ -476,24 +476,24 @@ class DamageNumbers {
             textColor = COLOR_AVOID; // Red text (0xEF4444)
             fontSize = isCrit ? 22 : 14;
         } else if (isNormalHeal) {
-            // Normal heal or HoT: '+' prefix in vibrant green
+            // Active raw healing and HoT: keep '+' prefix in vibrant green
             var healAmount:Int = (hp < 0) ? (-hp) : hp;
             textStr = "+" + formatNumber(healAmount);
             textColor = COLOR_HEAL; // Vibrant green (0x00FF8A)
             fontSize = isCrit ? 22 : 14;
         } else if (type == "crit") {
-            // Direct Crit: '-' prefix, radiant orange thick font
-            textStr = "-" + formatNumber(hp);
+            // Direct Crit: clean number (no '-' prefix), radiant orange thick font
+            textStr = formatNumber(hp);
             textColor = COLOR_CRIT; // Radiant orange (0xFF9944)
             fontSize = 24;
         } else if (isDot || type == "dot") {
-            // DoT: '-' prefix, amber/orange font, floats straight up
+            // DoT: '-' prefix by default, amber/orange font, floats straight up
             textStr = "-" + formatNumber(hp);
             textColor = COLOR_DOT; // Amber/orange (0xEE9900)
             fontSize = 13;
         } else if (type == "hit") {
-            // Normal hit: '-' prefix, crisp white
-            textStr = "-" + formatNumber(hp);
+            // Normal hit: clean number (no '-' prefix), crisp white
+            textStr = formatNumber(hp);
             textColor = COLOR_HIT; // Crisp white (0xFFFFFF)
             fontSize = 14;
         } else if (type == "miss") {
@@ -513,7 +513,7 @@ class DamageNumbers {
             textColor = COLOR_AVOID;
             fontSize = 14;
         } else {
-            textStr = "-" + formatNumber(hp);
+            textStr = formatNumber(hp);
             textColor = COLOR_HIT;
             fontSize = 14;
         }

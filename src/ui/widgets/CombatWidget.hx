@@ -597,7 +597,7 @@ class CombatWidget {
         try {
             if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPopup != null) {
                 var cur = Std.string(Api.game.ui.mcPopup.currentLabel);
-                if (cur != null && cur != "" && cur != "Idle" && cur != "null") return true;
+                if (cur != null && cur != "" && cur != "Init" && cur != "Idle" && cur != "null") return true;
             }
         } catch (_:Dynamic) {}
         return false;

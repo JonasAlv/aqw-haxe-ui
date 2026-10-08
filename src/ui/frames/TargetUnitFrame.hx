@@ -34,7 +34,7 @@ class TargetUnitFrame {
     private static var _initialized:Bool = false;
 
     // Dimensions
-    public static inline var FRAME_W:Float = 180;
+    public static inline var FRAME_W:Float = 130;
     public static inline var FRAME_H:Float = 32;
 
     // Visual elements
@@ -115,11 +115,11 @@ class TargetUnitFrame {
 
         // 2. Header text: [Level] TargetName - Race/Class
         _headerTxt = new TextField();
-        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, ApiStyle.COLOR_ACCENT_YELLOW, true);
+        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, ApiStyle.COLOR_ACCENT_YELLOW, true);
         _headerTxt.defaultTextFormat = hdrFmt;
         _headerTxt.x = 4;
         _headerTxt.y = 1;
-        _headerTxt.width = FRAME_W - 20; // Leave room for close button
+        _headerTxt.width = FRAME_W - 18; // Leave room for close button
         _headerTxt.height = 12;
         _headerTxt.selectable = false;
         _headerTxt.mouseEnabled = false;
@@ -128,7 +128,7 @@ class TargetUnitFrame {
         // 3. Quick Cancel Target [X] Button
         _btnClose = new Sprite();
         _btnClose.buttonMode = true;
-        _btnClose.x = FRAME_W - 15;
+        _btnClose.x = FRAME_W - 14;
         _btnClose.y = 2;
         renderCloseBtn(false);
 
@@ -161,7 +161,7 @@ class TargetUnitFrame {
         _widget.addChild(_shieldBarFill);
 
         _hpTxt = new TextField();
-        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, 0xFFFFFF, true);
+        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, 0xFFFFFF, true);
         hpFmt.align = TextFormatAlign.CENTER;
         _hpTxt.defaultTextFormat = hpFmt;
         _hpTxt.x = 4;

@@ -33,7 +33,7 @@ class PlayerUnitFrame {
     private static var _initialized:Bool = false;
 
     // Dimensions
-    public static inline var FRAME_W:Float = 180;
+    public static inline var FRAME_W:Float = 130;
     public static inline var FRAME_H:Float = 32;
 
     // Visual elements
@@ -113,7 +113,7 @@ class PlayerUnitFrame {
 
         // 2. Header text: [Level] Class R10 (no username)
         _headerTxt = new TextField();
-        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, ApiStyle.COLOR_TEXT_PRIMARY, true);
+        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, ApiStyle.COLOR_TEXT_PRIMARY, true);
         _headerTxt.defaultTextFormat = hdrFmt;
         _headerTxt.x = 4;
         _headerTxt.y = 1;
@@ -143,7 +143,7 @@ class PlayerUnitFrame {
         _widget.addChild(_shieldBarFill);
 
         _hpTxt = new TextField();
-        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, 0xFFFFFF, true);
+        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, 0xFFFFFF, true);
         hpFmt.align = TextFormatAlign.CENTER;
         _hpTxt.defaultTextFormat = hpFmt;
         _hpTxt.x = 4;

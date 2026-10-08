@@ -408,7 +408,8 @@ class TargetAuraFrame {
             if (g != null && g.tAurasUI != null) {
                 g.tAurasUI.x = 85;
                 g.tAurasUI.y = 93;
-                g.tAurasUI.visible = true;
+                var hasTarget:Bool = (g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null);
+                g.tAurasUI.visible = hasTarget;
                 if (g.ui != null && g.ui.mcPortraitTarget != null) {
                     try { g.ui.mcPortraitTarget.addChild(g.tAurasUI); } catch (_:Dynamic) {}
                 }
