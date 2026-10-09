@@ -330,6 +330,59 @@ class SettingsTab implements IDashboardTab {
                 return (Api.visual != null) ? Api.visual.showNames : true;
             }
         );
+
+        // =========================================================================
+        // SCREEN & CRT FILTERS (RETRO RETRO-ARCADE MASKS)
+        // =========================================================================
+        modal.addSectionHeader("Screen & CRT Filters");
+
+        // 18. CRT Filter Mode
+        modal.addItemRow(
+            "CRT Filter Preset",
+            "Applies hardware-tiled aperture grille or scanlines, converting low-quality vector edges into crisp retro arcade pixel art.",
+            "action",
+            ScreenFilterManager.getModeLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleMode();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getModeLabel();
+            }
+        );
+
+        // 19. Filter Intensity
+        modal.addItemRow(
+            "Filter Intensity",
+            "Controls the depth and opacity of the phosphor grid and scanline gaps.",
+            "action",
+            ScreenFilterManager.getIntensityLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleIntensity();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getIntensityLabel();
+            }
+        );
+
+        // 20. Filter Target Layer
+        modal.addItemRow(
+            "Filter Target Layer",
+            "Game World Only applies the filter over characters/maps while keeping custom UI crisp. Full Screen overlays everything.",
+            "action",
+            ScreenFilterManager.getTargetLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleTarget();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getTargetLabel();
+            }
+        );
     }
 }
 #else

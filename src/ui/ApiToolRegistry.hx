@@ -320,6 +320,18 @@ class ApiToolRegistry {
                     HelperSetting.setBool("api_auto_relogin", next);
                     ApiNotificationManager.notify("Auto Relogin: " + (next ? "Enabled" : "Disabled"));
                 }
+            },
+            {
+                id: "crt_filter",
+                name: "CRT Filter",
+                defaultLabel: "CRT",
+                activeText: "CRT: ON",
+                inactiveText: "CRT: OFF",
+                isToggle: true,
+                getState: function():Bool return ScreenFilterManager.isEnabled(),
+                onAction: function():Void {
+                    ScreenFilterManager.toggleQuick();
+                }
             }
         ];
 
