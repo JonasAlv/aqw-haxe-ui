@@ -6,7 +6,7 @@ import com.aqwapi.modules.CombatEngine;
 import com.aqwapi.modules.ScriptManager;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 typedef ToolDef = {
     id:String,
@@ -69,11 +69,11 @@ class ApiToolRegistry {
                 onAction: function():Void {
                     var current = (Api.combat != null && Api.combat.isRunning());
                     var next = !current;
-                    HelperSetting.setBool("api_smart_combat_active", next);
+                    ApiConfig.setBool("api_smart_combat_active", next);
                     if (Api.combat != null) {
                         if (next) {
-                            var confClass = HelperSetting.getString("api_smart_class", "Current");
-                            var confMode = HelperSetting.getString("api_smart_mode", "Auto");
+                            var confClass = ApiConfig.getString("api_smart_class", "Current");
+                            var confMode = ApiConfig.getString("api_smart_mode", "Auto");
                             Api.combat.startSmartStandalone(confClass, confMode);
                         } else {
                             Api.combat.stop();
@@ -161,9 +161,9 @@ class ApiToolRegistry {
                     return (Api.combat != null && Api.combat.infiniteRange);
                 },
                 onAction: function():Void {
-                    var cur = HelperSetting.getBool("api_infinite_range", false);
+                    var cur = ApiConfig.getBool("api_infinite_range", false);
                     var next = !cur;
-                    HelperSetting.setBool("api_infinite_range", next);
+                    ApiConfig.setBool("api_infinite_range", next);
                     if (Api.combat != null) {
                         Api.combat.infiniteRange = next;
                         if (next) Api.combat.applyInfiniteRange();
@@ -184,9 +184,9 @@ class ApiToolRegistry {
                     return (Api.drop != null && Api.drop.acceptAll);
                 },
                 onAction: function():Void {
-                    var cur = HelperSetting.getBool("api_accept_loot", false);
+                    var cur = ApiConfig.getBool("api_accept_loot", false);
                     var next = !cur;
-                    HelperSetting.setBool("api_accept_loot", next);
+                    ApiConfig.setBool("api_accept_loot", next);
                     if (Api.drop != null) {
                         Api.drop.acceptAll = next;
                         if (next) {
@@ -261,7 +261,7 @@ class ApiToolRegistry {
                 onAction: function():Void {
                     var cur = (Api.drop != null && Api.drop.acceptACs);
                     var next = !cur;
-                    HelperSetting.setBool("api_accept_ac_drops", next);
+                    ApiConfig.setBool("api_accept_ac_drops", next);
                     if (Api.drop != null) {
                         Api.drop.acceptACs = next;
                         if (next) {
@@ -286,7 +286,7 @@ class ApiToolRegistry {
                     if (Api.map != null) {
                         var next = !Api.map.skipCutscenes;
                         Api.map.skipCutscenes = next;
-                        HelperSetting.setBool("api_skip_cutscenes", next);
+                        ApiConfig.setBool("api_skip_cutscenes", next);
                         ApiNotificationManager.notify("Skip Cutscenes: " + (next ? "ON" : "OFF"));
                     }
                 }
@@ -313,11 +313,11 @@ class ApiToolRegistry {
                 activeText: "Auto Relog",
                 inactiveText: "Auto Relog",
                 isToggle: true,
-                getState: function():Bool return HelperSetting.getBool("api_auto_relogin", false),
+                getState: function():Bool return ApiConfig.getBool("api_auto_relogin", false),
                 onAction: function():Void {
-                    var cur = HelperSetting.getBool("api_auto_relogin", false);
+                    var cur = ApiConfig.getBool("api_auto_relogin", false);
                     var next = !cur;
-                    HelperSetting.setBool("api_auto_relogin", next);
+                    ApiConfig.setBool("api_auto_relogin", next);
                     ApiNotificationManager.notify("Auto Relogin: " + (next ? "Enabled" : "Disabled"));
                 }
             },

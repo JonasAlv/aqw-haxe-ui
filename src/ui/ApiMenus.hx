@@ -23,7 +23,7 @@ import ui.option.Check;
 import ui.option.Menu;
 import ui.option.Option;
 import ui.prompts.ApiPrompts;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 class ApiMenus {
     private static var _injected:Bool = false;
@@ -47,8 +47,8 @@ class ApiMenus {
     }
 
     public static function resetMenuButtonPosition():Void {
-        HelperSetting.setInt("api_floating_menu_x", 80);
-        HelperSetting.setInt("api_floating_menu_y", 10);
+        ApiConfig.setInt("api_floating_menu_x", 80);
+        ApiConfig.setInt("api_floating_menu_y", 10);
         if (_floatingMenuBtn != null) {
             _floatingMenuBtn.x = 80;
             _floatingMenuBtn.y = 10;
@@ -403,7 +403,7 @@ class ApiMenus {
         opts.push(new Check("api_skip_cutscenes", false, "Skip Cutscenes", "Automatically cancel cutscene animations whenever they appear.", true, function(o:Dynamic):Void {
             var c:Check = cast o;
             ApiConfig.setBool("api_skip_cutscenes", c.state);
-            HelperSetting.setBool("option_disable_cutscenes", c.state);
+            ApiConfig.setBool("option_disable_cutscenes", c.state);
             if (Api.map != null) Api.map.skipCutscenes = c.state;
         }));
 
@@ -512,7 +512,7 @@ class ApiMenus {
             var isScriptRunning = ScriptManager.SINGLETON.isRunning;
 
             // Cutscene skipping (Skua logic - always active during scripts or when enabled in settings)
-            var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+            var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
             if (Api.map != null) {
                 Api.map.skipCutscenes = skipCutscenesActive;
                 if (skipCutscenesActive) {
@@ -615,8 +615,8 @@ class ApiMenus {
         icon.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void renderBtn(false));
 
         _floatingMenuBtn = icon;
-        var savedX = HelperSetting.getInt("api_floating_menu_x", 80);
-        var savedY = HelperSetting.getInt("api_floating_menu_y", 10);
+        var savedX = ApiConfig.getInt("api_floating_menu_x", 80);
+        var savedY = ApiConfig.getInt("api_floating_menu_y", 10);
         icon.x = savedX;
         icon.y = savedY;
 
@@ -678,8 +678,8 @@ class ApiMenus {
                     isDragging = false;
                     icon.cacheAsBitmap = true;
                     if (hasDragged) {
-                        HelperSetting.setInt("api_floating_menu_x", Math.round(icon.x));
-                        HelperSetting.setInt("api_floating_menu_y", Math.round(icon.y));
+                        ApiConfig.setInt("api_floating_menu_x", Math.round(icon.x));
+                        ApiConfig.setInt("api_floating_menu_y", Math.round(icon.y));
                     } else {
                         if (ApiDashboardModal.isOpen()) {
                             ApiDashboardModal.close();

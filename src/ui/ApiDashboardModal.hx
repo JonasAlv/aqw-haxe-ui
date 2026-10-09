@@ -18,7 +18,6 @@ import flash.text.TextFormatAlign;
 import flash.ui.Keyboard;
 import ui.Overlay;
 import ui.prompts.ApiPrompts;
-import util.HelperSetting;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiStyle;
 import ui.dashboard.IDashboardTab;

@@ -18,7 +18,6 @@ import ui.ApiStyle;
 import ui.prompts.combat.CombatModeEditorModal;
 import ui.prompts.scripts.ScriptManagerModal;
 import ui.components.ClassModeSelector;
-import util.HelperSetting;
 
 class ApiPrompts {
     private static var _lastQuests:String = "";

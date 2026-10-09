@@ -25,7 +25,7 @@ import ui.ApiStyle;
 import ui.prompts.ApiPrompts;
 import ui.prompts.ApiPromptModal;
 import ui.components.ClassModeSelector;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 /**
  * Compact in-game Combat & Hunt Widget.
@@ -84,7 +84,7 @@ class CombatWidget {
     private static inline var HEIGHT_EXPANDED:Float = 118;
 
     public static function getFixedOptions():Array<String> {
-        var str = HelperSetting.getString("api_widget_combat_fixed", "");
+        var str = ApiConfig.getString("api_widget_combat_fixed", "");
         if (str == "") return [];
         return str.split(",");
     }
@@ -291,7 +291,7 @@ class CombatWidget {
         ];
 
         WidgetConfigModal.show(_overlay, "Combat Widget", options, function(savedIds:Array<String>):Void {
-            HelperSetting.setString("api_widget_combat_fixed", savedIds.join(","));
+            ApiConfig.setString("api_widget_combat_fixed", savedIds.join(","));
             clampToScreen();
             updateLayout();
         });
@@ -311,8 +311,8 @@ class CombatWidget {
         if (_widget.x < ApiStyle.SCREEN_MARGIN) _widget.x = ApiStyle.SCREEN_MARGIN;
         if (_widget.y < ApiStyle.SCREEN_MARGIN) _widget.y = ApiStyle.SCREEN_MARGIN;
 
-        HelperSetting.setInt("api_widget_combat_x", Math.round(_widget.x));
-        HelperSetting.setInt("api_widget_combat_y", Math.round(_widget.y));
+        ApiConfig.setInt("api_widget_combat_x", Math.round(_widget.x));
+        ApiConfig.setInt("api_widget_combat_y", Math.round(_widget.y));
     }
 
     private static function renderGetTargetBtn(hover:Bool = false, active:Bool = false):Void {
@@ -380,8 +380,8 @@ class CombatWidget {
         _widget.name = "CombatWidget";
 
         // Restore saved position
-        var savedX = HelperSetting.getInt("api_widget_combat_x", -1);
-        var savedY = HelperSetting.getInt("api_widget_combat_y", -1);
+        var savedX = ApiConfig.getInt("api_widget_combat_x", -1);
+        var savedY = ApiConfig.getInt("api_widget_combat_y", -1);
         var defaultX:Float = 180;
         var defaultY:Float = 82;
 
@@ -398,7 +398,7 @@ class CombatWidget {
         _widget.x = initX;
         _widget.y = initY;
 
-        _isCollapsed = HelperSetting.getBool("api_widget_combat_collapsed", false);
+        _isCollapsed = ApiConfig.getBool("api_widget_combat_collapsed", false);
 
         // 1. Background plate
         _bg = new Sprite();
@@ -560,7 +560,7 @@ class CombatWidget {
                 _hasRescannedBagOnEntry = false;
                 return;
             }
-            var isEnabled = HelperSetting.getBool("api_widget_combat_enabled", true);
+            var isEnabled = ApiConfig.getBool("api_widget_combat_enabled", true);
             if (!isEnabled) {
                 _widget.visible = false;
                 return;
@@ -657,7 +657,7 @@ class CombatWidget {
         _inputPlate.y = 84;
         _bodyContainer.addChild(_inputPlate);
 
-        var savedTarget = HelperSetting.getString("api_widget_hunt_target", "");
+        var savedTarget = ApiConfig.getString("api_widget_hunt_target", "");
 
         _targetInput = new TextField();
         _targetInput.type = TextFieldType.INPUT;
@@ -683,9 +683,9 @@ class CombatWidget {
             if (trimmed == "") {
                 _targetInput.text = "Target (Name / ID / MMID)";
                 _targetInput.textColor = ApiStyle.COLOR_TEXT_MUTED;
-                HelperSetting.setString("api_widget_hunt_target", "");
+                ApiConfig.setString("api_widget_hunt_target", "");
             } else {
-                HelperSetting.setString("api_widget_hunt_target", trimmed);
+                ApiConfig.setString("api_widget_hunt_target", trimmed);
             }
         });
 
@@ -707,7 +707,7 @@ class CombatWidget {
             if (ent != null && ent.name != null && ent.name != "") {
                 _targetInput.text = ent.name;
                 _targetInput.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
-                HelperSetting.setString("api_widget_hunt_target", ent.name);
+                ApiConfig.setString("api_widget_hunt_target", ent.name);
                 renderGetTargetBtn(false, true);
                 haxe.Timer.delay(function():Void {
                     renderGetTargetBtn(false, false);
@@ -1171,7 +1171,7 @@ class CombatWidget {
 
     public static function toggleCollapse():Void {
         _isCollapsed = !_isCollapsed;
-        HelperSetting.setBool("api_widget_combat_collapsed", _isCollapsed);
+        ApiConfig.setBool("api_widget_combat_collapsed", _isCollapsed);
         clampToScreen();
         updateLayout();
     }
@@ -1234,8 +1234,8 @@ class CombatWidget {
                     if (_widget.x > sw - curW - ApiStyle.SCREEN_MARGIN) _widget.x = sw - curW - ApiStyle.SCREEN_MARGIN;
                     if (_widget.y > sh - curH - ApiStyle.SCREEN_MARGIN) _widget.y = sh - curH - ApiStyle.SCREEN_MARGIN;
 
-                    HelperSetting.setInt("api_widget_combat_x", Math.round(_widget.x));
-                    HelperSetting.setInt("api_widget_combat_y", Math.round(_widget.y));
+                    ApiConfig.setInt("api_widget_combat_x", Math.round(_widget.x));
+                    ApiConfig.setInt("api_widget_combat_y", Math.round(_widget.y));
                 } else {
                     toggleCollapse();
                 }
@@ -1244,17 +1244,17 @@ class CombatWidget {
     }
 
     public static function isWidgetEnabled():Bool {
-        return HelperSetting.getBool("api_widget_combat_enabled", true);
+        return ApiConfig.getBool("api_widget_combat_enabled", true);
     }
 
     public static function setWidgetEnabled(enabled:Bool):Void {
-        HelperSetting.setBool("api_widget_combat_enabled", enabled);
+        ApiConfig.setBool("api_widget_combat_enabled", enabled);
         if (_widget != null) _widget.visible = enabled;
     }
 
     public static function resetPosition():Void {
-        HelperSetting.setInt("api_widget_combat_x", 180);
-        HelperSetting.setInt("api_widget_combat_y", 82);
+        ApiConfig.setInt("api_widget_combat_x", 180);
+        ApiConfig.setInt("api_widget_combat_y", 82);
         if (_widget != null) {
             _widget.x = 180;
             _widget.y = 82;

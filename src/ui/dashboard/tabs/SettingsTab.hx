@@ -7,7 +7,7 @@ import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.dashboard.IDashboardTab;
 import ui.prompts.ApiPrompts;
-import util.HelperSetting;
+
 
 class SettingsTab implements IDashboardTab {
     public function new() {}
@@ -84,15 +84,15 @@ class SettingsTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                var cur = ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false);
+                var cur = ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
                 var next = !cur;
                 ApiConfig.setBool("api_skip_cutscenes", next);
-                HelperSetting.setBool("option_disable_cutscenes", next);
+                ApiConfig.setBool("option_disable_cutscenes", next);
                 if (Api.map != null) Api.map.skipCutscenes = next;
                 ApiNotificationManager.notify("Skip Cutscenes: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.map != null) ? Api.map.skipCutscenes : (ApiConfig.getBool("api_skip_cutscenes", false) || HelperSetting.getBool("option_disable_cutscenes", false));
+                return (Api.map != null) ? Api.map.skipCutscenes : (ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false));
             }
         );
 

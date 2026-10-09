@@ -12,7 +12,7 @@ import ui.ApiToolRegistry;
 import ui.widgets.CustomWidgetDef;
 import ui.widgets.CustomWidgetInstance;
 import ui.widgets.WidgetEditorModal;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 // Re-export typedefs for backward compatibility
 typedef WidgetItemConfig = ui.widgets.CustomWidgetDef.WidgetItemConfig;
@@ -94,7 +94,7 @@ class ApiToolsWidget {
     }
 
     public static function loadWidgets():Array<CustomWidgetDef> {
-        var raw = HelperSetting.getString(SETTING_KEY, "");
+        var raw = ApiConfig.getString(SETTING_KEY, "");
         if (raw != null && raw != "") {
             try {
                 var parsed:Dynamic = haxe.Json.parse(raw);
@@ -141,7 +141,7 @@ class ApiToolsWidget {
     public static function saveWidgets():Void {
         try {
             var raw = haxe.Json.stringify(_widgetDefs);
-            HelperSetting.setString(SETTING_KEY, raw);
+            ApiConfig.setString(SETTING_KEY, raw);
         } catch (err:Dynamic) {
             trace("Error saving custom widgets: " + err);
         }

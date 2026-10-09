@@ -14,7 +14,7 @@ import flash.text.TextFormatAlign;
 import ui.ApiDashboardModal;
 import ui.ApiStyle;
 import ui.Overlay;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 typedef HudButtonDef = {
     id:String,
@@ -94,8 +94,8 @@ class ApiHudManager {
         btn.mouseChildren = false;
 
         // Position restoring
-        var savedX = HelperSetting.getInt("api_hud_" + def.id + "_x", -1);
-        var savedY = HelperSetting.getInt("api_hud_" + def.id + "_y", -1);
+        var savedX = ApiConfig.getInt("api_hud_" + def.id + "_x", -1);
+        var savedY = ApiConfig.getInt("api_hud_" + def.id + "_y", -1);
         var initX:Float = (savedX >= 0) ? savedX : def.defaultX;
         var initY:Float = (savedY >= 0) ? savedY : def.defaultY;
 
@@ -263,8 +263,8 @@ class ApiHudManager {
                     if (btn.x > sw - btnW - ApiStyle.SCREEN_MARGIN) btn.x = sw - btnW - ApiStyle.SCREEN_MARGIN;
                     if (btn.y > sh - btnH - ApiStyle.SCREEN_MARGIN) btn.y = sh - btnH - ApiStyle.SCREEN_MARGIN;
 
-                    HelperSetting.setInt("api_hud_" + def.id + "_x", Math.round(btn.x));
-                    HelperSetting.setInt("api_hud_" + def.id + "_y", Math.round(btn.y));
+                    ApiConfig.setInt("api_hud_" + def.id + "_x", Math.round(btn.x));
+                    ApiConfig.setInt("api_hud_" + def.id + "_y", Math.round(btn.y));
                 }
             }
             isDragging = false;
@@ -289,7 +289,7 @@ class ApiHudManager {
                 btn.visible = false;
                 return;
             }
-            var isEnabled = HelperSetting.getBool("api_hud_" + def.id + "_enabled", false);
+            var isEnabled = ApiConfig.getBool("api_hud_" + def.id + "_enabled", false);
             if (!isEnabled) {
                 btn.visible = false;
                 return;
@@ -306,17 +306,17 @@ class ApiHudManager {
     }
 
     public static function isButtonEnabled(id:String):Bool {
-        return HelperSetting.getBool("api_hud_" + id + "_enabled", false);
+        return ApiConfig.getBool("api_hud_" + id + "_enabled", false);
     }
 
     public static function setButtonEnabled(id:String, enabled:Bool):Void {
-        HelperSetting.setBool("api_hud_" + id + "_enabled", enabled);
+        ApiConfig.setBool("api_hud_" + id + "_enabled", enabled);
     }
 
     public static function resetAllPositions():Void {
         for (def in _defs) {
-            HelperSetting.setInt("api_hud_" + def.id + "_x", Math.round(def.defaultX));
-            HelperSetting.setInt("api_hud_" + def.id + "_y", Math.round(def.defaultY));
+            ApiConfig.setInt("api_hud_" + def.id + "_x", Math.round(def.defaultX));
+            ApiConfig.setInt("api_hud_" + def.id + "_y", Math.round(def.defaultY));
             var btn = _buttons.get(def.id);
             if (btn != null) {
                 btn.x = def.defaultX;

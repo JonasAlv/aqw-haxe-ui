@@ -18,7 +18,6 @@ import ui.ApiStyle;
 import ui.Dropdown;
 import ui.prompts.ApiPromptModal;
 import ui.prompts.ApiPrompts;
-import util.HelperSetting;
 
 class CombatModeEditorModal {
     public static function show(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {

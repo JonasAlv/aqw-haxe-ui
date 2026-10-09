@@ -20,7 +20,7 @@ import ui.ApiStyle;
 import ui.Dropdown;
 import ui.Overlay;
 import ui.prompts.ApiPromptModal;
-import util.HelperSetting;
+import com.aqwapi.utils.ApiConfig;
 
 /**
  * Standalone in-game Jump & Room Navigation Widget.
@@ -76,7 +76,7 @@ class JumpWidget {
     ];
 
     public static function getFixedOptions():Array<String> {
-        var str = HelperSetting.getString("api_widget_jump_fixed", "");
+        var str = ApiConfig.getString("api_widget_jump_fixed", "");
         if (str == "") return [];
         return str.split(",");
     }
@@ -108,7 +108,7 @@ class JumpWidget {
         ];
 
         WidgetConfigModal.show(_overlay, "Jump Widget", options, function(savedIds:Array<String>):Void {
-            HelperSetting.setString("api_widget_jump_fixed", savedIds.join(","));
+            ApiConfig.setString("api_widget_jump_fixed", savedIds.join(","));
             clampToScreen();
             updateLayout();
         });
@@ -129,8 +129,8 @@ class JumpWidget {
         if (_widget.x < ApiStyle.SCREEN_MARGIN) _widget.x = ApiStyle.SCREEN_MARGIN;
         if (_widget.y < ApiStyle.SCREEN_MARGIN) _widget.y = ApiStyle.SCREEN_MARGIN;
 
-        HelperSetting.setInt("api_widget_jump_x", Math.round(_widget.x));
-        HelperSetting.setInt("api_widget_jump_y", Math.round(_widget.y));
+        ApiConfig.setInt("api_widget_jump_x", Math.round(_widget.x));
+        ApiConfig.setInt("api_widget_jump_y", Math.round(_widget.y));
     }
 
     private static function renderCollapseIcon(collapsed:Bool, hover:Bool = false):Void {
@@ -244,8 +244,8 @@ class JumpWidget {
         _widget.name = "JumpWidget";
 
         // Restore saved position (default stacked neatly below CombatWidget at y = 82)
-        var savedX = HelperSetting.getInt("api_widget_jump_x", -1);
-        var savedY = HelperSetting.getInt("api_widget_jump_y", -1);
+        var savedX = ApiConfig.getInt("api_widget_jump_x", -1);
+        var savedY = ApiConfig.getInt("api_widget_jump_y", -1);
         var defaultX:Float = 180;
         var defaultY:Float = 206;
 
@@ -262,7 +262,7 @@ class JumpWidget {
         _widget.x = initX;
         _widget.y = initY;
 
-        _isCollapsed = HelperSetting.getBool("api_widget_jump_collapsed", false);
+        _isCollapsed = ApiConfig.getBool("api_widget_jump_collapsed", false);
 
         // 1. Background plate
         _bg = new Sprite();
@@ -365,7 +365,7 @@ class JumpWidget {
                 _widget.visible = false;
                 return;
             }
-            var isEnabled = HelperSetting.getBool("api_widget_jump_enabled", true);
+            var isEnabled = ApiConfig.getBool("api_widget_jump_enabled", true);
             if (!isEnabled) {
                 _widget.visible = false;
                 return;
@@ -676,7 +676,7 @@ class JumpWidget {
 
     public static function toggleCollapse():Void {
         _isCollapsed = !_isCollapsed;
-        HelperSetting.setBool("api_widget_jump_collapsed", _isCollapsed);
+        ApiConfig.setBool("api_widget_jump_collapsed", _isCollapsed);
         clampToScreen();
         updateLayout();
     }
@@ -926,8 +926,8 @@ class JumpWidget {
                     if (_widget.x > sw - curW - ApiStyle.SCREEN_MARGIN) _widget.x = sw - curW - ApiStyle.SCREEN_MARGIN;
                     if (_widget.y > sh - curH - ApiStyle.SCREEN_MARGIN) _widget.y = sh - curH - ApiStyle.SCREEN_MARGIN;
 
-                    HelperSetting.setInt("api_widget_jump_x", Math.round(_widget.x));
-                    HelperSetting.setInt("api_widget_jump_y", Math.round(_widget.y));
+                    ApiConfig.setInt("api_widget_jump_x", Math.round(_widget.x));
+                    ApiConfig.setInt("api_widget_jump_y", Math.round(_widget.y));
                 } else {
                     toggleCollapse();
                 }
@@ -936,17 +936,17 @@ class JumpWidget {
     }
 
     public static function isWidgetEnabled():Bool {
-        return HelperSetting.getBool("api_widget_jump_enabled", true);
+        return ApiConfig.getBool("api_widget_jump_enabled", true);
     }
 
     public static function setWidgetEnabled(enabled:Bool):Void {
-        HelperSetting.setBool("api_widget_jump_enabled", enabled);
+        ApiConfig.setBool("api_widget_jump_enabled", enabled);
         if (_widget != null) _widget.visible = enabled;
     }
 
     public static function resetPosition():Void {
-        HelperSetting.setInt("api_widget_jump_x", 180);
-        HelperSetting.setInt("api_widget_jump_y", 206);
+        ApiConfig.setInt("api_widget_jump_x", 180);
+        ApiConfig.setInt("api_widget_jump_y", 206);
         if (_widget != null) {
             _widget.x = 180;
             _widget.y = 206;
