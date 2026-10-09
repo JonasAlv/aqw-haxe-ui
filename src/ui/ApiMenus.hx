@@ -72,12 +72,9 @@ class ApiMenus {
 
         anthonyMenus = overlay.menus;
 
-        // Ensure 60 FPS on stage for instant, smooth rendering & initialize ScreenFilterManager
+        // Initialize ScreenFilterManager (respecting native stage frame rate)
         try {
             var theStage:Dynamic = (overlay != null && overlay.stage != null) ? overlay.stage : (_pocket != null ? _pocket.stage : null);
-            if (theStage != null && theStage.frameRate < 60) {
-                theStage.frameRate = 60;
-            }
             if (theStage != null) {
                 ScreenFilterManager.init(theStage);
             }
