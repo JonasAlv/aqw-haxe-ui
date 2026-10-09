@@ -4,12 +4,14 @@ package ui;
 import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
+import flash.events.TimerEvent;
 import flash.filters.GlowFilter;
 import flash.geom.Point;
 import flash.text.TextField;
 import flash.text.TextFieldAutoSize;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
+import flash.utils.Timer;
 import com.aqwapi.utils.ApiTime;
 import com.aqwapi.Api;
 import com.aqwapi.utils.ApiLogger;
@@ -148,6 +150,7 @@ class DamageNumbers {
     private static var _container:Sprite = null;
     private static var _hookedSfc:Dynamic = null;
     private static var _initialized:Bool = false;
+    private static var _ticker:Timer = null;
 
     // Object pool
     private static inline var POOL_SIZE:Int = 50;
@@ -203,15 +206,25 @@ class DamageNumbers {
 
         theStage.addChild(_container);
 
-        // Frame ticker for smooth 60fps particle updates
+        // Frame ticker for smooth particle updates. Uses a Timer instead of the stage's
+        // ENTER_FRAME event.
+        //
+        // WHY NOT theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame):
+        // The game stage already drives the joystick's own onEnterFrame walk, and on
+        // aqw-mobile-mod installing our own ENTER_FRAME listener alongside it broke drag
+        // registration — the character never registered a drag and walked in place. The
+        // symptom looked like an occluding widget but was actually a stage-event collision.
+        // A Timer fires independently of the stage event loop, so it never interferes.
         _lastFrameTime = ApiTime.getTimer();
-        theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+        _ticker = new Timer(1000 / 60, 0);
+        _ticker.addEventListener(TimerEvent.TIMER, onTick);
+        _ticker.start();
 
         // Hook socket packets
         ensureSocketHook();
     }
 
-    private static function onEnterFrame(e:Event):Void {
+    private static function onTick(e:TimerEvent):Void {
         var now = ApiTime.getTimer();
         var dt:Float = (now - _lastFrameTime) / 1000.0;
         _lastFrameTime = now;
@@ -225,11 +238,13 @@ class DamageNumbers {
         var inGame:Bool = (Api.isReady && !ApiDashboardModal.isOpen());
         var enabled:Bool = isEnabled();
 
+        // Sync native display suppression to the CURRENT state every tick. Previously this only
+        // ever set bDisDmgDisplay = true, so toggling our module off left the game's native combat
+        // text suppressed forever — and toggling back on produced nothing at all.
+        syncNativeDisplay(inGame && enabled);
+
         _container.visible = (inGame && enabled);
         if (!inGame || !enabled) return;
-
-        // Sync native display suppression
-        syncNativeDisplay();
 
         // Update active particles
         for (i in 0..._pool.length) {
@@ -254,11 +269,17 @@ class DamageNumbers {
         } catch (_:Dynamic) {}
     }
 
-    private static function syncNativeDisplay():Void {
+    private static function syncNativeDisplay(suppressed:Bool):Void {
         try {
             if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
-                // Suppress native 250ms capped movieclips when our module is active
-                Api.game.litePreference.data.bDisDmgDisplay = true;
+                // Suppress native 250ms capped movieclips when our module is active; restore them
+                // when we're off, in-game, or out of combat.
+                //
+                // BUG THAT USED TO BE HERE: this only ever set bDisDmgDisplay = true, so toggling our
+                // module off left the game's own combat text suppressed forever — and toggling back
+                // on produced nothing at all (our numbers never showed). Always write the CURRENT
+                // state, both true and false.
+                Api.game.litePreference.data.bDisDmgDisplay = suppressed;
             }
         } catch (_:Dynamic) {}
     }

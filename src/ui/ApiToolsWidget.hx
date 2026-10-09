@@ -135,7 +135,12 @@ class ApiToolsWidget {
                 trace("Error parsing custom widgets: " + err);
             }
         }
-        return [getDefaultWidgetDef()];
+        // No default widget. The Quick Tools widget used to be built here automatically whenever no
+        // saved widget config existed, which meant it always appeared on first run. It's now opt-in:
+        // users create their first custom widget explicitly via the [+ Create Custom Widget]
+        // button in the HUD tab. This keeps the default stage clean — only the three hardcoded
+        // widgets (Combat, Jump, Players) show until the user opts in.
+        return [];
     }
 
     public static function saveWidgets():Void {
