@@ -384,7 +384,13 @@ class PlayersWidget {
         return result;
     }
 
+    private static var _tickCounter:Int = 0;
+
     private static function updateLivePlayers():Void {
+        _tickCounter++;
+        // Throttle player scan to every 8 frames (~7.5 times/sec at 60 FPS) unless initial scan
+        if (_lastPlayerHash != "" && _tickCounter % 8 != 0) return;
+
         var players = getMapPlayers();
         var mapName = (Api.map != null && Api.map.name != null) ? Api.map.name : "";
 
@@ -393,6 +399,9 @@ class PlayersWidget {
         for (p in players) {
             hash += "|" + p.username + ":" + p.level + ":" + p.cell + ":" + p.pad;
         }
+
+        if (hash == _lastPlayerHash) return;
+        _lastPlayerHash = hash;
 
         // Format pill text exactly as user requested: "1 player in classhall"
         var countStr = (players.length == 1) ? "1 player in " : (players.length + " players in ");
@@ -404,10 +413,6 @@ class PlayersWidget {
 
         var textW:Float = _headerCountTxt.textWidth;
         var neededW:Float = Math.max(140.0, Math.ceil(textW) + 24.0);
-        var widthChanged = (Math.abs(neededW - _currentW) > 2.0);
-
-        if (hash == _lastPlayerHash && !widthChanged) return;
-        _lastPlayerHash = hash;
         _currentW = neededW;
 
         updateLayout();
@@ -747,7 +752,7 @@ class PlayersWidget {
             hasDragged = false;
             startDownX = e.stageX;
             startDownY = e.stageY;
-            _widget.cacheAsBitmap = false;
+            _widget.cacheAsBitmap = true;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
             theStage.setChildIndex(_widget, theStage.numChildren - 1);

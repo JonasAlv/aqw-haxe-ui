@@ -72,6 +72,14 @@ class ApiMenus {
 
         anthonyMenus = overlay.menus;
 
+        // Ensure 60 FPS on stage for instant, smooth rendering
+        try {
+            var theStage:Dynamic = (overlay != null && overlay.stage != null) ? overlay.stage : (_pocket != null ? _pocket.stage : null);
+            if (theStage != null && theStage.frameRate < 60) {
+                theStage.frameRate = 60;
+            }
+        } catch (_:Dynamic) {}
+
         // 1. Initialize notification HUD container
         var apiNotifs = new Sprite();
         overlay.addChild(apiNotifs);

@@ -879,7 +879,7 @@ class JumpWidget {
             hasDragged = false;
             startDownX = e.stageX;
             startDownY = e.stageY;
-            _widget.cacheAsBitmap = false;
+            _widget.cacheAsBitmap = true;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
         });

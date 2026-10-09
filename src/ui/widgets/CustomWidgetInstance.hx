@@ -577,7 +577,7 @@ class CustomWidgetInstance extends Sprite {
             hasDragged = false;
             startDownX = e.stageX;
             startDownY = e.stageY;
-            cacheAsBitmap = false;
+            cacheAsBitmap = true;
             dragStartX = e.stageX - this.x;
             dragStartY = e.stageY - this.y;
         });
