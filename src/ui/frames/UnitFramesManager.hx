@@ -8,15 +8,18 @@ import com.aqwapi.events.ApiEvent;
 import com.aqwapi.utils.ApiConfig;
 
 /**
- * UnitFramesManager:
- * Coordinator for modern, portrait-less, compact unit frames and aura frames (ElvUI / oUF style).
- *
- * Coordinates:
- * - PlayerUnitFrame: [Level] Username - Class R<Rank>, HP + Shield, MP, SP stamina line.
- * - TargetUnitFrame: [Level] TargetName - Race/Class, HP + Shield, MP, [x] cancel target.
- * - PlayerAuraFrame: 24x24 px aura tiles with buff/debuff color borders, stack counts, duration timers.
- * - TargetAuraFrame: Target's active debuffs/buffs, stacks, and timers.
- */
+     * UnitFramesManager:
+     * Coordinator for modern, portrait-less, compact unit frames (ElvUI / oUF style).
+     *
+     * Coordinates:
+     * - PlayerUnitFrame: [Level] Username - Class R<Rank>, HP + Shield, MP, SP stamina line.
+     * - TargetUnitFrame: [Level] TargetName - Race/Class, HP + Shield, MP, [x] cancel target.
+     *
+     * Auras (player & target buff/debuff icons) are no longer managed by us — the new game
+     * client keeps them visible when the UI is hidden and positions them automatically, so
+     * they follow the unit frames without any code of our own. syncNativeHideUI() is the only
+     * thing we still do for them: keep bHideUI = false so they keep processing.
+     */
 class UnitFramesManager {
     private static var _initialized:Bool = false;
 
@@ -26,8 +29,6 @@ class UnitFramesManager {
 
         PlayerUnitFrame.init(pocket, overlay);
         TargetUnitFrame.init(pocket, overlay);
-        PlayerAuraFrame.init(pocket, overlay);
-        TargetAuraFrame.init(pocket, overlay);
         syncNativeHideUI();
 
         if (Api.dispatcher != null) {
@@ -55,30 +56,17 @@ class UnitFramesManager {
         syncNativeHideUI();
     }
 
-    public static inline function isPlayerAurasEnabled():Bool {
-        return PlayerAuraFrame.isWidgetEnabled();
-    }
-
-    public static inline function setPlayerAurasEnabled(enabled:Bool):Void {
-        PlayerAuraFrame.setWidgetEnabled(enabled);
-    }
-
-    public static inline function isTargetAurasEnabled():Bool {
-        return TargetAuraFrame.isWidgetEnabled();
-    }
-
-    public static inline function setTargetAurasEnabled(enabled:Bool):Void {
-        TargetAuraFrame.setWidgetEnabled(enabled);
-    }
-
     /**
      * Synchronizes native AQW portrait suppression with our custom unit frames.
      * When any custom unit frame (Player or Target) is active:
-     * - Re-parents default pAurasUI / tAurasUI to g.ui so they are not tied to mcPortrait
      * - Keeps bHideUI = false so default aura frames continue processing all packets and animations
      * - Hides native mcPortrait, mcPortraitTarget, and areaList
      * When all custom unit frames are disabled:
      * - Restores native portraits and areaList
+     *
+     * NOTE: the new game client keeps auras visible when the UI is hidden, so we no longer
+     * re-parent pAurasUI / tAurasUI or toggle auraContainer visibility — only bHideUI and the
+     * portrait visibility are controlled here.
      */
     public static function syncNativeHideUI():Void {
         try {
@@ -98,19 +86,11 @@ class UnitFramesManager {
             }
 
             if (shouldHideAny) {
-                // Ensure native aura frames are re-parented out of mcPortrait/mcPortraitTarget into g.ui
-                if (g.pAurasUI != null && g.pAurasUI.parent != null && g.pAurasUI.parent != g.ui) {
-                    try {
-                        g.pAurasUI.parent.removeChild(g.pAurasUI);
-                        g.ui.addChild(g.pAurasUI);
-                    } catch (_:Dynamic) {}
-                }
-                if (g.tAurasUI != null && g.tAurasUI.parent != null && g.tAurasUI.parent != g.ui) {
-                    try {
-                        g.tAurasUI.parent.removeChild(g.tAurasUI);
-                        g.ui.addChild(g.tAurasUI);
-                    } catch (_:Dynamic) {}
-                }
+                // NOTE: no longer re-parent pAurasUI / tAurasUI out of mcPortrait into g.ui.
+                // The new game client keeps auras visible when the UI is hidden, so our old
+                // re-parenting was redundant — and on the new client it can actually hide
+                // auras that the game expects to stay on screen. Leave them where the game
+                // placed them; only control bHideUI and the portrait visibility below.
             }
 
             // 1. Player portrait control
@@ -164,7 +144,6 @@ class UnitFramesManager {
 
     public static inline function setPlayerAuraAnchorMode(mode:Int):Void {
         ApiConfig.setInt("api_frame_player_auras_anchor_mode", mode);
-        PlayerAuraFrame.onAnchorModeChanged();
     }
 
     public static inline function getTargetAuraAnchorMode():Int {
@@ -173,7 +152,6 @@ class UnitFramesManager {
 
     public static inline function setTargetAuraAnchorMode(mode:Int):Void {
         ApiConfig.setInt("api_frame_target_auras_anchor_mode", mode);
-        TargetAuraFrame.onAnchorModeChanged();
     }
 
     public static inline function getAuraAnchorMode():Int {
@@ -188,41 +166,22 @@ class UnitFramesManager {
     public static function reloadFromConfig():Void {
         PlayerUnitFrame.reloadFromConfig();
         TargetUnitFrame.reloadFromConfig();
-        PlayerAuraFrame.reloadFromConfig();
-        TargetAuraFrame.reloadFromConfig();
-        try { ui.widgets.PlayersWidget.reloadFromConfig(); } catch (_:Dynamic) {}
         syncNativeHideUI();
     }
 
     public static function resetAllPositions():Void {
         PlayerUnitFrame.resetPosition();
         TargetUnitFrame.resetPosition();
-        PlayerAuraFrame.resetPosition();
-        TargetAuraFrame.resetPosition();
         ApiNotificationManager.notify("Unit frame positions reset!");
     }
 }
 #else
 class UnitFramesManager {
-    public static inline var AURA_ANCHOR_FRAMES:Int = 0;
-    public static inline var AURA_ANCHOR_UNITS:Int = 1;
-    public static inline var AURA_ANCHOR_FREE:Int = 2;
     public static function init(pocket:Dynamic, overlay:Dynamic):Void {}
     public static function isPlayerFrameEnabled():Bool return false;
     public static function setPlayerFrameEnabled(enabled:Bool):Void {}
     public static function isTargetFrameEnabled():Bool return false;
     public static function setTargetFrameEnabled(enabled:Bool):Void {}
-    public static function isPlayerAurasEnabled():Bool return false;
-    public static function setPlayerAurasEnabled(enabled:Bool):Void {}
-    public static function isTargetAurasEnabled():Bool return false;
-    public static function setTargetAurasEnabled(enabled:Bool):Void {}
-    public static function syncNativeHideUI():Void {}
-    public static inline function getPlayerAuraAnchorMode():Int return AURA_ANCHOR_FRAMES;
-    public static inline function setPlayerAuraAnchorMode(mode:Int):Void {}
-    public static inline function getTargetAuraAnchorMode():Int return AURA_ANCHOR_FRAMES;
-    public static inline function setTargetAuraAnchorMode(mode:Int):Void {}
-    public static inline function getAuraAnchorMode():Int return AURA_ANCHOR_FRAMES;
-    public static inline function setAuraAnchorMode(mode:Int):Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
 }

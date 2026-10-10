@@ -51,83 +51,10 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 3. Player Aura Icons
-        modal.addItemRow(
-            "Player Aura Icons",
-            "Hook and position player buff/aura icons with cooldown sweeps, stacks, and tooltips.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = UnitFramesManager.isPlayerAurasEnabled();
-                var next = !cur;
-                UnitFramesManager.setPlayerAurasEnabled(next);
-                ApiNotificationManager.notify("Player Auras: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return UnitFramesManager.isPlayerAurasEnabled();
-            }
-        );
-
-        // 4. Player Aura Anchor
-        var anchorLabels = ["Unit Frame", "Unit (Feet)", "Free (Draggable)"];
-        modal.addItemRow(
-            "Player Aura Anchor",
-            "Anchor player buff icons attached to Player Frame, below character feet, or freely draggable.",
-            "button",
-            "",
-            false,
-            function():Void {
-                var next = (UnitFramesManager.getPlayerAuraAnchorMode() + 1) % 3;
-                UnitFramesManager.setPlayerAuraAnchorMode(next);
-                ApiNotificationManager.notify("Player Aura Anchor: " + anchorLabels[next]);
-            },
-            null,
-            function():String {
-                return anchorLabels[UnitFramesManager.getPlayerAuraAnchorMode()];
-            }
-        );
-
-        // 5. Target Aura Icons
-        modal.addItemRow(
-            "Target Aura Icons",
-            "Hook and position target debuff/aura icons with cooldown sweeps, stacks, and tooltips.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = UnitFramesManager.isTargetAurasEnabled();
-                var next = !cur;
-                UnitFramesManager.setTargetAurasEnabled(next);
-                ApiNotificationManager.notify("Target Auras: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return UnitFramesManager.isTargetAurasEnabled();
-            }
-        );
-
-        // 6. Target Aura Anchor
-        modal.addItemRow(
-            "Target Aura Anchor",
-            "Anchor target debuff icons attached to Target Frame, below enemy feet, or freely draggable.",
-            "button",
-            "",
-            false,
-            function():Void {
-                var next = (UnitFramesManager.getTargetAuraAnchorMode() + 1) % 3;
-                UnitFramesManager.setTargetAuraAnchorMode(next);
-                ApiNotificationManager.notify("Target Aura Anchor: " + anchorLabels[next]);
-            },
-            null,
-            function():String {
-                return anchorLabels[UnitFramesManager.getTargetAuraAnchorMode()];
-            }
-        );
-
         // Reset Unit Frames Position
         modal.addItemRow(
             "Reset Frame Positions",
-            "Reset player, target, and aura frames to default screen coordinates.",
+            "Reset player and target frames to default screen coordinates.",
             "button",
             "Reset",
             false,
