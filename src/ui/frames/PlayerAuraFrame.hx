@@ -56,7 +56,10 @@ class PlayerAuraFrame {
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return 0;
         try {
-            var container:Dynamic = g.ui.getChildByName("auraContainer");
+            // auraContainer lives INSIDE pAurasUI, not as a direct child of g.ui — searching g.ui
+            // directly always returned null, so the count was always 0 and auras never rendered.
+            var pUI:Dynamic = g.pAurasUI;
+            var container:Dynamic = findAuraContainer(pUI);
             if (container != null && container.numChildren != null) {
                 return container.numChildren;
             }
@@ -74,6 +77,36 @@ class PlayerAuraFrame {
             }
         } catch (_:Dynamic) {}
         return 0;
+    }
+
+    /**
+     * Locates a display object by name, searching recursively from root. The native aura containers
+     * live as children of pAurasUI, NOT as direct children of g.ui — searching g.ui directly always
+     * returned null, which is why auras never positioned or rendered.
+     */
+    private static function findByName(root:Dynamic, name:String):Dynamic {
+        if (root == null) return null;
+        try {
+            if (root.getChildByName != null) {
+                var direct:Dynamic = root.getChildByName(name);
+                if (direct != null) return direct;
+            }
+            if (root.numChildren != null) {
+                var n:Int = root.numChildren;
+                for (i in 0...n) {
+                    var child:Dynamic = root.getChildAtIndex(i);
+                    if (child != null) {
+                        var found:Dynamic = findByName(child, name);
+                        if (found != null) return found;
+                    }
+                }
+            }
+        } catch (_:Dynamic) {}
+        return null;
+    }
+
+    private static function findAuraContainer(root:Dynamic):Dynamic {
+        return findByName(root, "auraContainer");
     }
 
     private static function buildFrame(theStage:Dynamic):Void {
@@ -197,7 +230,7 @@ class PlayerAuraFrame {
             }
 
             var auraContainer:Dynamic = null;
-            try { auraContainer = g.ui.getChildByName("auraContainer"); } catch (_:Dynamic) {}
+            try { auraContainer = findAuraContainer(pUI); } catch (_:Dynamic) {}
 
             var numAuras:Int = getActiveAuraCount();
             var hasAuras:Bool = (numAuras > 0);
@@ -296,8 +329,8 @@ class PlayerAuraFrame {
             var g:Dynamic = Api.game;
             if (g != null) {
                 var auraContainer:Dynamic = null;
-                if (g.ui != null) {
-                    try { auraContainer = g.ui.getChildByName("auraContainer"); } catch (_:Dynamic) {}
+                if (g.pAurasUI != null) {
+                    try { auraContainer = findAuraContainer(g.pAurasUI); } catch (_:Dynamic) {}
                 }
                 if (auraContainer != null) auraContainer.visible = false;
                 if (g.pAurasUI != null) g.pAurasUI.visible = false;
@@ -310,8 +343,8 @@ class PlayerAuraFrame {
             var g:Dynamic = Api.game;
             if (g != null) {
                 var auraContainer:Dynamic = null;
-                if (g.ui != null) {
-                    try { auraContainer = g.ui.getChildByName("auraContainer"); } catch (_:Dynamic) {}
+                if (g.pAurasUI != null) {
+                    try { auraContainer = findAuraContainer(g.pAurasUI); } catch (_:Dynamic) {}
                 }
                 if (auraContainer != null) {
                     auraContainer.x = 86;
