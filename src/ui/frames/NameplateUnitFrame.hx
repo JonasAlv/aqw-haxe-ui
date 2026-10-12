@@ -10,6 +10,7 @@ import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import com.aqwapi.Api;
+import com.aqwapi.data.EntityDTO;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiMenus;
 import ui.ApiStyle;
@@ -19,6 +20,8 @@ import ui.ApiStyle;
  * Ultra-lightweight overhead display for a single character (player or enemy).
  * Attached directly as a child of the unit's MovieClip (AvatarMC or MonsterMC)
  * so it follows movement in hardware with zero latency, zero stutter, and zero CPU lag.
+ *
+ * Consumes clean EntityDTO data from the API and performs ONLY UI presentation.
  */
 class NameplateDisplay extends Sprite {
     public static inline var BAR_W:Float            = 66.0;  // Health bar width
@@ -45,8 +48,7 @@ class NameplateDisplay extends Sprite {
     public static inline var COLOR_BORDER_ENEMY:Int    = 0x450A0A; // Deep red hairline border
     public static inline var COLOR_TARGET_ENEMY:Int    = 0xF87171; // Targeted enemy bright red highlight
 
-    public var targetMC:Dynamic = null;
-    public var avatarRef:Dynamic = null;
+    public var entity:EntityDTO = null;
     public var isEnemy:Bool = false;
 
     private var _barBg:Shape = null;
@@ -126,117 +128,54 @@ class NameplateDisplay extends Sprite {
         _subTxt.filters = ApiStyle.getTextOutlineFilter();
         addChild(_subTxt);
 
-        // Interactive Click-to-Target
+        // Interactive Click-to-Target via API
         addEventListener(MouseEvent.CLICK, onClick);
     }
 
     private function onClick(e:MouseEvent):Void {
         try {
             e.stopPropagation();
-            var g:Dynamic = Api.game;
-            if (g != null && g.world != null) {
-                var targetAvt:Dynamic = (avatarRef != null) ? avatarRef : ((targetMC != null) ? targetMC.pAV : null);
-                if (targetAvt != null && Reflect.isFunction(g.world.setTarget)) {
-                    g.world.setTarget(targetAvt);
-                }
+            if (entity != null) {
+                entity.select();
             }
         } catch (_:Dynamic) {}
     }
 
-    public function update(pAV:Dynamic):Void {
-        this.avatarRef = pAV;
+    public function update(ent:EntityDTO):Void {
+        this.entity = ent;
 
         // 1. Alive / Dead Check
-        var isDead:Bool = false;
-        var curHp:Int = 0;
-        var maxHp:Int = 0;
-        var state:Int = 1;
-
-        if (pAV != null && pAV.dataLeaf != null) {
-            var dl:Dynamic = pAV.dataLeaf;
-            if (dl.intHP != null) curHp = Std.int(dl.intHP);
-            if (dl.intHPMax != null) maxHp = Std.int(dl.intHPMax);
-            if (dl.intState != null) state = Std.int(dl.intState);
-        }
-
-        if (isEnemy) {
-            if (state == 0 || curHp <= 0) isDead = true;
-        } else {
-            if (state == 0 && curHp <= 0) isDead = true;
-        }
-
-        if (isDead) {
+        if (ent == null || !ent.isAlive) {
             visible = false;
             return;
         }
 
-        // Must match character's visibility
-        if (targetMC != null && targetMC.visible == false) {
+        var mc = ent.pMC;
+        if (mc == null || mc.visible == false) {
             visible = false;
             return;
         }
         visible = true;
 
         // 2. Position synchronization with native pname coordinates
-        if (targetMC != null && targetMC.pname != null) {
-            var ty:Float = targetMC.pname.y;
-            var tx:Float = targetMC.pname.x;
-            if (y != ty) y = ty;
-            if (x != tx) x = tx;
-        }
+        try {
+            var pn = Reflect.field(mc, "pname");
+            if (pn != null) {
+                var ty:Float = pn.y;
+                var tx:Float = pn.x;
+                if (y != ty) y = ty;
+                if (x != tx) x = tx;
+            }
+        } catch (_:Dynamic) {}
 
-        // 3. Name & Subtitle Text Synchronization
-        var rawName:String = "";
+        // 3. Name & Subtitle Text from EntityDTO
+        var rawName:String = (ent.isAfk ? "<AFK> " : "") + ent.name;
         var rawSub:String = "";
 
         if (isEnemy) {
-            // Monster Name
-            if (pAV != null && pAV.objData != null && pAV.objData.strMonName != null) {
-                rawName = Std.string(pAV.objData.strMonName);
-            } else if (targetMC != null && targetMC.pname != null && targetMC.pname.ti != null) {
-                rawName = Std.string(targetMC.pname.ti.text);
-            }
-
-            // Monster Race / Type
-            if (pAV != null && pAV.objData != null && pAV.objData.sRace != null) {
-                var r:String = Std.string(pAV.objData.sRace);
-                if (r != "" && r != "None" && r != "null") {
-                    rawSub = "< " + r + " >";
-                }
-            } else if (targetMC != null && targetMC.pname != null && targetMC.pname.typ != null && targetMC.pname.typ.text != "") {
-                var r:String = Std.string(targetMC.pname.typ.text);
-                if (r.indexOf("None") == -1) rawSub = r;
-            }
+            if (ent.race != "") rawSub = "< " + ent.race + " >";
         } else {
-            // Player Name
-            if (pAV != null && pAV.objData != null && pAV.objData.strUsername != null) {
-                rawName = Std.string(pAV.objData.strUsername);
-            } else if (targetMC != null && targetMC.pname != null && targetMC.pname.ti != null) {
-                rawName = Std.string(targetMC.pname.ti.text);
-            }
-
-            // Check AFK
-            var isAfk:Bool = false;
-            try {
-                var world:Dynamic = (Api.game != null) ? Api.game.world : null;
-                if (world != null && world.uoTree != null && pAV != null && pAV.pnm != null) {
-                    var uoLeaf:Dynamic = Reflect.field(world.uoTree, pAV.pnm);
-                    if (uoLeaf == null) uoLeaf = Reflect.field(world.uoTree, Std.string(pAV.pnm).toLowerCase());
-                    if (uoLeaf != null && uoLeaf.afk == true) isAfk = true;
-                }
-            } catch (_:Dynamic) {}
-
-            if (isAfk && rawName != "" && rawName.indexOf("<AFK>") == -1) {
-                rawName = "<AFK> " + rawName;
-            }
-
-            // Guild Subtitle
-            if (pAV != null && pAV.objData != null && pAV.objData.guild != null && pAV.objData.guild.Name != null) {
-                var g:String = Std.string(pAV.objData.guild.Name);
-                if (g != "" && g != "null") rawSub = "< " + g + " >";
-            } else if (targetMC != null && targetMC.pname != null && targetMC.pname.tg != null && targetMC.pname.tg.text != "") {
-                rawSub = Std.string(targetMC.pname.tg.text);
-            }
+            if (ent.guild != "") rawSub = "< " + ent.guild + " >";
         }
 
         // Apply text only when changed
@@ -250,30 +189,19 @@ class NameplateDisplay extends Sprite {
             _subTxt.visible = (rawSub != "");
         }
 
-        // 4. Target Highlight Border
-        var isCurrentTarget:Bool = false;
-        try {
-            var g:Dynamic = Api.game;
-            if (g != null && g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null) {
-                isCurrentTarget = (g.world.myAvatar.target == avatarRef);
-            }
-        } catch (_:Dynamic) {}
-
-        if (isCurrentTarget != _lastIsTarget) {
-            _lastIsTarget = isCurrentCurrent(isCurrentTarget);
-            drawBarBg(isCurrentTarget);
+        // 4. Target Highlight Border via API
+        var isTarget:Bool = ent.isCurrentTarget;
+        if (isTarget != _lastIsTarget) {
+            _lastIsTarget = isTarget;
+            drawBarBg(isTarget);
         }
 
-        // 5. Health Bar Fill
-        if (curHp != _lastHp || maxHp != _lastMaxHp) {
-            _lastHp = curHp;
-            _lastMaxHp = maxHp;
-            drawHealthBar(curHp, maxHp);
+        // 5. Health Bar Fill via API
+        if (ent.hp != _lastHp || ent.maxHp != _lastMaxHp) {
+            _lastHp = ent.hp;
+            _lastMaxHp = ent.maxHp;
+            drawHealthBar(ent.hp, ent.maxHp);
         }
-    }
-
-    private inline function isCurrentCurrent(val:Bool):Bool {
-        return val;
     }
 
     private function drawBarBg(isTarget:Bool):Void {
@@ -320,7 +248,7 @@ class NameplateDisplay extends Sprite {
  * - Replaces AQW's heavy, embedded-font vector names with bitmap-cached fast font (_sans).
  * - Player Nameplates: Green overhead health bar + Sky Cyan name + White guild subtitle.
  * - Enemy Nameplates: Red overhead health bar + Vibrant Red name + Coral race subtitle.
- * - Suppresses native pname and hpBar MovieClips to prevent frame drops in crowded rooms.
+ * - Consumes clean EntityDTO data from the API; handles ONLY UI rendering and events.
  * - Full interactive click-to-target support.
  */
 class NameplateUnitFrame {
@@ -400,82 +328,60 @@ class NameplateUnitFrame {
     }
 
     private static function onEnterFrame(e:Event):Void {
-        if (!ApiMenus.isInGame()) {
+        if (!ApiMenus.isInGame() || !isWidgetEnabled()) {
             if (_activePlates.length > 0) disableAllPlates();
             return;
         }
-
-        if (!isWidgetEnabled()) {
-            if (_activePlates.length > 0) disableAllPlates();
-            return;
-        }
-
-        var g:Dynamic = Api.game;
-        if (g == null || g.world == null) return;
-        var world:Dynamic = g.world;
 
         // 1. Prune detached or destroyed plates
         var i:Int = _activePlates.length - 1;
         while (i >= 0) {
             var p = _activePlates[i];
-            if (p.targetMC == null || p.targetMC.stage == null || p.targetMC.parent == null) {
+            var dead:Bool = false;
+            if (p.entity == null || !p.entity.hasGraphic || p.entity.pMC == null) {
+                dead = true;
+            } else {
+                try {
+                    if (p.entity.pMC.stage == null || p.entity.pMC.parent == null) dead = true;
+                } catch (_:Dynamic) {
+                    dead = true;
+                }
+            }
+
+            if (dead) {
+                if (p.entity != null) p.entity.showNativeName();
+                if (p.entity != null && p.entity.pMC != null) {
+                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
+                }
                 p.destroy();
-                try { Reflect.deleteField(p.targetMC, "__nameplate"); } catch (_:Dynamic) {}
                 _activePlates.splice(i, 1);
             }
             i--;
         }
 
-        // 2. Scan all active rendered characters in world.CHARS
-        var chars:Dynamic = world.CHARS;
-        if (chars != null && chars.numChildren != null) {
-            var allowEnemies:Bool = isEnemiesEnabled();
-            var allowPlayers:Bool = isPlayersEnabled();
-            var count:Int = chars.numChildren;
+        // 2. Query entities on screen directly from the API!
+        var allowEnemies:Bool = isEnemiesEnabled();
+        var allowPlayers:Bool = isPlayersEnabled();
+        var entities:Array<EntityDTO> = (Api.map != null) ? Api.map.getEntitiesOnScreen() : [];
 
-            for (idx in 0...count) {
-                var mc:Dynamic = null;
-                try { mc = chars.getChildAt(idx); } catch (_:Dynamic) { continue; }
-                if (mc == null) continue;
+        for (ent in entities) {
+            if (ent == null || !ent.hasGraphic || ent.pMC == null) continue;
+            var isEnemy:Bool = ent.isMonster || ent.isHostilePvP;
+            if (isEnemy && !allowEnemies) continue;
+            if (!isEnemy && !allowPlayers) continue;
 
-                // Character MovieClip verification: must possess pAV and pname
-                if (mc.pAV != null && mc.pname != null) {
-                    var isEnemy:Bool = (mc.isMonster == true);
-
-                    // Check PvP hostility if it is a player avatar
-                    if (!isEnemy && world.bPvP == true) {
-                        try {
-                            if (world.myAvatar != null && world.myAvatar.dataLeaf != null && mc.pAV.dataLeaf != null) {
-                                var myTeam = world.myAvatar.dataLeaf.pvpTeam;
-                                var theirTeam = mc.pAV.dataLeaf.pvpTeam;
-                                if (myTeam != null && theirTeam != null && myTeam != theirTeam) {
-                                    isEnemy = true;
-                                }
-                            }
-                        } catch (_:Dynamic) {}
-                    }
-
-                    if (isEnemy && !allowEnemies) continue;
-                    if (!isEnemy && !allowPlayers) continue;
-
-                    attachOrUpdate(mc, mc.pAV, isEnemy);
-                }
-            }
+            attachOrUpdate(ent, isEnemy);
         }
     }
 
-    private static function attachOrUpdate(mc:Dynamic, pAV:Dynamic, isEnemy:Bool):Void {
-        if (mc == null || pAV == null) return;
+    private static function attachOrUpdate(ent:EntityDTO, isEnemy:Bool):Void {
+        var mc:Dynamic = ent.pMC;
+        if (mc == null) return;
 
-        // 1. Suppress native vector pname and hpBar MovieClips
-        if (mc.pname != null && mc.pname.visible == true) {
-            mc.pname.visible = false;
-        }
-        if (mc.hpBar != null && mc.hpBar.visible == true) {
-            mc.hpBar.visible = false;
-        }
+        // Suppress native vector pname and hpBar via API
+        ent.hideNativeName();
 
-        // 2. Retrieve existing or create new NameplateDisplay
+        // Retrieve existing or create new NameplateDisplay
         var plate:NameplateDisplay = null;
         if (Reflect.hasField(mc, "__nameplate")) {
             plate = Reflect.field(mc, "__nameplate");
@@ -483,8 +389,7 @@ class NameplateUnitFrame {
 
         if (plate == null) {
             plate = new NameplateDisplay(isEnemy);
-            plate.targetMC = mc;
-            plate.avatarRef = pAV;
+            plate.entity = ent;
             Reflect.setField(mc, "__nameplate", plate);
             mc.addChild(plate);
             _activePlates.push(plate);
@@ -492,18 +397,20 @@ class NameplateUnitFrame {
             if (plate.parent != mc) {
                 mc.addChild(plate);
             }
-            plate.avatarRef = pAV;
+            plate.entity = ent;
         }
 
-        // 3. Update plate contents
-        plate.update(pAV);
+        // Update plate contents using clean EntityDTO
+        plate.update(ent);
     }
 
     private static function disableAllPlates():Void {
         for (p in _activePlates) {
-            restoreNative(p.targetMC);
+            if (p.entity != null) p.entity.showNativeName();
+            if (p.entity != null && p.entity.pMC != null) {
+                try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
+            }
             p.destroy();
-            try { Reflect.deleteField(p.targetMC, "__nameplate"); } catch (_:Dynamic) {}
         }
         _activePlates = [];
     }
@@ -513,9 +420,11 @@ class NameplateUnitFrame {
         while (i >= 0) {
             var p = _activePlates[i];
             if (p.isEnemy) {
-                restoreNative(p.targetMC);
+                if (p.entity != null) p.entity.showNativeName();
+                if (p.entity != null && p.entity.pMC != null) {
+                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
+                }
                 p.destroy();
-                try { Reflect.deleteField(p.targetMC, "__nameplate"); } catch (_:Dynamic) {}
                 _activePlates.splice(i, 1);
             }
             i--;
@@ -527,24 +436,15 @@ class NameplateUnitFrame {
         while (i >= 0) {
             var p = _activePlates[i];
             if (!p.isEnemy) {
-                restoreNative(p.targetMC);
+                if (p.entity != null) p.entity.showNativeName();
+                if (p.entity != null && p.entity.pMC != null) {
+                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
+                }
                 p.destroy();
-                try { Reflect.deleteField(p.targetMC, "__nameplate"); } catch (_:Dynamic) {}
                 _activePlates.splice(i, 1);
             }
             i--;
         }
-    }
-
-    private static function restoreNative(mc:Dynamic):Void {
-        if (mc == null) return;
-        try {
-            if (mc.pname != null) mc.pname.visible = true;
-            if (mc.hpBar != null) {
-                var world:Dynamic = (Api.game != null) ? Api.game.world : null;
-                mc.hpBar.visible = (world != null && world.showHPBar == true);
-            }
-        } catch (_:Dynamic) {}
     }
 }
 #else
