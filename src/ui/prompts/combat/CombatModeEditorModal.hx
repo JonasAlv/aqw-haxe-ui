@@ -280,13 +280,19 @@ class CombatModeEditorModal {
                     details = SkillManager.getModeDetails(cName, mName);
                 }
                 if (details != null) {
+                    var isUseIfAvail:Bool = false;
                     if (ddExecMode != null) {
                         var eMode:String = (details.skillUseMode != null && details.skillUseMode != "") ? details.skillUseMode : "WaitForCooldown";
-                        ddExecMode.setSelectedItem(eMode);
+                        isUseIfAvail = (eMode.toLowerCase() == "useifavailable");
+                        ddExecMode.setSelectedItem(isUseIfAvail ? "UseIfAvailable" : "WaitForCooldown");
                     }
                     if (inputTimeout != null) {
-                        var toVal:Int = (details.timeout != null) ? details.timeout : 1500;
-                        inputTimeout.text = (toVal >= 1500) ? Std.string(toVal) : "1500";
+                        var toVal:Int = (details.timeout != null) ? details.timeout : (isUseIfAvail ? 0 : 1500);
+                        if (isUseIfAvail) {
+                            inputTimeout.text = (toVal > 0) ? Std.string(toVal) : "0";
+                        } else {
+                            inputTimeout.text = (toVal >= 1500) ? Std.string(toVal) : "1500";
+                        }
                     }
                     if (inputStopAuras != null) inputStopAuras.text = (details.stopOnTargetAuras != null) ? details.stopOnTargetAuras : "";
                     if (inputCombo != null) inputCombo.text = (details.combo != null) ? details.combo : "";
@@ -337,7 +343,20 @@ class CombatModeEditorModal {
                 return list;
             };
 
-            ddExecMode = new Dropdown(360, 26, ["WaitForCooldown", "UseIfAvailable"], function(sel:String):Void {});
+            ddExecMode = new Dropdown(360, 26, ["WaitForCooldown", "UseIfAvailable"], function(sel:String):Void {
+                if (inputTimeout != null) {
+                    var curTo = Std.parseInt(StringTools.trim(inputTimeout.text));
+                    if (sel == "UseIfAvailable") {
+                        if (curTo == null || curTo == 1500) {
+                            inputTimeout.text = "0";
+                        }
+                    } else {
+                        if (curTo == null || curTo < 1500) {
+                            inputTimeout.text = "1500";
+                        }
+                    }
+                }
+            });
             ddExecMode.x = 25;
             ddExecMode.y = 152;
             ddExecMode.setSelectedItem("WaitForCooldown");
@@ -513,10 +532,11 @@ class CombatModeEditorModal {
                     var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
                     var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
                     var execMode = (ddExecMode != null && ddExecMode.selectedItem != null && ddExecMode.selectedItem != "") ? ddExecMode.selectedItem : "WaitForCooldown";
-                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "1500";
+                    var isUseIfAvail:Bool = (execMode.toLowerCase() == "useifavailable");
+                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : (isUseIfAvail ? "0" : "1500");
                     var pTimeout:Null<Int> = Std.parseInt(timeoutStr);
-                    var rawTimeout = (pTimeout != null) ? pTimeout : 1500;
-                    var timeout = (rawTimeout >= 1500) ? rawTimeout : 1500;
+                    var rawTimeout = (pTimeout != null) ? pTimeout : (isUseIfAvail ? 0 : 1500);
+                    var timeout = isUseIfAvail ? ((rawTimeout > 0) ? rawTimeout : 0) : ((rawTimeout >= 1500) ? rawTimeout : 1500);
                     var stopAuras = (inputStopAuras != null && inputStopAuras.text != null) ? StringTools.trim(inputStopAuras.text) : "";
                     var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
 
