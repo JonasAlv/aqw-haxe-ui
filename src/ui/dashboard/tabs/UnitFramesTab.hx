@@ -63,6 +63,62 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        modal.addSectionHeader("Overhead Nameplates (WoW Style)");
+
+        // 1. Master Nameplates
+        modal.addItemRow(
+            "Nameplates",
+            "Zero-lag overhead nameplates with fast font, replacing native AQW names and health bars.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isNameplatesEnabled();
+                var next = !cur;
+                UnitFramesManager.setNameplatesEnabled(next);
+                ApiNotificationManager.notify("Nameplates: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isNameplatesEnabled();
+            }
+        );
+
+        // 2. Enemy Nameplates
+        modal.addItemRow(
+            "Enemy Overhead Bars",
+            "Overhead red health bars and vibrant red names for monsters and hostile units.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isEnemyNameplatesEnabled();
+                var next = !cur;
+                UnitFramesManager.setEnemyNameplatesEnabled(next);
+                ApiNotificationManager.notify("Enemy Nameplates: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isEnemyNameplatesEnabled();
+            }
+        );
+
+        // 3. Player Nameplates
+        modal.addItemRow(
+            "Player Overhead Bars",
+            "Overhead green health bars, sky cyan names, and guild titles for players.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPlayerNameplatesEnabled();
+                var next = !cur;
+                UnitFramesManager.setPlayerNameplatesEnabled(next);
+                ApiNotificationManager.notify("Player Nameplates: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPlayerNameplatesEnabled();
+            }
+        );
+
         modal.addSectionHeader("Floating Combat Text (Damage Numbers)");
 
         // 1. Floating Combat Text

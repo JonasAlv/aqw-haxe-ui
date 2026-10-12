@@ -28,6 +28,7 @@ class UnitFramesManager {
 
         PlayerUnitFrame.init(pocket, overlay);
         TargetUnitFrame.init(pocket, overlay);
+        NameplateUnitFrame.init(pocket, overlay);
         syncNativeHideUI();
 
         if (Api.dispatcher != null) {
@@ -53,6 +54,30 @@ class UnitFramesManager {
     public static inline function setTargetFrameEnabled(enabled:Bool):Void {
         TargetUnitFrame.setWidgetEnabled(enabled);
         syncNativeHideUI();
+    }
+
+    public static inline function isNameplatesEnabled():Bool {
+        return NameplateUnitFrame.isWidgetEnabled();
+    }
+
+    public static inline function setNameplatesEnabled(enabled:Bool):Void {
+        NameplateUnitFrame.setWidgetEnabled(enabled);
+    }
+
+    public static inline function isEnemyNameplatesEnabled():Bool {
+        return NameplateUnitFrame.isEnemiesEnabled();
+    }
+
+    public static inline function setEnemyNameplatesEnabled(enabled:Bool):Void {
+        NameplateUnitFrame.setEnemiesEnabled(enabled);
+    }
+
+    public static inline function isPlayerNameplatesEnabled():Bool {
+        return NameplateUnitFrame.isPlayersEnabled();
+    }
+
+    public static inline function setPlayerNameplatesEnabled(enabled:Bool):Void {
+        NameplateUnitFrame.setPlayersEnabled(enabled);
     }
 
     /**
@@ -165,6 +190,7 @@ class UnitFramesManager {
     public static function reloadFromConfig():Void {
         PlayerUnitFrame.reloadFromConfig();
         TargetUnitFrame.reloadFromConfig();
+        NameplateUnitFrame.reloadFromConfig();
         syncNativeHideUI();
     }
 
@@ -181,6 +207,12 @@ class UnitFramesManager {
     public static function setPlayerFrameEnabled(enabled:Bool):Void {}
     public static function isTargetFrameEnabled():Bool return false;
     public static function setTargetFrameEnabled(enabled:Bool):Void {}
+    public static function isNameplatesEnabled():Bool return false;
+    public static function setNameplatesEnabled(enabled:Bool):Void {}
+    public static function isEnemyNameplatesEnabled():Bool return false;
+    public static function setEnemyNameplatesEnabled(enabled:Bool):Void {}
+    public static function isPlayerNameplatesEnabled():Bool return false;
+    public static function setPlayerNameplatesEnabled(enabled:Bool):Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
 }
