@@ -10,7 +10,6 @@ import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import com.aqwapi.Api;
 import com.aqwapi.data.EntityDTO;
-import ui.Overlay;
 import ui.ApiDashboardModal;
 import ui.ApiMenus;
 import ui.ApiStyle;
@@ -29,7 +28,7 @@ import com.aqwapi.utils.ApiConfig;
  */
 class TargetUnitFrame {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _widget:Sprite = null;
     private static var _initialized:Bool = false;
 
@@ -58,7 +57,7 @@ class TargetUnitFrame {
     private static var _lastMaxMp:Int = -1;
     private static var _lastHeaderStr:String = "";
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;

@@ -1,7 +1,6 @@
 package ui.frames;
 
 #if flash
-import ui.Overlay;
 import ui.ApiNotificationManager;
 import com.aqwapi.Api;
 import com.aqwapi.events.ApiEvent;
@@ -23,7 +22,7 @@ import com.aqwapi.utils.ApiConfig;
 class UnitFramesManager {
     private static var _initialized:Bool = false;
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
 

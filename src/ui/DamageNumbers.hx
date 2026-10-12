@@ -17,7 +17,6 @@ import com.aqwapi.Api;
 import com.aqwapi.utils.ApiLogger;
 import ui.ApiDashboardModal;
 import ui.ApiStyle;
-import ui.Overlay;
 import com.aqwapi.utils.ApiConfig;
 
 /**
@@ -146,7 +145,7 @@ class DamageParticle extends Sprite {
  */
 class DamageNumbers {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _container:Sprite = null;
     private static var _hookedSfc:Dynamic = null;
     private static var _initialized:Bool = false;
@@ -167,7 +166,7 @@ class DamageNumbers {
     private static inline var COLOR_MISS:Int      = COLOR_AVOID;
     private static inline var COLOR_INCOMING:Int  = 0xEF4444;
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;

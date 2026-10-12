@@ -13,7 +13,6 @@ import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.ApiToolRegistry;
-import ui.Overlay;
 import ui.prompts.ApiPromptModal;
 import ui.widgets.CustomWidgetDef;
 
@@ -82,7 +81,7 @@ private class CheckboxView extends Sprite {
 
 class WidgetEditorModal {
     public static function show(
-        overlay:Overlay,
+        overlay:Dynamic,
         def:CustomWidgetDef,
         getDefaultItems:Void->Array<WidgetItemConfig>,
         onSave:Void->Void,

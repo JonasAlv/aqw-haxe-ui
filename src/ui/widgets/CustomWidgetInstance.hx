@@ -12,7 +12,6 @@ import ui.ApiDashboardModal;
 import ui.ApiMenus;
 import ui.ApiStyle;
 import ui.ApiToolRegistry;
-import ui.Overlay;
 import ui.widgets.CustomWidgetDef;
 
 /**
@@ -25,7 +24,7 @@ class CustomWidgetInstance extends Sprite {
 
     public var def:CustomWidgetDef;
     private var _theStage:Dynamic;
-    private var _overlay:Overlay;
+    private var _overlay:Dynamic;
 
     private var _bg:Sprite;
     private var _headerBar:Sprite;
@@ -135,7 +134,7 @@ class CustomWidgetInstance extends Sprite {
         g.lineTo(cx + 3.5, cy - 2.0);
     }
 
-    public function new(def:CustomWidgetDef, theStage:Dynamic, overlay:Overlay) {
+    public function new(def:CustomWidgetDef, theStage:Dynamic, overlay:Dynamic) {
         super();
         this.def = def;
         this._theStage = theStage;
@@ -645,7 +644,8 @@ class CustomWidgetInstance extends Sprite {
             this.visible = false;
             return;
         }
-        var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
+        var isHostPanel:Bool = (_overlay != null && Reflect.hasField(_overlay, "currentFrameLabel") && Reflect.field(_overlay, "currentFrameLabel") == "Panel");
+        var isPanelOpen:Bool = isHostPanel || ApiDashboardModal.isOpen();
         this.visible = !isPanelOpen;
         if (this.visible) {
             updateButtonVisuals();

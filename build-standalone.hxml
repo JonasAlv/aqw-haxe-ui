@@ -9,4 +9,3 @@
 --macro include('ui')
 --macro exclude('com.aqwapi')
 --macro exclude('hscript')
-# Overlay IS included here — this SWC is self-contained (no AS3 Overlay.as at runtime).

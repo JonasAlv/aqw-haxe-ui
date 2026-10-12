@@ -8,7 +8,6 @@ import flash.text.TextField;
 import flash.text.TextFormat;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
-import ui.Overlay;
 import ui.prompts.ApiPromptModal;
 
 typedef WidgetOptionItem = {
@@ -25,7 +24,7 @@ typedef WidgetOptionItem = {
  */
 class WidgetConfigModal {
     public static function show(
-        overlay:Overlay,
+        overlay:Dynamic,
         widgetTitle:String,
         options:Array<WidgetOptionItem>,
         onSave:Array<String>->Void

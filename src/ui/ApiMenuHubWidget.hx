@@ -9,7 +9,6 @@ import ui.frames.UnitFramesManager;
 import ui.ApiHudManager;
 import ui.ApiToolsWidget;
 import ui.ApiNotificationManager;
-import ui.Overlay;
 
 /**
  * ApiMenuHubWidget:
@@ -27,10 +26,10 @@ import ui.Overlay;
  */
 class ApiMenuHubWidget {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _initialized:Bool = false;
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;

@@ -4,7 +4,6 @@ package ui;
 import flash.events.Event;
 import com.aqwapi.Api;
 import com.aqwapi.utils.ApiLogger;
-import ui.Overlay;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
@@ -25,7 +24,7 @@ typedef CustomWidgetDef = ui.widgets.CustomWidgetDef.CustomWidgetDef;
  */
 class ApiToolsWidget {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _theStage:Dynamic = null;
     private static var _initialized:Bool = false;
 
@@ -40,7 +39,7 @@ class ApiToolsWidget {
         return ApiToolRegistry.getAll();
     }
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;

@@ -13,7 +13,6 @@ import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import ui.ApiDashboardModal;
 import ui.ApiStyle;
-import ui.Overlay;
 import com.aqwapi.utils.ApiConfig;
 
 typedef HudButtonDef = {
@@ -29,12 +28,12 @@ typedef HudButtonDef = {
 
 class ApiHudManager {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _buttons:Map<String, Sprite> = new Map<String, Sprite>();
     private static var _defs:Array<HudButtonDef> = [];
     private static var _initialized:Bool = false;
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;
@@ -294,7 +293,8 @@ class ApiHudManager {
                 btn.visible = false;
                 return;
             }
-            var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
+            var isHostPanel:Bool = (_overlay != null && Reflect.hasField(_overlay, "currentFrameLabel") && Reflect.field(_overlay, "currentFrameLabel") == "Panel");
+            var isPanelOpen:Bool = isHostPanel || ApiDashboardModal.isOpen();
             btn.visible = !isPanelOpen;
             if (btn.visible) {
                 updateVisual();

@@ -14,7 +14,6 @@ import ui.ApiDashboardModal;
 import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
-import ui.Overlay;
 import ui.prompts.ApiPromptModal;
 import com.aqwapi.utils.ApiConfig;
 
@@ -39,7 +38,7 @@ typedef MapPlayerInfo = {
  */
 class PlayersWidget {
     private static var _pocket:Dynamic = null;
-    private static var _overlay:Overlay = null;
+    private static var _overlay:Dynamic = null;
     private static var _widget:Sprite = null;
     private static var _initialized:Bool = false;
 
@@ -118,7 +117,7 @@ class PlayersWidget {
         ApiConfig.setInt("api_widget_players_y", Math.round(_widget.y));
     }
 
-    public static function init(pocket:Dynamic, overlay:Overlay):Void {
+    public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
         _pocket = pocket;
@@ -228,7 +227,8 @@ class PlayersWidget {
     }
 
     public static function isBlockedByWindowOrModal():Bool {
-        if (_overlay != null && _overlay.currentFrameLabel == "Panel") return true;
+        var isHostPanel = (_overlay != null && Reflect.hasField(_overlay, "currentFrameLabel") && Reflect.field(_overlay, "currentFrameLabel") == "Panel");
+        if (isHostPanel) return true;
         if (ApiDashboardModal.isOpen()) return true;
         if (ApiPromptModal.isOpen()) return true;
         try {
