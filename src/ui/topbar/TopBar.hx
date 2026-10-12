@@ -329,10 +329,12 @@ class TopBar extends Sprite {
         _stage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void onTick());
     }
 
+    public static inline var MARGIN_RIGHT:Float = 44.0;
+
     public function updatePosition():Void {
         if (_stage == null) return;
         var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
-        this.x = sw - _barWidth - ApiStyle.SCREEN_MARGIN;
+        this.x = sw - _barWidth - MARGIN_RIGHT;
         this.y = ApiStyle.SCREEN_MARGIN;
     }
 
@@ -430,6 +432,15 @@ class TopBar extends Sprite {
         // 4. Close dropdown if a modal window opens
         if (_activeTab != null && ApiDashboardModal.isOpen()) {
             closeDropdown();
+        }
+
+        // 5. Ensure TopBar position remains synced with stage
+        if (_stage != null) {
+            var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+            var targetX = sw - _barWidth - MARGIN_RIGHT;
+            if (Math.abs(this.x - targetX) > 1.0) {
+                updatePosition();
+            }
         }
     }
 }

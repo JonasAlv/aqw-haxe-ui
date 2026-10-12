@@ -89,7 +89,6 @@ class CustomWidgetInstance extends BaseWidget {
         _collapsibleRows = Math.ceil(collapsibleList.length / 2.0);
         _totalRows = _fixedRows + _collapsibleRows;
 
-        var startY:Float = _fixedRows * 30;
         for (i in 0...collapsibleList.length) {
             var item = collapsibleList[i];
             var tool = ApiToolRegistry.get(item.toolId);
@@ -98,7 +97,7 @@ class CustomWidgetInstance extends BaseWidget {
             var col = i % 2;
             var row = Math.floor(i / 2.0);
             var bx:Float = (col == 0) ? 8 : 118;
-            var by:Float = startY + (row * 30);
+            var by:Float = row * 30;
 
             var btnView = createToolButton(tool, false);
             btnView.btn.x = bx;
@@ -168,13 +167,11 @@ class CustomWidgetInstance extends BaseWidget {
     }
 
     override public function computeCollapsedWidth():Float {
-        var isCompact = isCollapsed && (_fixedRows == 0);
-        return isCompact ? BaseWidget.COMPACT_W : WIDGET_W;
+        return (_fixedRows == 0) ? BaseWidget.COMPACT_W : WIDGET_W;
     }
 
     override public function computeCollapsedHeight():Float {
-        var isCompact = isCollapsed && (_fixedRows == 0);
-        if (isCompact) return BaseWidget.COMPACT_H;
+        if (_fixedRows == 0) return BaseWidget.COMPACT_H;
         return (_fixedRows * 30) + 8;
     }
 
@@ -186,14 +183,22 @@ class CustomWidgetInstance extends BaseWidget {
     override public function getCurrentHeight():Float {
         var isCompact = isCollapsed && (_fixedRows == 0);
         if (isCompact) return BaseWidget.COMPACT_H;
-        return isCollapsed ? ((_fixedRows * 30) + 8) : (24 + (_totalRows * 30) + 4);
+        return isCollapsed ? ((_fixedRows * 30) + 8) : ((_totalRows > 0) ? (24 + (_totalRows * 30) + 4) : 32.0);
+    }
+
+    override public function loadPosition():Void {
+        this.x = (def != null && def.x >= 0) ? def.x : defaultX;
+        this.y = (def != null && def.y >= 0) ? def.y : defaultY;
+        clampToScreen();
     }
 
     override public function savePosition():Void {
         super.savePosition();
-        def.x = Math.round(this.x);
-        def.y = Math.round(this.y);
-        WidgetManager.saveCustomWidgets();
+        if (def != null) {
+            def.x = Math.round(this.x);
+            def.y = Math.round(this.y);
+            WidgetManager.saveCustomWidgets();
+        }
     }
 
     override public function toggleCollapse():Void {
@@ -298,10 +303,11 @@ class CustomWidgetInstance extends BaseWidget {
             }
 
             _fixedContainer.y = 24;
-            _fixedContainer.visible = true;
-            _collapsibleContainer.visible = true;
+            _fixedContainer.visible = (_fixedRows > 0);
+            _collapsibleContainer.y = 24 + (_fixedRows * 30);
+            _collapsibleContainer.visible = (_collapsibleRows > 0);
 
-            var h:Float = 24 + (_totalRows * 30) + 4;
+            var h:Float = (_totalRows > 0) ? (24 + (_totalRows * 30) + 4) : 32.0;
 
             bg.graphics.clear();
             bg.graphics.beginFill(ApiStyle.COLOR_BG_MAIN, 0.94);

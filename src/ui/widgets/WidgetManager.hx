@@ -228,6 +228,19 @@ class WidgetManager {
             unregisterWidget(id);
         }
 
+        // Safety cleanup for any orphaned CustomWidgetInstance directly on stage
+        if (_theStage != null) {
+            var i = _theStage.numChildren - 1;
+            while (i >= 0) {
+                var child = _theStage.getChildAt(i);
+                if (Std.isOfType(child, CustomWidgetInstance)) {
+                    var cWidget:CustomWidgetInstance = cast child;
+                    cWidget.detach();
+                }
+                i--;
+            }
+        }
+
         _customWidgetDefs = loadCustomWidgets();
 
         for (def in _customWidgetDefs) {
@@ -243,7 +256,7 @@ class WidgetManager {
     }
 
     public static function createNewWidget():Void {
-        var id = "widget_" + Date.now().getTime();
+        var id = "widget_" + Std.string(Date.now().getTime());
         var newDef:CustomWidgetDef = {
             id: id,
             title: "Custom Widget " + (_customWidgetDefs.length + 1),
@@ -251,17 +264,8 @@ class WidgetManager {
             y: 82 + (_customWidgetDefs.length * 30),
             isCollapsed: false,
             enabled: true,
-            items: [
-                { toolId: "script_runner", isFixed: true },
-                { toolId: "accept_loot", isFixed: true },
-                { toolId: "infinite_range", isFixed: false },
-                { toolId: "provoke_all", isFixed: false }
-            ]
+            items: []
         };
-        _customWidgetDefs.push(newDef);
-        saveCustomWidgets();
-        loadAndBuildCustomWidgets();
-        ApiDashboardModal.refreshCurrentTab();
         openEditor(newDef);
     }
 
@@ -301,7 +305,7 @@ class WidgetManager {
     }
 
     public static function openEditor(def:CustomWidgetDef):Void {
-        if (_overlay == null) return;
+        if (_overlay == null || def == null) return;
         WidgetEditorModal.show(
             _overlay,
             def,
@@ -309,9 +313,19 @@ class WidgetManager {
                 return getDefaultCustomWidgetItems();
             },
             function():Void {
+                var found = false;
+                for (i in 0..._customWidgetDefs.length) {
+                    if (_customWidgetDefs[i].id == def.id) {
+                        _customWidgetDefs[i] = def;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) _customWidgetDefs.push(def);
+
                 saveCustomWidgets();
                 loadAndBuildCustomWidgets();
-                ApiNotificationManager.notify("Widget saved!");
+                ApiDashboardModal.refreshCurrentTab();
             },
             function(id:String):Void {
                 deleteWidget(id);
