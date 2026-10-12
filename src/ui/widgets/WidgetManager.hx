@@ -163,7 +163,14 @@ class WidgetManager {
     }
 
     public static function loadCustomWidgets():Array<CustomWidgetDef> {
-        var raw = ApiConfig.getString(CUSTOM_WIDGETS_KEY, "");
+        var raw:String = ApiConfig.getGlobalString(CUSTOM_WIDGETS_KEY, "");
+        if (raw == null || raw == "") {
+            raw = ApiConfig.getString(CUSTOM_WIDGETS_KEY, "");
+            // Cross-tier migration: if found in legacy account config, persist to global storage
+            if (raw != null && raw != "") {
+                ApiConfig.setGlobalString(CUSTOM_WIDGETS_KEY, raw);
+            }
+        }
         if (raw != null && raw != "") {
             try {
                 var parsed:Dynamic = haxe.Json.parse(raw);
@@ -210,6 +217,7 @@ class WidgetManager {
     public static function saveCustomWidgets():Void {
         try {
             var raw = haxe.Json.stringify(_customWidgetDefs);
+            ApiConfig.setGlobalString(CUSTOM_WIDGETS_KEY, raw);
             ApiConfig.setString(CUSTOM_WIDGETS_KEY, raw);
         } catch (err:Dynamic) {
             ApiLogger.error("WidgetManager", "Error saving custom widgets: " + err);
@@ -264,7 +272,7 @@ class WidgetManager {
             y: 82 + (_customWidgetDefs.length * 30),
             isCollapsed: false,
             enabled: true,
-            items: []
+            items: getDefaultCustomWidgetItems()
         };
         openEditor(newDef);
     }

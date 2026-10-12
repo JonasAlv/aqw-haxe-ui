@@ -34,7 +34,7 @@ class TargetUnitFrame {
 
     // Dimensions
     public static inline var FRAME_W:Float = 130;
-    public static inline var FRAME_H:Float = 50;
+    public static inline var FRAME_H:Float = 32;
 
     // Visual elements
     private static var _bg:Sprite = null;
@@ -204,7 +204,14 @@ class TargetUnitFrame {
                 _widget.visible = false;
                 return;
             }
-            var isPanelOpen:Bool = (_overlay != null && (_overlay.currentFrameLabel == "Panel" || ApiDashboardModal.isOpen()));
+            var isHostPanel:Bool = false;
+            try {
+                if (_overlay != null && Reflect.hasField(_overlay, "currentFrameLabel") && Reflect.field(_overlay, "currentFrameLabel") == "Panel") {
+                    isHostPanel = true;
+                }
+            } catch (_:Dynamic) {}
+
+            var isPanelOpen:Bool = isHostPanel || ApiDashboardModal.isOpen();
             if (isPanelOpen) {
                 _widget.visible = false;
                 return;
