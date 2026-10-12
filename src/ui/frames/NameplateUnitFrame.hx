@@ -256,10 +256,14 @@ class NameplateUnitFrame {
     private static var _initialized:Bool = false;
     private static var _ticker:Sprite = null;
     private static var _activePlates:Array<NameplateDisplay> = [];
+    private static var _pocket:Dynamic = null;
+    private static var _overlay:Dynamic = null;
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
         _initialized = true;
+        _pocket = pocket;
+        _overlay = overlay;
 
         var theStage:Dynamic = (_pocket != null && _pocket.stage != null) ? _pocket.stage : (_overlay != null ? _overlay.stage : null);
         if (theStage == null && Api.game != null && Api.game.stage != null) {
@@ -277,17 +281,14 @@ class NameplateUnitFrame {
 
         if (theStage != null) {
             attachTicker(theStage);
-        } else if (overlay != null) {
-            overlay.addEventListener(Event.ADDED_TO_STAGE, function(_:Event):Void {
-                if (overlay.stage != null && _ticker == null) {
-                    attachTicker(overlay.stage);
+        } else if (_overlay != null) {
+            _overlay.addEventListener(Event.ADDED_TO_STAGE, function(_:Event):Void {
+                if (_overlay.stage != null && _ticker == null) {
+                    attachTicker(_overlay.stage);
                 }
             });
         }
     }
-
-    private static var _pocket:Dynamic = null;
-    private static var _overlay:Dynamic = null;
 
     public static inline function isWidgetEnabled():Bool {
         return ApiConfig.getBool("api_frame_nameplates_enabled", true);
