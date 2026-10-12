@@ -37,6 +37,7 @@ class TopBar extends Sprite {
     private var _host:Dynamic;
 
     // Bar dimensions
+    private var _barContainer:Sprite;
     private var _barBg:Shape;
     private var _barWidth:Float = 248.0;
     private var _barHeight:Float = 26.0;
@@ -77,7 +78,10 @@ class TopBar extends Sprite {
         buildDropdowns();
         setupEvents();
         updatePosition();
-        this.visible = isTopBarEnabled();
+    }
+
+    public function isHunting():Bool {
+        return (_autoPanel != null && _autoPanel.isHunting());
     }
 
     public static function isTopBarEnabled():Bool {
@@ -87,12 +91,32 @@ class TopBar extends Sprite {
     public static function setTopBarEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_topbar_enabled", enabled);
         if (instance != null) {
-            instance.visible = enabled;
             if (!enabled) {
                 instance.closeDropdown();
             }
         }
-        ApiMenus.updateFloatingMenuVisibility();
+        StandaloneButtons.updateVisibility();
+    }
+
+    public static function toggleAuto(?anchorX:Float, ?anchorY:Float):Void {
+        if (instance != null) {
+            if (instance._activeTab == "auto") instance.closeDropdown();
+            else instance.openTab("auto", anchorX, anchorY);
+        }
+    }
+
+    public static function toggleJump(?anchorX:Float, ?anchorY:Float):Void {
+        if (instance != null) {
+            if (instance._activeTab == "jump") instance.closeDropdown();
+            else instance.openTab("jump", anchorX, anchorY);
+        }
+    }
+
+    public static function togglePlayers(?anchorX:Float, ?anchorY:Float):Void {
+        if (instance != null) {
+            if (instance._activeTab == "players") instance.closeDropdown();
+            else instance.openTab("players", anchorX, anchorY);
+        }
     }
 
     public static function init(stageObj:Dynamic, hostObj:Dynamic = null):Void {
@@ -113,8 +137,11 @@ class TopBar extends Sprite {
     private function buildBar():Void {
         this.name = "ApiTopBar";
 
+        _barContainer = new Sprite();
+        addChild(_barContainer);
+
         _barBg = new Shape();
-        addChild(_barBg);
+        _barContainer.addChild(_barBg);
 
         var curX:Float = 4.0;
         var tabH:Float = 20.0;
@@ -138,7 +165,7 @@ class TopBar extends Sprite {
             e.stopPropagation();
             toggleTab("auto");
         });
-        addChild(_tabAuto);
+        _barContainer.addChild(_tabAuto);
         curX += autoW + 3.0;
 
         // 2. Tab Jump
@@ -151,7 +178,7 @@ class TopBar extends Sprite {
             e.stopPropagation();
             toggleTab("jump");
         });
-        addChild(_tabJump);
+        _barContainer.addChild(_tabJump);
         curX += jumpW + 3.0;
 
         // 3. Tab Players
@@ -164,7 +191,7 @@ class TopBar extends Sprite {
             e.stopPropagation();
             toggleTab("players");
         });
-        addChild(_tabPlayers);
+        _barContainer.addChild(_tabPlayers);
         curX += playersW + 3.0;
 
         // 4. Tab Menu
@@ -187,7 +214,7 @@ class TopBar extends Sprite {
             closeDropdown();
             toggleDashboard();
         });
-        addChild(_tabMenu);
+        _barContainer.addChild(_tabMenu);
         curX += menuW + 4.0;
 
         _barWidth = curX;
@@ -309,6 +336,9 @@ class TopBar extends Sprite {
                 if (this.contains(disp)) {
                     return; // Click was inside TopBar or open dropdown panel
                 }
+                if (StandaloneButtons.isStandaloneButton(disp)) {
+                    return; // Click was on a standalone button
+                }
             }
             closeDropdown();
         });
@@ -353,7 +383,7 @@ class TopBar extends Sprite {
         }
     }
 
-    public function openTab(tabId:String):Void {
+    public function openTab(tabId:String, ?anchorX:Float, ?anchorY:Float):Void {
         _activeTab = tabId;
 
         _autoPanel.visible = false;
@@ -380,8 +410,18 @@ class TopBar extends Sprite {
         }
 
         if (activePanel != null) {
-            // Align dropdown right edge with TopBar right edge
-            _dropdownContainer.x = _barWidth - activePanel.width;
+            var sw:Float = (_stage != null && _stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+            var sh:Float = (_stage != null && _stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+
+            if (anchorX != null && anchorY != null) {
+                var px:Float = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sw - activePanel.width - ApiStyle.SCREEN_MARGIN, anchorX));
+                var py:Float = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sh - activePanel.height - ApiStyle.SCREEN_MARGIN, anchorY));
+                _dropdownContainer.x = px - this.x;
+                _dropdownContainer.y = py - this.y;
+            } else {
+                _dropdownContainer.x = _barWidth - activePanel.width;
+                _dropdownContainer.y = _barHeight + 2.0;
+            }
         }
 
         // Raise TopBar to top display layer
@@ -409,15 +449,37 @@ class TopBar extends Sprite {
         }
     }
 
+    private function isBlockedByHostPanel():Bool {
+        try {
+            if (_host != null && Reflect.hasField(_host, "currentFrameLabel") && Reflect.field(_host, "currentFrameLabel") == "Panel") {
+                return true;
+            }
+        } catch (_:Dynamic) {}
+        return false;
+    }
+
     public function onTick():Void {
-        // 1. Live Auto Combat dot indicator
-        var isCombatRunning = (Api.combat != null && Api.combat.isRunning());
+        // 1. In-game visibility check
+        var inGame = ApiMenus.isInGame();
+        if (!inGame) {
+            this.visible = false;
+            closeDropdown();
+            return;
+        }
+        this.visible = true;
+
+        var isBlocked = ApiDashboardModal.isOpen() || isBlockedByHostPanel();
+        var topBarActive = isTopBarEnabled() && !isBlocked;
+        if (_barContainer != null) _barContainer.visible = topBarActive;
+
+        // 2. Live Auto Combat dot indicator
+        var isCombatRunning = (Api.combat != null && Api.combat.isRunning()) || isHunting();
         if (isCombatRunning != _lastCombatActive) {
             _lastCombatActive = isCombatRunning;
             renderAutoDot(isCombatRunning);
         }
 
-        // 2. Live Area Player Count update on tab
+        // 3. Live Area Player Count update on tab
         var players = TopBarPlayersPanel.getMapPlayers();
         var count = players.length;
         if (count != _lastPlayerCount) {
@@ -427,7 +489,7 @@ class TopBar extends Sprite {
             }
         }
 
-        // 3. Tick active dropdown panel
+        // 4. Tick active dropdown panel
         if (_activeTab == "auto" && _autoPanel.visible) {
             _autoPanel.onTick();
         } else if (_activeTab == "jump" && _jumpPanel.visible) {
@@ -436,12 +498,12 @@ class TopBar extends Sprite {
             _playersPanel.onTick();
         }
 
-        // 4. Close dropdown if a modal window opens
-        if (_activeTab != null && ApiDashboardModal.isOpen()) {
+        // 5. Close dropdown if a modal window opens
+        if (_activeTab != null && isBlocked) {
             closeDropdown();
         }
 
-        // 5. Ensure TopBar position remains synced with stage
+        // 6. Ensure TopBar position remains synced with stage
         if (_stage != null) {
             var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
             var targetX = sw - _barWidth - MARGIN_RIGHT;
@@ -455,5 +517,11 @@ class TopBar extends Sprite {
 class TopBar {
     public static var instance:TopBar = null;
     public static function init(stageObj:Dynamic, hostObj:Dynamic = null):Void {}
+    public static function isTopBarEnabled():Bool return false;
+    public static function setTopBarEnabled(enabled:Bool):Void {}
+    public static function toggleAuto(?anchorX:Float, ?anchorY:Float):Void {}
+    public static function toggleJump(?anchorX:Float, ?anchorY:Float):Void {}
+    public static function togglePlayers(?anchorX:Float, ?anchorY:Float):Void {}
+    public function isHunting():Bool return false;
 }
 #end

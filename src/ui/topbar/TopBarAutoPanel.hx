@@ -59,6 +59,10 @@ class TopBarAutoPanel extends Sprite {
         buildUI();
     }
 
+    public function isHunting():Bool {
+        return _isHunting;
+    }
+
     private function buildUI():Void {
         // Background card
         _bg = new Shape();
@@ -523,5 +527,7 @@ class TopBarAutoPanel extends Sprite {
     }
 }
 #else
-class TopBarAutoPanel {}
+class TopBarAutoPanel {
+    public function isHunting():Bool return false;
+}
 #end

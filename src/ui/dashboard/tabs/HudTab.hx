@@ -7,6 +7,7 @@ import ui.ApiHudManager;
 import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.dashboard.IDashboardTab;
+import ui.topbar.StandaloneButtons;
 import ui.topbar.TopBar;
 import ui.widgets.WidgetManager;
 
@@ -28,40 +29,92 @@ class HudTab implements IDashboardTab {
                 var cur = TopBar.isTopBarEnabled();
                 var next = !cur;
                 TopBar.setTopBarEnabled(next);
-                ApiNotificationManager.notify(next ? "Top Bar: Visible" : "Top Bar: Hidden (Floating Menu active)");
+                ApiNotificationManager.notify(next ? "Top Bar: Visible" : "Top Bar: Hidden (Standalone buttons active)");
             },
             function():Bool {
                 return TopBar.isTopBarEnabled();
             }
         );
 
+        modal.addSectionHeader("Standalone Control Buttons");
+
         modal.addItemRow(
-            "Standalone Floating Menu",
-            "Always show floating Menu button even when Top Bar is active.",
+            "Standalone: Menu",
+            "Floating button to open mod dashboard directly.",
             "toggle",
             "",
             false,
             function():Void {
-                var cur = ApiConfig.getBool("api_floating_menu_enabled", false);
+                var cur = StandaloneButtons.isButtonEnabled("menu");
                 var next = !cur;
-                ApiConfig.setBool("api_floating_menu_enabled", next);
-                ApiMenus.updateFloatingMenuVisibility();
-                ApiNotificationManager.notify("Floating Menu: " + (next ? "Always Visible" : "Only when Top Bar is hidden"));
+                StandaloneButtons.setButtonEnabled("menu", next);
+                ApiNotificationManager.notify("Standalone Menu: " + (next ? "Visible" : "Hidden"));
             },
             function():Bool {
-                return ApiConfig.getBool("api_floating_menu_enabled", false);
+                return StandaloneButtons.isButtonEnabled("menu");
             }
         );
 
         modal.addItemRow(
-            "Reset Menu Button Position",
-            "Reset standalone floating Menu button position to default (x=80, y=10).",
+            "Standalone: Auto / Hunt",
+            "Floating button with live combat LED to toggle Auto panel.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = StandaloneButtons.isButtonEnabled("auto");
+                var next = !cur;
+                StandaloneButtons.setButtonEnabled("auto", next);
+                ApiNotificationManager.notify("Standalone Auto: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return StandaloneButtons.isButtonEnabled("auto");
+            }
+        );
+
+        modal.addItemRow(
+            "Standalone: Jump",
+            "Floating button to toggle Jump & Navigation panel.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = StandaloneButtons.isButtonEnabled("jump");
+                var next = !cur;
+                StandaloneButtons.setButtonEnabled("jump", next);
+                ApiNotificationManager.notify("Standalone Jump: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return StandaloneButtons.isButtonEnabled("jump");
+            }
+        );
+
+        modal.addItemRow(
+            "Standalone: Players",
+            "Floating button to toggle Area Players panel.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = StandaloneButtons.isButtonEnabled("players");
+                var next = !cur;
+                StandaloneButtons.setButtonEnabled("players", next);
+                ApiNotificationManager.notify("Standalone Players: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return StandaloneButtons.isButtonEnabled("players");
+            }
+        );
+
+        modal.addItemRow(
+            "Reset Standalone Positions",
+            "Reset standalone Menu, Auto, Jump, and Players buttons to defaults.",
             "button",
             "Reset",
             false,
             function():Void {
-                ApiMenus.resetMenuButtonPosition();
-                ApiNotificationManager.notify("Menu button position reset!");
+                StandaloneButtons.resetPositions();
+                ApiNotificationManager.notify("Standalone button positions reset!");
             }
         );
 
@@ -122,7 +175,7 @@ class HudTab implements IDashboardTab {
             }
         );
 
-        modal.addSectionHeader("Standalone Buttons");
+        modal.addSectionHeader("HUD Tool Buttons");
 
         // 1. HUD: Smart Combat
         modal.addItemRow(

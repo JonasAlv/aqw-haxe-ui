@@ -19,6 +19,7 @@ import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.ScreenFilterManager;
+import ui.topbar.StandaloneButtons;
 import ui.topbar.TopBar;
 import ui.widgets.WidgetManager;
 
@@ -26,7 +27,6 @@ class ApiMenus {
     private static var _injected:Bool = false;
     private static var _stage:Stage = null;
     private static var _host:Dynamic = null;
-    private static var _floatingMenuBtn:Sprite = null;
 
     public static function isInGame():Bool {
         try {
@@ -44,38 +44,11 @@ class ApiMenus {
     }
 
     public static function resetMenuButtonPosition():Void {
-        ApiConfig.setInt("api_floating_menu_x", 80);
-        ApiConfig.setInt("api_floating_menu_y", 10);
-        if (_floatingMenuBtn != null) {
-            _floatingMenuBtn.x = 80;
-            _floatingMenuBtn.y = 10;
-        }
+        StandaloneButtons.resetPositions();
     }
 
     public static function updateFloatingMenuVisibility():Void {
-        if (_floatingMenuBtn == null) return;
-        var inGame = isInGame();
-        if (!inGame) {
-            _floatingMenuBtn.visible = false;
-            return;
-        }
-
-        var isHostPanelOpen:Bool = false;
-        try {
-            if (_host != null && Reflect.hasField(_host, "currentFrameLabel") && Reflect.field(_host, "currentFrameLabel") == "Panel") {
-                isHostPanelOpen = true;
-            }
-        } catch (_:Dynamic) {}
-
-        var isPanelOpen:Bool = isHostPanelOpen || ApiDashboardModal.isOpen();
-        if (isPanelOpen) {
-            _floatingMenuBtn.visible = false;
-            return;
-        }
-
-        var topBarActive = TopBar.isTopBarEnabled();
-        var forceFloating = ApiConfig.getBool("api_floating_menu_enabled", false);
-        _floatingMenuBtn.visible = (!topBarActive || forceFloating);
+        StandaloneButtons.updateVisibility();
     }
 
     /**
@@ -175,13 +148,13 @@ class ApiMenus {
         // 4. Skua-Style Top Control Bar (Auto, Jump, Players, Menu)
         TopBar.init(theStage, host);
 
-        // 5. Floating On-Screen Menu Button (always active as standalone fallback when TopBar is disabled)
-        setupFloatingMenuButton(theStage, host);
+        // 5. Standalone Floating Buttons (Menu, Auto, Jump, Players)
+        StandaloneButtons.init(theStage, host);
 
         // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
         WidgetManager.init(theStage, host);
 
-        // 6. Frame hooks (cutscenes, infinite range, death spawn)
+        // 7. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);
     }
 
@@ -213,160 +186,6 @@ class ApiMenus {
                 if (infiniteRangeActive) {
                     Api.combat.applyInfiniteRange();
                 }
-            }
-        });
-    }
-
-    private static function setupFloatingMenuButton(theStage:Stage, host:Dynamic):Void {
-        var btnW:Float = 78;
-        var btnH:Float = 26;
-
-        var icon = new Sprite();
-        icon.name = "ApiMenuFloatingButton";
-        icon.buttonMode = true;
-        icon.useHandCursor = true;
-
-        var bg = new Sprite();
-        icon.addChild(bg);
-
-        var redAccent = new Shape();
-        redAccent.graphics.beginFill(ApiStyle.COLOR_ACCENT_CRIMSON, 1.0);
-        redAccent.graphics.drawRoundRect(5, 5, 3.5, 16, 1.5, 1.5);
-        redAccent.graphics.endFill();
-        icon.addChild(redAccent);
-
-        var txt = new TextField();
-        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
-        txt.defaultTextFormat = fmt;
-        txt.text = "Menu";
-        txt.x = 13;
-        txt.y = 4;
-        txt.width = btnW - 16;
-        txt.height = 18;
-        txt.selectable = false;
-        txt.mouseEnabled = false;
-        icon.addChild(txt);
-
-        var renderBtn = function(isHover:Bool):Void {
-            bg.graphics.clear();
-            var bgCol = isHover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_WIDGET;
-            var borderCol = isHover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
-
-            bg.graphics.beginFill(bgCol, ApiStyle.ALPHA_WIDGET);
-            bg.graphics.lineStyle(1, borderCol);
-            bg.graphics.drawRoundRect(0, 0, btnW, btnH, ApiStyle.CORNER_RADIUS_SM, ApiStyle.CORNER_RADIUS_SM);
-            bg.graphics.endFill();
-
-            bg.graphics.lineStyle(1, isHover ? ApiStyle.COLOR_BEVEL_LIGHT : ApiStyle.COLOR_BEVEL_SUBTLE, 0.55);
-            bg.graphics.moveTo(3, 1);
-            bg.graphics.lineTo(btnW - 3, 1);
-        };
-        renderBtn(false);
-
-        icon.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void renderBtn(true));
-        icon.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void renderBtn(false));
-
-        _floatingMenuBtn = icon;
-        var savedX = ApiConfig.getInt("api_floating_menu_x", 80);
-        var savedY = ApiConfig.getInt("api_floating_menu_y", 10);
-        icon.x = savedX;
-        icon.y = savedY;
-
-        theStage.addChild(icon);
-
-        var isDragging:Bool = false;
-        var hasDragged:Bool = false;
-        var startDownX:Float = 0;
-        var startDownY:Float = 0;
-        var dragStartX:Float = 0;
-        var dragStartY:Float = 0;
-
-        icon.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
-            isDragging = true;
-            hasDragged = false;
-            startDownX = e.stageX;
-            startDownY = e.stageY;
-            dragStartX = e.stageX - icon.x;
-            dragStartY = e.stageY - icon.y;
-            icon.cacheAsBitmap = false;
-            if (theStage != null && icon.parent == theStage) {
-                theStage.setChildIndex(icon, theStage.numChildren - 1);
-            }
-        });
-
-        theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
-            if (isDragging) {
-                var dx = e.stageX - startDownX;
-                var dy = e.stageY - startDownY;
-                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-                    hasDragged = true;
-                }
-                if (hasDragged) {
-                    var nx:Float = Math.round(e.stageX - dragStartX);
-                    var ny:Float = Math.round(e.stageY - dragStartY);
-                    var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
-                    var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550;
-
-                    if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
-                    if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
-                    if (nx > sw - btnW - ApiStyle.SCREEN_MARGIN) nx = sw - btnW - ApiStyle.SCREEN_MARGIN;
-                    if (ny > sh - btnH - ApiStyle.SCREEN_MARGIN) ny = sh - btnH - ApiStyle.SCREEN_MARGIN;
-
-                    icon.x = nx;
-                    icon.y = ny;
-                }
-            }
-        });
-
-        theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
-            if (isDragging) {
-                isDragging = false;
-                icon.cacheAsBitmap = true;
-                if (hasDragged) {
-                    ApiConfig.setInt("api_floating_menu_x", Math.round(icon.x));
-                    ApiConfig.setInt("api_floating_menu_y", Math.round(icon.y));
-                } else {
-                    if (ApiDashboardModal.isOpen()) {
-                        ApiDashboardModal.close();
-                    } else {
-                        ApiDashboardModal.show(theStage, host);
-                    }
-                }
-            }
-        });
-
-        // Manage visibility every frame: visible when TopBar is disabled (or forced), hidden during panels/modals
-        icon.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var inGame = isInGame();
-            if (!inGame) {
-                icon.visible = false;
-                return;
-            }
-
-            var isHostPanelOpen:Bool = false;
-            try {
-                if (host != null && Reflect.hasField(host, "currentFrameLabel") && Reflect.field(host, "currentFrameLabel") == "Panel") {
-                    isHostPanelOpen = true;
-                }
-            } catch (_:Dynamic) {}
-
-            var isPanelOpen:Bool = isHostPanelOpen || ApiDashboardModal.isOpen();
-            if (isPanelOpen) {
-                icon.visible = false;
-                return;
-            }
-
-            var topBarActive = TopBar.isTopBarEnabled();
-            var forceFloating = ApiConfig.getBool("api_floating_menu_enabled", false);
-            icon.visible = (!topBarActive || forceFloating);
-
-            if (icon.visible && theStage != null) {
-                var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
-                var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550;
-                if (icon.x > sw - btnW - ApiStyle.SCREEN_MARGIN) icon.x = Math.max(ApiStyle.SCREEN_MARGIN, sw - btnW - ApiStyle.SCREEN_MARGIN);
-                if (icon.y > sh - btnH - ApiStyle.SCREEN_MARGIN) icon.y = Math.max(ApiStyle.SCREEN_MARGIN, sh - btnH - ApiStyle.SCREEN_MARGIN);
-                if (icon.x < ApiStyle.SCREEN_MARGIN) icon.x = ApiStyle.SCREEN_MARGIN;
-                if (icon.y < ApiStyle.SCREEN_MARGIN) icon.y = ApiStyle.SCREEN_MARGIN;
             }
         });
     }

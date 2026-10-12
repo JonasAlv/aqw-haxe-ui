@@ -34,7 +34,7 @@ class TargetUnitFrame {
 
     // Dimensions
     public static inline var FRAME_W:Float = 130;
-    public static inline var FRAME_H:Float = 32;
+    public static inline var FRAME_H:Float = 50;
 
     // Visual elements
     private static var _bg:Sprite = null;
