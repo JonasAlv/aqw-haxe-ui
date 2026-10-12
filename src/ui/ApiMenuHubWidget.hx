@@ -1,140 +1,93 @@
 package ui;
 
 #if flash
-import flash.display.Sprite;
-import ui.widgets.CombatWidget;
-import ui.widgets.JumpWidget;
-import ui.widgets.PlayersWidget;
-import ui.frames.UnitFramesManager;
-import ui.ApiHudManager;
-import ui.ApiToolsWidget;
-import ui.ApiNotificationManager;
+import ui.widgets.WidgetManager;
+import ui.widgets.CustomWidgetDef;
 
 /**
  * ApiMenuHubWidget:
- * Master Coordinator for all modular in-game widgets & the widget creation system.
- *
- * Architecture:
- * - ApiMenus: Holds the persistent floating Menu button & toggles the fullscreen Dashboard.
- * - ApiDashboardModal: The fullscreen Control Center dashboard.
- * - ApiMenuHubWidget: Holds and coordinates all in-game widgets and the widget creation system.
- *
- * Rules:
- * - All widgets are visible ONLY when in-game (isInGame()), and hidden when Dashboard or host panel is open.
- * - Widgets never snap magnetically to edges and are strictly clamped within screen boundaries (ApiStyle.SCREEN_MARGIN).
- * - Modals opened from dashboard or widgets take top foreground priority.
+ * Facade preserving 100% backward compatibility with existing tabs and external calls,
+ * delegating directly to the centralized WidgetManager.
  */
 class ApiMenuHubWidget {
-    private static var _pocket:Dynamic = null;
-    private static var _overlay:Dynamic = null;
-    private static var _initialized:Bool = false;
-
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
-        if (_initialized) return;
-        _initialized = true;
-        _pocket = pocket;
-        _overlay = overlay;
-
-        // Initialize all modular widget subsystems
-        CombatWidget.init(pocket, overlay);
-        JumpWidget.init(pocket, overlay);
-        PlayersWidget.init(pocket, overlay);
-        UnitFramesManager.init(pocket, overlay);
-        DamageNumbers.init(pocket, overlay);
-        ApiToolsWidget.init(pocket, overlay);
-        ApiHudManager.init(pocket, overlay);
+        WidgetManager.init(pocket, overlay);
     }
 
-    // --- Widget Creation System & Custom Widgets ---
-
-    public static function createNewWidget():Void {
-        ApiToolsWidget.createNewWidget();
+    public static inline function createNewWidget():Void {
+        WidgetManager.createNewWidget();
     }
 
-    public static function getWidgets():Array<CustomWidgetDef> {
-        return ApiToolsWidget.getWidgets();
+    public static inline function getWidgets():Array<CustomWidgetDef> {
+        return WidgetManager.getCustomWidgets();
     }
 
-    public static function openEditor(def:CustomWidgetDef):Void {
-        ApiToolsWidget.openEditor(def);
+    public static inline function openEditor(def:CustomWidgetDef):Void {
+        WidgetManager.openEditor(def);
     }
 
-    public static function deleteWidget(id:String):Void {
-        ApiToolsWidget.deleteWidget(id);
+    public static inline function deleteWidget(id:String):Void {
+        WidgetManager.deleteWidget(id);
     }
 
-    public static function setWidgetEnabled(idOrEnabled:Dynamic, ?enabledVal:Null<Bool>):Void {
-        ApiToolsWidget.setWidgetEnabled(idOrEnabled, enabledVal);
+    public static inline function setWidgetEnabled(idOrEnabled:Dynamic, ?enabledVal:Null<Bool>):Void {
+        WidgetManager.setCustomWidgetEnabled(idOrEnabled, enabledVal);
     }
 
-    // --- Combat & Hunt Widget ---
-
-    public static function isCombatWidgetEnabled():Bool {
-        return CombatWidget.isWidgetEnabled();
+    public static inline function isCombatWidgetEnabled():Bool {
+        return WidgetManager.isCombatWidgetEnabled();
     }
 
-    public static function setCombatWidgetEnabled(enabled:Bool):Void {
-        CombatWidget.setWidgetEnabled(enabled);
+    public static inline function setCombatWidgetEnabled(enabled:Bool):Void {
+        WidgetManager.setCombatWidgetEnabled(enabled);
     }
 
-    public static function resetCombatWidgetPosition():Void {
-        CombatWidget.resetPosition();
+    public static inline function resetCombatWidgetPosition():Void {
+        WidgetManager.resetCombatWidgetPosition();
     }
 
-    public static function openCombatConfig():Void {
-        CombatWidget.openConfigModal();
+    public static inline function openCombatConfig():Void {
+        WidgetManager.openCombatConfig();
     }
 
-    // --- Jump / Room Navigation Widget ---
-
-    public static function isJumpWidgetEnabled():Bool {
-        return JumpWidget.isWidgetEnabled();
+    public static inline function isJumpWidgetEnabled():Bool {
+        return WidgetManager.isJumpWidgetEnabled();
     }
 
-    public static function setJumpWidgetEnabled(enabled:Bool):Void {
-        JumpWidget.setWidgetEnabled(enabled);
+    public static inline function setJumpWidgetEnabled(enabled:Bool):Void {
+        WidgetManager.setJumpWidgetEnabled(enabled);
     }
 
-    public static function resetJumpWidgetPosition():Void {
-        JumpWidget.resetPosition();
+    public static inline function resetJumpWidgetPosition():Void {
+        WidgetManager.resetJumpWidgetPosition();
     }
 
-    public static function openJumpConfig():Void {
-        JumpWidget.openConfigModal();
+    public static inline function openJumpConfig():Void {
+        WidgetManager.openJumpConfig();
     }
 
-    // --- Area Players Widget ---
-
-    public static function isPlayersWidgetEnabled():Bool {
-        return PlayersWidget.isWidgetEnabled();
+    public static inline function isPlayersWidgetEnabled():Bool {
+        return WidgetManager.isPlayersWidgetEnabled();
     }
 
-    public static function setPlayersWidgetEnabled(enabled:Bool):Void {
-        PlayersWidget.setWidgetEnabled(enabled);
+    public static inline function setPlayersWidgetEnabled(enabled:Bool):Void {
+        WidgetManager.setPlayersWidgetEnabled(enabled);
     }
 
-    public static function resetPlayersWidgetPosition():Void {
-        PlayersWidget.resetPosition();
+    public static inline function resetPlayersWidgetPosition():Void {
+        WidgetManager.resetPlayersWidgetPosition();
     }
 
-    public static function openPlayersConfig():Void {
-        PlayersWidget.openConfigModal();
+    public static inline function openPlayersConfig():Void {
+        WidgetManager.openPlayersConfig();
     }
 
-    // --- Reset All Widgets ---
-
-    public static function resetPosition():Void {
+    public static inline function resetPosition():Void {
         resetAllWidgets();
     }
 
-    public static function resetAllWidgets():Void {
-        CombatWidget.resetPosition();
-        JumpWidget.resetPosition();
-        PlayersWidget.resetPosition();
-        UnitFramesManager.resetAllPositions();
-        ApiToolsWidget.resetAllPositions();
-        ApiHudManager.resetAllPositions();
-        ApiNotificationManager.notify("All widgets reset to default positions!");
+    public static inline function resetAllWidgets():Void {
+        WidgetManager.resetAllWidgets();
     }
 }
 #else
