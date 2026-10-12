@@ -97,9 +97,9 @@ class NameplateDisplay extends Sprite {
             TextFormatAlign.CENTER
         );
         _nameTxt.defaultTextFormat = nameFmt;
-        _nameTxt.x = -100;
+        _nameTxt.x = -150;
         _nameTxt.y = NAME_Y;
-        _nameTxt.width = 200;
+        _nameTxt.width = 300;
         _nameTxt.height = NAME_H;
         _nameTxt.selectable = false;
         _nameTxt.mouseEnabled = false;
@@ -120,9 +120,9 @@ class NameplateDisplay extends Sprite {
             TextFormatAlign.CENTER
         );
         _subTxt.defaultTextFormat = subFmt;
-        _subTxt.x = -100;
+        _subTxt.x = -150;
         _subTxt.y = SUB_Y;
-        _subTxt.width = 200;
+        _subTxt.width = 300;
         _subTxt.height = SUB_H;
         _subTxt.selectable = false;
         _subTxt.mouseEnabled = false;
@@ -142,6 +142,11 @@ class NameplateDisplay extends Sprite {
         } catch (_:Dynamic) {}
     }
 
+    public function setBarVisible(show:Bool):Void {
+        _barBg.visible = show;
+        _barFill.visible = show;
+    }
+
     public function update(ent:EntityDTO):Void {
         this.entity = ent;
 
@@ -158,14 +163,18 @@ class NameplateDisplay extends Sprite {
         }
         visible = true;
 
-        // 2. Position synchronization with native pname coordinates
+        // 2. Position synchronization: dead-center horizontally above character
         try {
+            var targetX:Float = (mc.mcChar != null && mc.mcChar.x != null) ? mc.mcChar.x : 0.0;
+            if (x != targetX) x = targetX;
+
             var pn = Reflect.field(mc, "pname");
-            if (pn != null) {
+            if (pn != null && pn.y != 0) {
                 var ty:Float = pn.y;
-                var tx:Float = pn.x;
                 if (y != ty) y = ty;
-                if (x != tx) x = tx;
+            } else if (mc.mcChar != null) {
+                var ty:Float = -mc.mcChar.height - 10;
+                if (y != ty) y = ty;
             }
         } catch (_:Dynamic) {}
 
@@ -197,8 +206,12 @@ class NameplateDisplay extends Sprite {
             drawBarBg(isTarget);
         }
 
-        // 5. Health Bar Fill via API
-        if (ent.hp != _lastHp || ent.maxHp != _lastMaxHp) {
+        // 5. Health Bar Fill & Visibility via API
+        var showBar:Bool = isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled();
+        _barBg.visible = showBar;
+        _barFill.visible = showBar;
+
+        if (showBar && (ent.hp != _lastHp || ent.maxHp != _lastMaxHp)) {
             _lastHp = ent.hp;
             _lastMaxHp = ent.maxHp;
             drawHealthBar(ent.hp, ent.maxHp);
@@ -305,10 +318,10 @@ class NameplateUnitFrame {
         return ApiConfig.getBool("api_frame_nameplates_enemies", true);
     }
 
-    public static inline function setEnemiesEnabled(enabled:Bool):Void {
+    public static function setEnemiesEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_enemies", enabled);
-        if (!enabled) {
-            pruneEnemyPlates();
+        for (p in _activePlates) {
+            if (p.isEnemy) p.setBarVisible(enabled);
         }
     }
 
@@ -316,16 +329,22 @@ class NameplateUnitFrame {
         return ApiConfig.getBool("api_frame_nameplates_players", true);
     }
 
-    public static inline function setPlayersEnabled(enabled:Bool):Void {
+    public static function setPlayersEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_players", enabled);
-        if (!enabled) {
-            prunePlayerPlates();
+        for (p in _activePlates) {
+            if (!p.isEnemy) p.setBarVisible(enabled);
         }
     }
 
     public static function reloadFromConfig():Void {
         if (!isWidgetEnabled()) {
             disableAllPlates();
+        } else {
+            var showEnemies = isEnemiesEnabled();
+            var showPlayers = isPlayersEnabled();
+            for (p in _activePlates) {
+                p.setBarVisible(p.isEnemy ? showEnemies : showPlayers);
+            }
         }
     }
 
@@ -359,16 +378,11 @@ class NameplateUnitFrame {
         }
 
         // 2. Query entities on screen directly from the API!
-        var allowEnemies:Bool = isEnemiesEnabled();
-        var allowPlayers:Bool = isPlayersEnabled();
         var entities:Array<EntityDTO> = (Api.map != null) ? Api.map.getEntitiesOnScreen() : [];
 
         for (ent in entities) {
             if (ent == null || !ent.hasGraphic || ent.pMC == null) continue;
             var isEnemy:Bool = ent.isMonster || ent.isHostilePvP;
-            if (isEnemy && !allowEnemies) continue;
-            if (!isEnemy && !allowPlayers) continue;
-
             attachOrUpdate(ent, isEnemy);
         }
     }

@@ -60,7 +60,13 @@ class UnitFramesManager {
         return NameplateUnitFrame.isWidgetEnabled();
     }
 
-    public static inline function setNameplatesEnabled(enabled:Bool):Void {
+    public static function setNameplatesEnabled(enabled:Bool):Void {
+        if (enabled) {
+            if (!isEnemyNameplatesEnabled() && !isPlayerNameplatesEnabled()) {
+                setEnemyNameplatesEnabled(true);
+                setPlayerNameplatesEnabled(true);
+            }
+        }
         NameplateUnitFrame.setWidgetEnabled(enabled);
     }
 
@@ -68,7 +74,10 @@ class UnitFramesManager {
         return NameplateUnitFrame.isEnemiesEnabled();
     }
 
-    public static inline function setEnemyNameplatesEnabled(enabled:Bool):Void {
+    public static function setEnemyNameplatesEnabled(enabled:Bool):Void {
+        if (enabled && !isNameplatesEnabled()) {
+            setNameplatesEnabled(true);
+        }
         NameplateUnitFrame.setEnemiesEnabled(enabled);
     }
 
@@ -76,7 +85,10 @@ class UnitFramesManager {
         return NameplateUnitFrame.isPlayersEnabled();
     }
 
-    public static inline function setPlayerNameplatesEnabled(enabled:Bool):Void {
+    public static function setPlayerNameplatesEnabled(enabled:Bool):Void {
+        if (enabled && !isNameplatesEnabled()) {
+            setNameplatesEnabled(true);
+        }
         NameplateUnitFrame.setPlayersEnabled(enabled);
     }
 

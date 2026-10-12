@@ -83,10 +83,10 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 2. Enemy Nameplates
+        // 2. Enemy Overhead Bars
         modal.addItemRow(
             "Enemy Overhead Bars",
-            "Overhead red health bars and vibrant red names for monsters and hostile units.",
+            "Show red health bars above monsters and hostile units.",
             "toggle",
             "",
             false,
@@ -94,17 +94,17 @@ class UnitFramesTab implements IDashboardTab {
                 var cur = UnitFramesManager.isEnemyNameplatesEnabled();
                 var next = !cur;
                 UnitFramesManager.setEnemyNameplatesEnabled(next);
-                ApiNotificationManager.notify("Enemy Nameplates: " + (next ? "Enabled" : "Disabled"));
+                ApiNotificationManager.notify("Enemy Overhead Bars: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
                 return UnitFramesManager.isEnemyNameplatesEnabled();
             }
         );
 
-        // 3. Player Nameplates
+        // 3. Player Overhead Bars
         modal.addItemRow(
             "Player Overhead Bars",
-            "Overhead green health bars, sky cyan names, and guild titles for players.",
+            "Show green health bars above players.",
             "toggle",
             "",
             false,
@@ -112,7 +112,7 @@ class UnitFramesTab implements IDashboardTab {
                 var cur = UnitFramesManager.isPlayerNameplatesEnabled();
                 var next = !cur;
                 UnitFramesManager.setPlayerNameplatesEnabled(next);
-                ApiNotificationManager.notify("Player Nameplates: " + (next ? "Enabled" : "Disabled"));
+                ApiNotificationManager.notify("Player Overhead Bars: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
                 return UnitFramesManager.isPlayerNameplatesEnabled();
