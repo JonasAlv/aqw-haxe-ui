@@ -76,7 +76,7 @@ class WidgetConfigModal {
             if (opt.isFixed) fixedMap.set(opt.id, true);
         }
 
-        var rowH:Float = 42;
+        var rowH:Float = ApiStyle.HEIGHT_DIALOG_ROW;
         for (i in 0...options.length) {
             var opt = options[i];
             var row = new Sprite();

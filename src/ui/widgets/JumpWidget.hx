@@ -55,7 +55,7 @@ class JumpWidget extends BaseWidget {
     // State
     private var _lastMap:String = "";
 
-    public static inline var WIDGET_W:Float = 320;
+    public static inline var WIDGET_W:Float = ApiStyle.WIDGET_WIDTH_STANDARD;
     public static inline var HEIGHT_EXPANDED:Float = 118;
 
     private static var COMMON_PADS:Array<String> = [

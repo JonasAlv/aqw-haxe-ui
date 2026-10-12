@@ -19,7 +19,7 @@ import ui.widgets.CustomWidgetDef;
  * Visual instance of a single customizable widget on screen.
  */
 class CustomWidgetInstance extends BaseWidget {
-    public static inline var WIDGET_W:Float = 230;
+    public static inline var WIDGET_W:Float = ApiStyle.WIDGET_WIDTH_NARROW;
 
     public var def:CustomWidgetDef;
 

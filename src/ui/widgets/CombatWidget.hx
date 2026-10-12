@@ -70,7 +70,7 @@ class CombatWidget extends BaseWidget {
     private var _lastCounterActive:Int = -1;
     private var _lastCounterPaused:Bool = false;
 
-    public static inline var WIDGET_W:Float = 320;
+    public static inline var WIDGET_W:Float = ApiStyle.WIDGET_WIDTH_STANDARD;
     public static inline var HEIGHT_EXPANDED:Float = 118;
 
     public function new() {

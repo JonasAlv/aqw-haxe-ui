@@ -56,8 +56,8 @@ class PlayersWidget extends BaseWidget {
     private var _scrollDragStartY:Float = 0;
     private var _dragStartContentY:Float = 0;
 
-    private static inline var COMPACT_H:Float = 24.0;
-    private static inline var ROW_H:Float = 20.0;
+    private static inline var COMPACT_H:Float = ApiStyle.HEIGHT_DROPDOWN;
+    private static inline var ROW_H:Float = ApiStyle.HEIGHT_LIST_ROW;
     private static inline var MAX_VISIBLE_ROWS:Int = 6;
 
     public function new() {

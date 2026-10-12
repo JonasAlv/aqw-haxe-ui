@@ -140,10 +140,44 @@ class ApiStyle {
     public static inline var ALPHA_CARD:Float      = 0.97;
 
     // =========================================================================
-    // 8. GEOMETRY & SCREEN BOUNDS
+    // 8. GEOMETRY, SCREEN BOUNDS & COMPONENT SIZING TOKENS
     // =========================================================================
-    public static inline var CORNER_RADIUS:Float    = 6.0;
-    public static inline var CORNER_RADIUS_SM:Float = 4.0;
-    public static inline var CORNER_RADIUS_LG:Float = 8.0;
-    public static inline var SCREEN_MARGIN:Float    = 4.0;
+    // Corner radiuses & screen boundary padding
+    public static inline var CORNER_RADIUS:Float          = 6.0;
+    public static inline var CORNER_RADIUS_SM:Float       = 4.0;
+    public static inline var CORNER_RADIUS_LG:Float       = 8.0;
+    public static inline var SCREEN_MARGIN:Float          = 4.0;
+
+    // Standard floating widget dimensions
+    public static inline var WIDGET_WIDTH_STANDARD:Float   = 320.0;
+    public static inline var WIDGET_WIDTH_NARROW:Float     = 230.0;
+    public static inline var WIDGET_WIDTH_COMPACT:Float    = 78.0;  // Matches Main Menu pill
+    public static inline var WIDGET_HEIGHT_COMPACT:Float   = 26.0;  // Matches Main Menu pill
+    public static inline var WIDGET_HEADER_HEIGHT:Float    = 24.0;
+
+    // Standard component heights (uniform touch/mouse scale)
+    public static inline var HEIGHT_BTN_SM:Float           = 20.0;  // Mini "Goto", chips, badges
+    public static inline var HEIGHT_BTN_MD:Float           = 24.0;  // Secondary action buttons, Join
+    public static inline var HEIGHT_BTN_LG:Float           = 28.0;  // Primary action buttons (Attack, Hunt, Jump)
+    public static inline var HEIGHT_INPUT:Float            = 24.0;  // Text input plates
+    public static inline var HEIGHT_DROPDOWN:Float         = 24.0;  // Dropdown selector plates
+    public static inline var HEIGHT_LIST_ROW:Float         = 20.0;  // Compact player/item rows
+    public static inline var HEIGHT_DIALOG_ROW:Float       = 42.0;  // Checkbox config dialog rows
+
+    // Standard layout spacing & gaps
+    public static inline var GAP_XS:Float                  = 2.0;
+    public static inline var GAP_SM:Float                  = 4.0;
+    public static inline var GAP_MD:Float                  = 6.0;
+    public static inline var GAP_LG:Float                  = 8.0;
+    public static inline var GAP_ROW:Float                 = 28.0;  // Standard vertical step between widget rows
+
+    // =========================================================================
+    // 9. TYPOGRAPHY SCALE (Point Sizes)
+    // =========================================================================
+    public static inline var FONT_SIZE_BADGE:Int           = 8;
+    public static inline var FONT_SIZE_CAPTION:Int         = 9;
+    public static inline var FONT_SIZE_BODY_SM:Int         = 10;
+    public static inline var FONT_SIZE_BODY:Int            = 11;
+    public static inline var FONT_SIZE_TITLE:Int           = 12;
+    public static inline var FONT_SIZE_HEADING:Int         = 14;
 }

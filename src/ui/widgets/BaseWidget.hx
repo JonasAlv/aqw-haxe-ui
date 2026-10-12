@@ -25,8 +25,8 @@ import ui.ApiStyle;
  * - Lifecycle attach, detach, and per-frame update tick hook
  */
 class BaseWidget extends Sprite {
-    public static inline var COMPACT_W:Float = 78.0;
-    public static inline var COMPACT_H:Float = 26.0;
+    public static inline var COMPACT_W:Float = ApiStyle.WIDGET_WIDTH_COMPACT;
+    public static inline var COMPACT_H:Float = ApiStyle.WIDGET_HEIGHT_COMPACT;
 
     public var widgetId(default, null):String;
     public var widgetTitle:String;
@@ -114,7 +114,7 @@ class BaseWidget extends Sprite {
 
         // Title text
         titleTxt = new TextField();
-        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, ApiStyle.FONT_SIZE_BODY, ApiStyle.COLOR_TEXT_PRIMARY, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = widgetTitle;
         titleTxt.x = 13;
