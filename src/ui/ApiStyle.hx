@@ -180,4 +180,40 @@ class ApiStyle {
     public static inline var FONT_SIZE_BODY:Int            = 11;
     public static inline var FONT_SIZE_TITLE:Int           = 12;
     public static inline var FONT_SIZE_HEADING:Int         = 14;
+
+    // =========================================================================
+    // 10. TEXT OUTLINE & SHADOW FILTERS
+    // =========================================================================
+    #if flash
+    private static var _TEXT_OUTLINE_FILTERS:Array<flash.filters.BitmapFilter> = null;
+    private static var _TEXT_BAR_OUTLINE_FILTERS:Array<flash.filters.BitmapFilter> = null;
+
+    /**
+     * Standard text outline + shadow filter for labels, headers, and UI text.
+     * Crisp 1px black outline with subtle 1px directional drop shadow for readability.
+     */
+    public static function getTextOutlineFilter():Array<flash.filters.BitmapFilter> {
+        if (_TEXT_OUTLINE_FILTERS == null) {
+            _TEXT_OUTLINE_FILTERS = [
+                new flash.filters.GlowFilter(0x000000, 1.0, 2.0, 2.0, 5.0, 2),
+                new flash.filters.DropShadowFilter(1.0, 45.0, 0x000000, 0.85, 1.0, 1.0, 2.0, 2)
+            ];
+        }
+        return _TEXT_OUTLINE_FILTERS;
+    }
+
+    /**
+     * High-contrast text outline + shadow filter for bar text (HP, MP values over bright fills).
+     * Stronger 1px black outline with drop shadow ensuring maximum legibility on vibrant green/blue/yellow bars.
+     */
+    public static function getBarTextOutlineFilter():Array<flash.filters.BitmapFilter> {
+        if (_TEXT_BAR_OUTLINE_FILTERS == null) {
+            _TEXT_BAR_OUTLINE_FILTERS = [
+                new flash.filters.GlowFilter(0x000000, 1.0, 2.0, 2.0, 7.0, 2),
+                new flash.filters.DropShadowFilter(1.0, 45.0, 0x000000, 0.95, 1.0, 1.0, 3.0, 2)
+            ];
+        }
+        return _TEXT_BAR_OUTLINE_FILTERS;
+    }
+    #end
 }

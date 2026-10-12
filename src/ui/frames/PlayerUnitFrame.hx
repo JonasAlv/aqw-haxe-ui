@@ -201,6 +201,7 @@ class PlayerUnitFrame {
         _nameTxt.height = NAME_H + 2;
         _nameTxt.selectable = false;
         _nameTxt.mouseEnabled = false;
+        _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         _widget.addChild(_nameTxt);
 
         _subTxt = new TextField();
@@ -212,6 +213,7 @@ class PlayerUnitFrame {
         _subTxt.height = SUB_H + 2;
         _subTxt.selectable = false;
         _subTxt.mouseEnabled = false;
+        _subTxt.filters = ApiStyle.getTextOutlineFilter();
         _widget.addChild(_subTxt);
 
         // 3. Health Bar
@@ -243,6 +245,7 @@ class PlayerUnitFrame {
         _hpLeftTxt.height = HP_BAR_H + 2;
         _hpLeftTxt.selectable = false;
         _hpLeftTxt.mouseEnabled = false;
+        _hpLeftTxt.filters = ApiStyle.getBarTextOutlineFilter();
         _widget.addChild(_hpLeftTxt);
 
         // Right edge: current %
@@ -255,6 +258,7 @@ class PlayerUnitFrame {
         _hpRightTxt.height = HP_BAR_H + 2;
         _hpRightTxt.selectable = false;
         _hpRightTxt.mouseEnabled = false;
+        _hpRightTxt.filters = ApiStyle.getBarTextOutlineFilter();
         _widget.addChild(_hpRightTxt);
 
         // 4. Mana Bar
@@ -282,6 +286,7 @@ class PlayerUnitFrame {
         _mpTxt.selectable = false;
         _mpTxt.mouseEnabled = false;
         _mpTxt.visible = true;
+        _mpTxt.filters = ApiStyle.getBarTextOutlineFilter();
         _widget.addChild(_mpTxt);
 
         // 5. SP Hairline Stripe
