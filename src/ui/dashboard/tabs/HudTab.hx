@@ -6,12 +6,32 @@ import ui.ApiHudManager;
 import ui.ApiMenuHubWidget;
 import ui.ApiNotificationManager;
 import ui.dashboard.IDashboardTab;
+import ui.topbar.TopBar;
 
 class HudTab implements IDashboardTab {
     public function new() {}
 
     public function render(modal:ApiDashboardModal):Void {
-        modal.addInfoBanner("Configure floating on-screen widgets and HUD buttons. Widgets can be collapsed with [-]/[+] and freely dragged anywhere on screen. Positions are saved automatically.");
+        modal.addInfoBanner("Configure the top control bar and optional floating HUD widgets.");
+
+        modal.addSectionHeader("Top Control Bar (Skua Style)");
+
+        modal.addItemRow(
+            "Top Bar: Enabled",
+            "Anchored top-right bar with Auto, Jump, Players, and Menu dropdown tabs.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isTopBarEnabled();
+                var next = !cur;
+                TopBar.setTopBarEnabled(next);
+                ApiNotificationManager.notify("Top Bar: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isTopBarEnabled();
+            }
+        );
 
         modal.addSectionHeader("Modular Widgets");
 

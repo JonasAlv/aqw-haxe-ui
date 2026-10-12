@@ -19,6 +19,7 @@ import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.ScreenFilterManager;
+import ui.topbar.TopBar;
 
 class ApiMenus {
     private static var _injected:Bool = false;
@@ -144,10 +145,16 @@ class ApiMenus {
             }
         }
 
-        // 4. Floating On-Screen Menu Button (opens fullscreen standalone dashboard)
-        setupFloatingMenuButton(theStage, host);
+        // 4. Skua-Style Top Control Bar (Auto, Jump, Players, Menu)
+        TopBar.init(theStage, host);
 
-        // 5. Master Modular Widgets & Widget Creation System (ApiMenuHubWidget)
+        // 5. Floating On-Screen Menu Button (legacy standalone trigger, default disabled when TopBar is active)
+        var enableFloatingMenu = ApiConfig.getBool("api_floating_menu_enabled", false);
+        if (enableFloatingMenu) {
+            setupFloatingMenuButton(theStage, host);
+        }
+
+        // 6. Master Modular Widgets & Widget Creation System (ApiMenuHubWidget)
         ApiMenuHubWidget.init(theStage, host);
 
         // 6. Frame hooks (cutscenes, infinite range, death spawn)
