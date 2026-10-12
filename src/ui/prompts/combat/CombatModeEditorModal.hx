@@ -102,7 +102,7 @@ class CombatModeEditorModal {
             lblBehavior.y = 134;
             dlg.addChild(lblBehavior);
 
-            var inputTimeout = ApiPromptModal.createInput(80, 26, "0");
+            var inputTimeout = ApiPromptModal.createInput(80, 26, "1500");
             inputTimeout.x = 415;
             inputTimeout.y = 152;
             dlg.addChild(inputTimeout);
@@ -254,7 +254,7 @@ class CombatModeEditorModal {
                 if (mName == null || mName == "" || mName == "[+ New Mode]") {
                     if (inputMode != null) inputMode.text = "CustomMode";
                     if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    if (inputTimeout != null) inputTimeout.text = "0";
+                    if (inputTimeout != null) inputTimeout.text = "1500";
                     currentResetOnTarget = false;
                     updateResetTargetBtn();
                     currentAutoAttack = null;
@@ -285,8 +285,8 @@ class CombatModeEditorModal {
                         ddExecMode.setSelectedItem(eMode);
                     }
                     if (inputTimeout != null) {
-                        var toVal:Int = (details.timeout != null) ? details.timeout : 0;
-                        inputTimeout.text = (toVal > 1500) ? Std.string(toVal) : "0";
+                        var toVal:Int = (details.timeout != null) ? details.timeout : 1500;
+                        inputTimeout.text = (toVal >= 1500) ? Std.string(toVal) : "1500";
                     }
                     if (inputStopAuras != null) inputStopAuras.text = (details.stopOnTargetAuras != null) ? details.stopOnTargetAuras : "";
                     if (inputCombo != null) inputCombo.text = (details.combo != null) ? details.combo : "";
@@ -309,7 +309,7 @@ class CombatModeEditorModal {
                     setFormEditable(isUser, false);
                 } else {
                     if (ddExecMode != null) ddExecMode.setSelectedItem("WaitForCooldown");
-                    if (inputTimeout != null) inputTimeout.text = "0";
+                    if (inputTimeout != null) inputTimeout.text = "1500";
                     currentResetOnTarget = false;
                     updateResetTargetBtn();
                     currentAutoAttack = null;
@@ -513,10 +513,10 @@ class CombatModeEditorModal {
                     var cName = (inputClass != null && inputClass.text != null) ? StringTools.trim(inputClass.text) : "";
                     var mName = (inputMode != null && inputMode.text != null) ? StringTools.trim(inputMode.text) : "";
                     var execMode = (ddExecMode != null && ddExecMode.selectedItem != null && ddExecMode.selectedItem != "") ? ddExecMode.selectedItem : "WaitForCooldown";
-                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "0";
+                    var timeoutStr = (inputTimeout != null && inputTimeout.text != null) ? StringTools.trim(inputTimeout.text) : "1500";
                     var pTimeout:Null<Int> = Std.parseInt(timeoutStr);
-                    var rawTimeout = (pTimeout != null) ? pTimeout : 0;
-                    var timeout = (rawTimeout > 1500) ? rawTimeout : 0;
+                    var rawTimeout = (pTimeout != null) ? pTimeout : 1500;
+                    var timeout = (rawTimeout >= 1500) ? rawTimeout : 1500;
                     var stopAuras = (inputStopAuras != null && inputStopAuras.text != null) ? StringTools.trim(inputStopAuras.text) : "";
                     var combo = (inputCombo != null && inputCombo.text != null) ? StringTools.trim(inputCombo.text) : "";
 
