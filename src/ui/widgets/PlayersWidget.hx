@@ -92,6 +92,16 @@ class PlayersWidget extends BaseWidget {
         return isCollapsed ? COMPACT_H : (COMPACT_H + getVisibleListHeight() + 4);
     }
 
+    override public function getContentBoundsYMin():Float {
+        if (isCollapsed || !_isUpward) return 0.0;
+        return -(getVisibleListHeight() + 4);
+    }
+
+    override public function getContentBoundsYMax():Float {
+        if (isCollapsed || _isUpward) return COMPACT_H;
+        return COMPACT_H + getVisibleListHeight() + 4;
+    }
+
     override public function buildContent(container:Sprite):Void {
         titleTxt.visible = false;
         accentShape.visible = false;
@@ -524,7 +534,7 @@ class PlayersWidget extends BaseWidget {
             var listH:Float = getVisibleListHeight();
             var spaceBelow:Float = sh - (this.y + COMPACT_H);
             var spaceAbove:Float = this.y;
-            _isUpward = (spaceAbove > spaceBelow);
+            _isUpward = (spaceBelow < (listH + 4)) || (spaceAbove > spaceBelow);
 
             var rowW:Float = _currentW - 4;
 

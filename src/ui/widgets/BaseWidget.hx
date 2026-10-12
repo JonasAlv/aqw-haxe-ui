@@ -211,13 +211,16 @@ class BaseWidget extends Sprite {
                     var ny:Float = Math.round(e.stageY - _dragStartY);
                     var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960.0;
                     var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550.0;
-                    var curW:Float = getCurrentWidth();
-                    var curH:Float = getCurrentHeight();
 
-                    if (nx < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN;
-                    if (ny < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN;
-                    if (nx > sw - curW - ApiStyle.SCREEN_MARGIN) nx = sw - curW - ApiStyle.SCREEN_MARGIN;
-                    if (ny > sh - curH - ApiStyle.SCREEN_MARGIN) ny = sh - curH - ApiStyle.SCREEN_MARGIN;
+                    var xMin = getContentBoundsXMin();
+                    var xMax = getContentBoundsXMax();
+                    var yMin = getContentBoundsYMin();
+                    var yMax = getContentBoundsYMax();
+
+                    if (nx + xMin < ApiStyle.SCREEN_MARGIN) nx = ApiStyle.SCREEN_MARGIN - xMin;
+                    if (ny + yMin < ApiStyle.SCREEN_MARGIN) ny = ApiStyle.SCREEN_MARGIN - yMin;
+                    if (nx + xMax > sw - ApiStyle.SCREEN_MARGIN) nx = sw - xMax - ApiStyle.SCREEN_MARGIN;
+                    if (ny + yMax > sh - ApiStyle.SCREEN_MARGIN) ny = sh - yMax - ApiStyle.SCREEN_MARGIN;
 
                     this.x = nx;
                     this.y = ny;
@@ -230,6 +233,7 @@ class BaseWidget extends Sprite {
                 _isDragging = false;
                 this.cacheAsBitmap = true;
                 if (_hasDragged) {
+                    updateLayout();
                     clampToScreen();
                     savePosition();
                 } else if (allowHeaderClickToCollapse) {
@@ -272,17 +276,24 @@ class BaseWidget extends Sprite {
         if (theStage == null) return;
         var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960.0;
         var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550.0;
-        var curW:Float = getCurrentWidth();
-        var curH:Float = getCurrentHeight();
 
-        if (this.x > sw - curW - ApiStyle.SCREEN_MARGIN) {
-            this.x = Math.max(ApiStyle.SCREEN_MARGIN, sw - curW - ApiStyle.SCREEN_MARGIN);
+        var xMin = getContentBoundsXMin();
+        var xMax = getContentBoundsXMax();
+        var yMin = getContentBoundsYMin();
+        var yMax = getContentBoundsYMax();
+
+        if (this.x + xMax > sw - ApiStyle.SCREEN_MARGIN) {
+            this.x = Math.max(ApiStyle.SCREEN_MARGIN - xMin, sw - xMax - ApiStyle.SCREEN_MARGIN);
         }
-        if (this.y > sh - curH - ApiStyle.SCREEN_MARGIN) {
-            this.y = Math.max(ApiStyle.SCREEN_MARGIN, sh - curH - ApiStyle.SCREEN_MARGIN);
+        if (this.y + yMax > sh - ApiStyle.SCREEN_MARGIN) {
+            this.y = Math.max(ApiStyle.SCREEN_MARGIN - yMin, sh - yMax - ApiStyle.SCREEN_MARGIN);
         }
-        if (this.x < ApiStyle.SCREEN_MARGIN) this.x = ApiStyle.SCREEN_MARGIN;
-        if (this.y < ApiStyle.SCREEN_MARGIN) this.y = ApiStyle.SCREEN_MARGIN;
+        if (this.x + xMin < ApiStyle.SCREEN_MARGIN) {
+            this.x = ApiStyle.SCREEN_MARGIN - xMin;
+        }
+        if (this.y + yMin < ApiStyle.SCREEN_MARGIN) {
+            this.y = ApiStyle.SCREEN_MARGIN - yMin;
+        }
 
         savePosition();
     }
@@ -424,6 +435,22 @@ class BaseWidget extends Sprite {
 
     public function computeCollapsedHeight():Float {
         return COMPACT_H;
+    }
+
+    public function getContentBoundsXMin():Float {
+        return 0.0;
+    }
+
+    public function getContentBoundsXMax():Float {
+        return getCurrentWidth();
+    }
+
+    public function getContentBoundsYMin():Float {
+        return 0.0;
+    }
+
+    public function getContentBoundsYMax():Float {
+        return getCurrentHeight();
     }
 
     public function buildContent(container:Sprite):Void {
