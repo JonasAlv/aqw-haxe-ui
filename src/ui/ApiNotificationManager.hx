@@ -15,7 +15,8 @@ class ApiNotificationManager {
     /** Same ceiling for messages buffered before `init()` runs. */
     private static inline var MAX_PENDING:Int = 8;
     /** Gap between the card stack and the right/top stage edges. */
-    private static inline var SCREEN_MARGIN:Float = 12.0;
+    private static inline var SCREEN_MARGIN_X:Float = 12.0;
+    private static inline var SCREEN_MARGIN_Y:Float = 36.0;
 
     private static var _instance:ApiNotificationManager;
     public static var instance(get, never):ApiNotificationManager;
@@ -201,9 +202,9 @@ class ApiNotificationManager {
             currentY += notif.contentHeight + 6;
         }
         if (_container != null && _container.stage != null && _notifications.length > 0) {
-            // Top right: the top-centre slot is where the game draws the unit frame.
-            _container.x = _container.stage.stageWidth - ApiNotification.CARD_WIDTH - SCREEN_MARGIN;
-            _container.y = SCREEN_MARGIN;
+            // Positioned top right, safely beneath the TopBar (y = 36)
+            _container.x = _container.stage.stageWidth - ApiNotification.CARD_WIDTH - SCREEN_MARGIN_X;
+            _container.y = SCREEN_MARGIN_Y;
         }
     }
     #end

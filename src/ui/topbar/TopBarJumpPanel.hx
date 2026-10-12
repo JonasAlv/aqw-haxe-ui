@@ -21,8 +21,8 @@ import ui.Dropdown;
  * 100% pure ASCII strings and Flash vector graphics (zero Unicode glyphs).
  */
 class TopBarJumpPanel extends Sprite {
-    public static inline var PANEL_WIDTH:Float = 300.0;
-    public static inline var PANEL_HEIGHT:Float = 128.0;
+    public static inline var PANEL_WIDTH:Float = 220.0;
+    public static inline var PANEL_HEIGHT:Float = 120.0;
 
     private var _bg:Shape;
     private var _mapInput:TextField;
@@ -63,7 +63,7 @@ class TopBarJumpPanel extends Sprite {
         _mapPlate = new Sprite();
         _mapPlate.graphics.beginFill(ApiStyle.COLOR_BG_INPUT, 0.95);
         _mapPlate.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
-        _mapPlate.graphics.drawRoundRect(0, 0, 218.0, 24.0, 4, 4);
+        _mapPlate.graphics.drawRoundRect(0, 0, 154.0, 24.0, 4, 4);
         _mapPlate.graphics.endFill();
         _mapPlate.x = 8.0;
         _mapPlate.y = 8.0;
@@ -71,18 +71,18 @@ class TopBarJumpPanel extends Sprite {
 
         _mapInput = new TextField();
         _mapInput.type = TextFieldType.INPUT;
-        var inFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY);
+        var inFmt = new TextFormat(ApiStyle.FONT_FAMILY, 10, ApiStyle.COLOR_TEXT_PRIMARY);
         _mapInput.defaultTextFormat = inFmt;
         _mapInput.x = 12.0;
         _mapInput.y = 11.0;
-        _mapInput.width = 210.0;
+        _mapInput.width = 146.0;
         _mapInput.height = 18.0;
         _mapInput.selectable = true;
-        _mapInput.text = "Map (e.g. yulgar-1)";
+        _mapInput.text = "Map (e.g. yulgar)";
         _mapInput.textColor = ApiStyle.COLOR_TEXT_MUTED;
 
         _mapInput.addEventListener(FocusEvent.FOCUS_IN, function(e:FocusEvent):Void {
-            if (_mapInput.text == "Map (e.g. yulgar-1)") {
+            if (_mapInput.text == "Map (e.g. yulgar)" || _mapInput.text == "Map (e.g. yulgar-1)") {
                 _mapInput.text = "";
                 _mapInput.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
             }
@@ -91,7 +91,7 @@ class TopBarJumpPanel extends Sprite {
         _mapInput.addEventListener(FocusEvent.FOCUS_OUT, function(e:FocusEvent):Void {
             var trimmed = StringTools.trim(_mapInput.text);
             if (trimmed == "") {
-                _mapInput.text = "Map (e.g. yulgar-1)";
+                _mapInput.text = "Map (e.g. yulgar)";
                 _mapInput.textColor = ApiStyle.COLOR_TEXT_MUTED;
             }
         });
@@ -103,49 +103,49 @@ class TopBarJumpPanel extends Sprite {
         });
         addChild(_mapInput);
 
-        _btnJoin = createButton(62.0, 24.0, "Join", false);
-        _btnJoin.x = 230.0;
+        _btnJoin = createButton(44.0, 24.0, "Join", false);
+        _btnJoin.x = 168.0;
         _btnJoin.y = 8.0;
         _btnJoin.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void handleJoin());
         addChild(_btnJoin);
 
-        // --- Row 2 (y = 38): Room & Pad Dropdowns ---
-        _ddRoom = new Dropdown(138.0, 24.0, ["Enter"], function(room:String):Void {
+        // --- Row 2 (y = 36): Room & Pad Dropdowns ---
+        _ddRoom = new Dropdown(99.0, 24.0, ["Enter"], function(room:String):Void {
             handleRoomSelected(room);
         });
         _ddRoom.x = 8.0;
-        _ddRoom.y = 38.0;
+        _ddRoom.y = 36.0;
         _ddRoom.onBeforeOpen = refreshRoomList;
         addChild(_ddRoom);
 
-        _ddPad = new Dropdown(138.0, 24.0, COMMON_PADS, function(pad:String):Void {});
-        _ddPad.x = 154.0;
-        _ddPad.y = 38.0;
+        _ddPad = new Dropdown(99.0, 24.0, COMMON_PADS, function(pad:String):Void {});
+        _ddPad.x = 113.0;
+        _ddPad.y = 36.0;
         _ddPad.onBeforeOpen = refreshPadList;
         addChild(_ddPad);
 
-        // --- Row 3 (y = 68): Current & Jump Buttons ---
-        _btnCurrent = createButton(138.0, 26.0, "Current", false);
+        // --- Row 3 (y = 64): Current & Jump Buttons ---
+        _btnCurrent = createButton(99.0, 24.0, "Current", false);
         _btnCurrent.x = 8.0;
-        _btnCurrent.y = 68.0;
+        _btnCurrent.y = 64.0;
         _btnCurrent.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void handleSetCurrent());
         addChild(_btnCurrent);
 
-        _btnJump = createButton(138.0, 26.0, "Jump", true);
-        _btnJump.x = 154.0;
-        _btnJump.y = 68.0;
+        _btnJump = createButton(99.0, 24.0, "Jump", true);
+        _btnJump.x = 113.0;
+        _btnJump.y = 64.0;
         _btnJump.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void handleJump());
         addChild(_btnJump);
 
-        // --- Row 4 (y = 98): Common Pad Quick Chips ---
+        // --- Row 4 (y = 92): Common Pad Quick Chips ---
         var quickPads = ["Spawn", "Center", "Left", "Right"];
-        var chipW:Float = 68.0;
+        var chipW:Float = 48.0;
         var chipGap:Float = 4.0;
         for (i in 0...quickPads.length) {
             var padName = quickPads[i];
             var chip = createQuickPadChip(chipW, 20.0, padName);
             chip.x = 8.0 + (i * (chipW + chipGap));
-            chip.y = 98.0;
+            chip.y = 92.0;
             addChild(chip);
         }
     }

@@ -14,7 +14,6 @@ import com.aqwapi.Api;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiDashboardModal;
 import ui.ApiStyle;
-import ui.widgets.PlayersWidget;
 
 /**
  * TopBar: Sleek Skua-style control bar anchored to the top-right of the screen.
@@ -115,11 +114,13 @@ class TopBar extends Sprite {
         var tabY:Float = 3.0;
 
         // 1. Tab Auto
-        var autoW:Float = 56.0;
+        var autoW:Float = 46.0;
         _tabAuto = createTabButton(autoW, tabH, "Auto");
         _tabAuto.x = curX;
         _tabAuto.y = tabY;
         _txtAuto = cast _tabAuto.getChildByName("label");
+        _txtAuto.x = 10.0;
+        _txtAuto.width = autoW - 12.0;
 
         _dotAuto = new Shape();
         _dotAuto.name = "dot";
@@ -134,7 +135,7 @@ class TopBar extends Sprite {
         curX += autoW + 3.0;
 
         // 2. Tab Jump
-        var jumpW:Float = 48.0;
+        var jumpW:Float = 38.0;
         _tabJump = createTabButton(jumpW, tabH, "Jump");
         _tabJump.x = curX;
         _tabJump.y = tabY;
@@ -147,7 +148,7 @@ class TopBar extends Sprite {
         curX += jumpW + 3.0;
 
         // 3. Tab Players
-        var playersW:Float = 76.0;
+        var playersW:Float = 62.0;
         _tabPlayers = createTabButton(playersW, tabH, "Players");
         _tabPlayers.x = curX;
         _tabPlayers.y = tabY;
@@ -160,11 +161,13 @@ class TopBar extends Sprite {
         curX += playersW + 3.0;
 
         // 4. Tab Menu
-        var menuW:Float = 52.0;
+        var menuW:Float = 42.0;
         _tabMenu = createTabButton(menuW, tabH, "Menu");
         _tabMenu.x = curX;
         _tabMenu.y = tabY;
         _txtMenu = cast _tabMenu.getChildByName("label");
+        _txtMenu.x = 8.0;
+        _txtMenu.width = menuW - 10.0;
 
         _accentMenu = new Shape();
         _accentMenu.graphics.beginFill(ApiStyle.COLOR_ACCENT_CRIMSON, 1.0);
@@ -260,7 +263,7 @@ class TopBar extends Sprite {
         g.clear();
         var dotColor = running ? 0x2ECC71 : 0x717789;
         g.beginFill(dotColor, running ? 1.0 : 0.6);
-        g.drawCircle(8, 10, 2.5);
+        g.drawCircle(5.5, 10, 2.2);
         g.endFill();
     }
 
@@ -348,9 +351,9 @@ class TopBar extends Sprite {
         _jumpPanel.visible = false;
         _playersPanel.visible = false;
 
-        renderTabStyle(_tabAuto, 56.0, 20.0, false, tabId == "auto");
-        renderTabStyle(_tabJump, 48.0, 20.0, false, tabId == "jump");
-        renderTabStyle(_tabPlayers, 76.0, 20.0, false, tabId == "players");
+        renderTabStyle(_tabAuto, 46.0, 20.0, false, tabId == "auto");
+        renderTabStyle(_tabJump, 38.0, 20.0, false, tabId == "jump");
+        renderTabStyle(_tabPlayers, 62.0, 20.0, false, tabId == "players");
 
         var activePanel:Sprite = null;
         if (tabId == "auto") {
@@ -384,9 +387,9 @@ class TopBar extends Sprite {
         if (_jumpPanel != null) _jumpPanel.visible = false;
         if (_playersPanel != null) _playersPanel.visible = false;
 
-        renderTabStyle(_tabAuto, 56.0, 20.0, false, false);
-        renderTabStyle(_tabJump, 48.0, 20.0, false, false);
-        renderTabStyle(_tabPlayers, 76.0, 20.0, false, false);
+        renderTabStyle(_tabAuto, 46.0, 20.0, false, false);
+        renderTabStyle(_tabJump, 38.0, 20.0, false, false);
+        renderTabStyle(_tabPlayers, 62.0, 20.0, false, false);
     }
 
     private function toggleDashboard():Void {
@@ -406,7 +409,7 @@ class TopBar extends Sprite {
         }
 
         // 2. Live Area Player Count update on tab
-        var players = PlayersWidget.getMapPlayers();
+        var players = TopBarPlayersPanel.getMapPlayers();
         var count = players.length;
         if (count != _lastPlayerCount) {
             _lastPlayerCount = count;

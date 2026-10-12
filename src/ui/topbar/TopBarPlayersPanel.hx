@@ -9,15 +9,25 @@ import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import com.aqwapi.Api;
+import ui.ApiNotificationManager;
 import ui.ApiStyle;
-import ui.widgets.PlayersWidget;
+
+typedef MapPlayerInfo = {
+    username:String,
+    level:Int,
+    cell:String,
+    pad:String,
+    isSelf:Bool,
+    hp:Int,
+    maxHp:Int
+};
 
 /**
  * Dropdown panel for Area Players attached directly beneath the TopBar.
  * 100% pure ASCII strings and Flash vector graphics (zero Unicode glyphs).
  */
 class TopBarPlayersPanel extends Sprite {
-    public static inline var PANEL_WIDTH:Float = 250.0;
+    public static inline var PANEL_WIDTH:Float = 220.0;
     private static inline var ROW_H:Float = 20.0;
     private static inline var MAX_VISIBLE_ROWS:Int = 6;
 
@@ -114,14 +124,14 @@ class TopBarPlayersPanel extends Sprite {
     }
 
     private function getVisibleListHeight():Float {
-        var players = PlayersWidget.getMapPlayers();
+        var players = getMapPlayers();
         var rowCount = (players.length > 0) ? players.length : 1;
         var visibleCount = (rowCount > MAX_VISIBLE_ROWS) ? MAX_VISIBLE_ROWS : rowCount;
         return visibleCount * ROW_H;
     }
 
     public function refreshPlayers():Void {
-        var players = PlayersWidget.getMapPlayers();
+        var players = getMapPlayers();
         var mapName = (Api.map != null && Api.map.name != null) ? Api.map.name : "";
 
         var countStr = (players.length == 1) ? "1 player in " : (players.length + " players in ");
@@ -307,19 +317,156 @@ class TopBarPlayersPanel extends Sprite {
             btnGoto.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void e.stopPropagation());
             btnGoto.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
                 e.stopPropagation();
-                PlayersWidget.gotoPlayer(player);
+                gotoPlayer(player);
             });
             row.addChild(btnGoto);
         }
 
+        row.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+            openPlayerMenu(player);
+        });
+
         return row;
+    }
+
+    public static function gotoPlayer(player:MapPlayerInfo):Void {
+        if (player == null || player.username == "") return;
+
+        if (player.cell != "" && Api.map != null) {
+            var targetPad = (player.pad != "") ? player.pad : "Spawn";
+            Api.map.jump(player.cell, targetPad, true, true);
+            ApiNotificationManager.notify("Jumped to " + player.username + " in " + player.cell + " [" + targetPad + "]");
+            return;
+        }
+
+        var g:Dynamic = Api.game;
+        if (g != null && g.world != null && g.world.goto != null) {
+            try {
+                g.world.goto(player.username);
+                ApiNotificationManager.notify("Goto: " + player.username);
+                return;
+            } catch (_:Dynamic) {}
+        }
+
+        if (Api.transport != null) {
+            Api.transport.send("zm", "cmd", ["goto", player.username.toLowerCase()]);
+            ApiNotificationManager.notify("Sent goto packet for: " + player.username);
+        }
+    }
+
+    private static function openPlayerMenu(player:MapPlayerInfo):Void {
+        var g:Dynamic = Api.game;
+        if (g == null || g.ui == null || g.ui.cMenu == null) {
+            ApiNotificationManager.notify("Player: " + player.username + " (Lv. " + player.level + ")");
+            return;
+        }
+
+        try {
+            var userObj:Dynamic = {
+                "strUsername": player.username,
+                "ID": player.username
+            };
+            if (player.isSelf) {
+                g.ui.cMenu.fOpenWith("self", userObj);
+            } else {
+                g.ui.cMenu.fOpenWith("user", userObj);
+            }
+        } catch (_:Dynamic) {
+            ApiNotificationManager.notify("Player: " + player.username + " (Lv. " + player.level + ")");
+        }
+    }
+
+    public static function getMapPlayers():Array<MapPlayerInfo> {
+        var result:Array<MapPlayerInfo> = [];
+        var g:Dynamic = Api.game;
+        if (g == null || g.world == null) return result;
+
+        var world:Dynamic = g.world;
+        var myName:String = (Api.player != null && Api.player.username != null) ? Api.player.username.toLowerCase() : "";
+        var uoTree:Dynamic = world.uoTree;
+        var areaUsers:Dynamic = world.areaUsers;
+        var seen:Map<String, Bool> = new Map<String, Bool>();
+
+        if (areaUsers != null) {
+            var userLen:Int = 0;
+            try { userLen = (areaUsers.length != null) ? Std.int(areaUsers.length) : 0; } catch (_:Dynamic) {}
+            for (i in 0...userLen) {
+                var u:Dynamic = null;
+                try { u = untyped areaUsers[i]; } catch (_:Dynamic) {}
+                if (u == null) continue;
+                var uName = Std.string(u);
+                if (uName == "" || seen.exists(uName.toLowerCase())) continue;
+                seen.set(uName.toLowerCase(), true);
+
+                var leaf:Dynamic = null;
+                if (uoTree != null) {
+                    try { leaf = Reflect.field(uoTree, uName.toLowerCase()); } catch (_:Dynamic) {}
+                    if (leaf == null) {
+                        try { leaf = untyped uoTree[uName.toLowerCase()]; } catch (_:Dynamic) {}
+                    }
+                }
+
+                var lvl:Int = (leaf != null && leaf.intLevel != null) ? Std.int(leaf.intLevel) : 1;
+                var cell:String = (leaf != null && leaf.strFrame != null) ? Std.string(leaf.strFrame) : "";
+                var pad:String = (leaf != null && leaf.strPad != null) ? Std.string(leaf.strPad) : "";
+                var hp:Int = (leaf != null && leaf.intHP != null) ? Std.int(leaf.intHP) : 0;
+                var maxHp:Int = (leaf != null && leaf.intHPMax != null) ? Std.int(leaf.intHPMax) : 0;
+
+                result.push({
+                    username: uName,
+                    level: lvl,
+                    cell: cell,
+                    pad: pad,
+                    isSelf: (uName.toLowerCase() == myName),
+                    hp: hp,
+                    maxHp: maxHp
+                });
+            }
+        }
+
+        if (world.avatars != null) {
+            var avLen:Int = 0;
+            try { avLen = (world.avatars.length != null) ? Std.int(world.avatars.length) : 0; } catch (_:Dynamic) {}
+            for (i in 0...avLen) {
+                var av:Dynamic = null;
+                try { av = untyped world.avatars[i]; } catch (_:Dynamic) {}
+                if (av == null || av.dataLeaf == null) continue;
+                var avName = (av.pnm != null) ? Std.string(av.pnm) : ((av.dataLeaf.strUsername != null) ? Std.string(av.dataLeaf.strUsername) : "");
+                if (avName == "" || seen.exists(avName.toLowerCase())) continue;
+                seen.set(avName.toLowerCase(), true);
+
+                var lvl:Int = (av.dataLeaf.intLevel != null) ? Std.int(av.dataLeaf.intLevel) : 1;
+                var cell:String = (av.strFrame != null) ? Std.string(av.strFrame) : ((world.strFrame != null) ? Std.string(world.strFrame) : "");
+                var pad:String = (av.strPad != null) ? Std.string(av.strPad) : "";
+                var hp:Int = (av.dataLeaf.intHP != null) ? Std.int(av.dataLeaf.intHP) : 0;
+                var maxHp:Int = (av.dataLeaf.intHPMax != null) ? Std.int(av.dataLeaf.intHPMax) : 0;
+
+                result.push({
+                    username: avName,
+                    level: lvl,
+                    cell: cell,
+                    pad: pad,
+                    isSelf: (avName.toLowerCase() == myName),
+                    hp: hp,
+                    maxHp: maxHp
+                });
+            }
+        }
+
+        result.sort(function(a, b) {
+            if (a.isSelf) return -1;
+            if (b.isSelf) return 1;
+            return a.username.toLowerCase() < b.username.toLowerCase() ? -1 : 1;
+        });
+
+        return result;
     }
 
     public function onTick():Void {
         _tickCounter++;
         if (_lastPlayerHash != "" && _tickCounter % 8 != 0) return;
 
-        var players = PlayersWidget.getMapPlayers();
+        var players = getMapPlayers();
         var mapName = (Api.map != null && Api.map.name != null) ? Api.map.name : "";
 
         var hash = mapName + ":" + players.length;

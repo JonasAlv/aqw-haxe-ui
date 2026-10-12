@@ -12,9 +12,6 @@ import ui.ApiNotificationManager;
 import ui.ApiToolRegistry;
 import ui.prompts.ApiPromptModal;
 import ui.widgets.BaseWidget;
-import ui.widgets.CombatWidget;
-import ui.widgets.JumpWidget;
-import ui.widgets.PlayersWidget;
 import ui.widgets.CustomWidgetDef;
 import ui.widgets.CustomWidgetInstance;
 import ui.widgets.WidgetEditorModal;
@@ -60,18 +57,15 @@ class WidgetManager {
             if (st == null || _theStage != null) return;
             _theStage = st;
 
-            // 1. Initialize and register built-in widgets
-            registerBuiltInWidgets();
-
-            // 2. Load and build custom widgets
+            // 1. Load and build custom widgets
             loadAndBuildCustomWidgets();
 
-            // 3. Subsystem managers
+            // 2. Subsystem managers
             UnitFramesManager.init(theStage, _overlay);
             DamageNumbers.init(theStage, _overlay);
             ApiHudManager.init(theStage, _overlay);
 
-            // 4. Single master frame tick loop
+            // 3. Single master frame tick loop
             _theStage.addEventListener(Event.ENTER_FRAME, onStageFrame);
         };
 
@@ -84,26 +78,6 @@ class WidgetManager {
                 }
             });
         }
-    }
-
-    private static function registerBuiltInWidgets():Void {
-        // Combat & Hunt Widget
-        if (CombatWidget.instance == null) {
-            CombatWidget.instance = new CombatWidget();
-        }
-        registerWidget(CombatWidget.instance);
-
-        // Room Navigation / Jump Widget
-        if (JumpWidget.instance == null) {
-            JumpWidget.instance = new JumpWidget();
-        }
-        registerWidget(JumpWidget.instance);
-
-        // Area Players Widget
-        if (PlayersWidget.instance == null) {
-            PlayersWidget.instance = new PlayersWidget();
-        }
-        registerWidget(PlayersWidget.instance);
     }
 
     public static function registerWidget(widget:BaseWidget):Void {
@@ -345,56 +319,6 @@ class WidgetManager {
         );
     }
 
-    // --- Unified Actions & Backward Compatibility ---
-
-    public static function isCombatWidgetEnabled():Bool {
-        return CombatWidget.isWidgetEnabled();
-    }
-
-    public static function setCombatWidgetEnabled(enabled:Bool):Void {
-        CombatWidget.setWidgetEnabled(enabled);
-    }
-
-    public static function resetCombatWidgetPosition():Void {
-        CombatWidget.resetPosition();
-    }
-
-    public static function openCombatConfig():Void {
-        CombatWidget.openConfigModal();
-    }
-
-    public static function isJumpWidgetEnabled():Bool {
-        return JumpWidget.isWidgetEnabled();
-    }
-
-    public static function setJumpWidgetEnabled(enabled:Bool):Void {
-        JumpWidget.setWidgetEnabled(enabled);
-    }
-
-    public static function resetJumpWidgetPosition():Void {
-        JumpWidget.resetPosition();
-    }
-
-    public static function openJumpConfig():Void {
-        JumpWidget.openConfigModal();
-    }
-
-    public static function isPlayersWidgetEnabled():Bool {
-        return PlayersWidget.isWidgetEnabled();
-    }
-
-    public static function setPlayersWidgetEnabled(enabled:Bool):Void {
-        PlayersWidget.setWidgetEnabled(enabled);
-    }
-
-    public static function resetPlayersWidgetPosition():Void {
-        PlayersWidget.resetPosition();
-    }
-
-    public static function openPlayersConfig():Void {
-        PlayersWidget.openConfigModal();
-    }
-
     public static function resetAllWidgets():Void {
         for (w in _widgetList) {
             w.resetToDefaultPosition();
@@ -414,12 +338,10 @@ class WidgetManager {
 #else
 class WidgetManager {
     public static function init(stageObj:Dynamic, overlayObj:Dynamic):Void {}
-    public static function isCombatWidgetEnabled():Bool return false;
-    public static function setCombatWidgetEnabled(enabled:Bool):Void {}
-    public static function isJumpWidgetEnabled():Bool return false;
-    public static function setJumpWidgetEnabled(enabled:Bool):Void {}
-    public static function isPlayersWidgetEnabled():Bool return false;
-    public static function setPlayersWidgetEnabled(enabled:Bool):Void {}
+    public static function getCustomWidgets():Array<Dynamic> return [];
+    public static function setCustomWidgetEnabled(idOrEnabled:Dynamic, ?enabledVal:Null<Bool>):Void {}
+    public static function openEditor(def:Dynamic):Void {}
+    public static function createNewWidget():Void {}
     public static function resetAllWidgets():Void {}
 }
 #end

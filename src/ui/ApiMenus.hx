@@ -20,6 +20,7 @@ import ui.ApiNotificationManager;
 import ui.ApiStyle;
 import ui.ScreenFilterManager;
 import ui.topbar.TopBar;
+import ui.widgets.WidgetManager;
 
 class ApiMenus {
     private static var _injected:Bool = false;
@@ -154,8 +155,8 @@ class ApiMenus {
             setupFloatingMenuButton(theStage, host);
         }
 
-        // 6. Master Modular Widgets & Widget Creation System (ApiMenuHubWidget)
-        ApiMenuHubWidget.init(theStage, host);
+        // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
+        WidgetManager.init(theStage, host);
 
         // 6. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);

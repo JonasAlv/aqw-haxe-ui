@@ -23,8 +23,8 @@ import ui.components.ClassModeSelector;
  * 100% pure ASCII strings and Flash vector graphics (zero Unicode glyphs).
  */
 class TopBarAutoPanel extends Sprite {
-    public static inline var PANEL_WIDTH:Float = 300.0;
-    public static inline var PANEL_HEIGHT:Float = 132.0;
+    public static inline var PANEL_WIDTH:Float = 220.0;
+    public static inline var PANEL_HEIGHT:Float = 120.0;
 
     private var _bg:Shape;
     private var _btnAtk:Sprite;
@@ -73,11 +73,11 @@ class TopBarAutoPanel extends Sprite {
         g.lineTo(PANEL_WIDTH - 3, 1);
         addChild(_bg);
 
-        var btnW:Float = 138.0;
-        var btnH:Float = 26.0;
+        var btnW:Float = 98.0;
+        var btnH:Float = 24.0;
 
-        // --- Row 1 (y = 8): Action Buttons ---
-        _btnAtk = createActionButton(btnW, btnH, "Auto Attack");
+        // --- Row 1 (y = 8): Action Buttons (Auto | Hunt) ---
+        _btnAtk = createActionButton(btnW, btnH, "Auto");
         _btnAtk.x = 8.0;
         _btnAtk.y = 8.0;
         _btnAtk.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void toggleAutoAttack());
@@ -85,16 +85,16 @@ class TopBarAutoPanel extends Sprite {
         _txtAtk = cast _btnAtk.getChildByName("label");
         _dotAtk = cast _btnAtk.getChildByName("dot");
 
-        _btnHunt = createActionButton(btnW, btnH, "Auto Hunt");
-        _btnHunt.x = 154.0;
+        _btnHunt = createActionButton(btnW, btnH, "Hunt");
+        _btnHunt.x = 114.0;
         _btnHunt.y = 8.0;
         _btnHunt.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void toggleAutoHunt());
         addChild(_btnHunt);
         _txtHunt = cast _btnHunt.getChildByName("label");
         _dotHunt = cast _btnHunt.getChildByName("dot");
 
-        // --- Row 2 (y = 38): Class & Mode Selector ---
-        _classSelector = new ClassModeSelector(138.0, 138.0, 24.0, 8.0, false, "Auto", function(selClass:String, selMode:String):Void {
+        // --- Row 2 (y = 36): Class & Mode Selector ---
+        _classSelector = new ClassModeSelector(120.0, 78.0, 24.0, 6.0, false, "Auto", function(selClass:String, selMode:String):Void {
             _selectedClass = selClass;
             _selectedMode = selMode;
             if (Api.combat != null && Api.combat.isRunning()) {
@@ -110,38 +110,38 @@ class TopBarAutoPanel extends Sprite {
             ApiNotificationManager.notify("Combat: " + selClass + " [" + selMode + "]");
         });
         _classSelector.x = 8.0;
-        _classSelector.y = 38.0;
+        _classSelector.y = 36.0;
         _classSelector.bindConfig("api_smart_class", "api_smart_mode", "Current", "Auto");
         _selectedClass = _classSelector.selectedClass;
         _selectedMode = _classSelector.selectedMode;
         addChild(_classSelector);
 
-        // --- Row 3 (y = 68): Target Input & Crosshair Button ---
+        // --- Row 3 (y = 64): Target Input & Crosshair Button ---
         _inputPlate = new Sprite();
         _inputPlate.graphics.beginFill(ApiStyle.COLOR_BG_INPUT, 0.95);
         _inputPlate.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
-        _inputPlate.graphics.drawRoundRect(0, 0, 250.0, 24.0, 4, 4);
+        _inputPlate.graphics.drawRoundRect(0, 0, 174.0, 24.0, 4, 4);
         _inputPlate.graphics.endFill();
         _inputPlate.x = 8.0;
-        _inputPlate.y = 68.0;
+        _inputPlate.y = 64.0;
         addChild(_inputPlate);
 
         var savedTarget = ApiConfig.getString("api_widget_hunt_target", "");
 
         _targetInput = new TextField();
         _targetInput.type = TextFieldType.INPUT;
-        var inFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY);
+        var inFmt = new TextFormat(ApiStyle.FONT_FAMILY, 10, ApiStyle.COLOR_TEXT_PRIMARY);
         _targetInput.defaultTextFormat = inFmt;
         _targetInput.x = 12.0;
-        _targetInput.y = 71.0;
-        _targetInput.width = 242.0;
+        _targetInput.y = 67.0;
+        _targetInput.width = 166.0;
         _targetInput.height = 18.0;
         _targetInput.selectable = true;
-        _targetInput.text = (savedTarget != "") ? savedTarget : "Target (Name / ID / MMID)";
+        _targetInput.text = (savedTarget != "") ? savedTarget : "Target (Name/ID)";
         _targetInput.textColor = (savedTarget != "") ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
 
         _targetInput.addEventListener(FocusEvent.FOCUS_IN, function(e:FocusEvent):Void {
-            if (_targetInput.text == "Target (Name / ID / MMID)") {
+            if (_targetInput.text == "Target (Name/ID)" || _targetInput.text == "Target (Name / ID / MMID)") {
                 _targetInput.text = "";
                 _targetInput.textColor = ApiStyle.COLOR_TEXT_PRIMARY;
             }
@@ -150,7 +150,7 @@ class TopBarAutoPanel extends Sprite {
         _targetInput.addEventListener(FocusEvent.FOCUS_OUT, function(e:FocusEvent):Void {
             var trimmed = StringTools.trim(_targetInput.text);
             if (trimmed == "") {
-                _targetInput.text = "Target (Name / ID / MMID)";
+                _targetInput.text = "Target (Name/ID)";
                 _targetInput.textColor = ApiStyle.COLOR_TEXT_MUTED;
                 ApiConfig.setString("api_widget_hunt_target", "");
             } else {
@@ -161,7 +161,7 @@ class TopBarAutoPanel extends Sprite {
         _targetInput.addEventListener(KeyboardEvent.KEY_DOWN, function(e:KeyboardEvent):Void {
             if (e.keyCode == 13) {
                 var trimmed = StringTools.trim(_targetInput.text);
-                if (trimmed == "Target (Name / ID / MMID)") trimmed = "";
+                if (trimmed == "Target (Name/ID)" || trimmed == "Target (Name / ID / MMID)") trimmed = "";
                 ApiConfig.setString("api_widget_hunt_target", trimmed);
                 if (theStage != null) theStage.focus = null;
             }
@@ -172,8 +172,8 @@ class TopBarAutoPanel extends Sprite {
         _btnGetTarget = new Sprite();
         _btnGetTarget.buttonMode = true;
         _btnGetTarget.useHandCursor = true;
-        _btnGetTarget.x = 262.0;
-        _btnGetTarget.y = 68.0;
+        _btnGetTarget.x = 188.0;
+        _btnGetTarget.y = 64.0;
         renderGetTargetBtn(false, false);
 
         _btnGetTarget.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void renderGetTargetBtn(true, false));
@@ -183,12 +183,12 @@ class TopBarAutoPanel extends Sprite {
         });
         addChild(_btnGetTarget);
 
-        // --- Row 4 (y = 98): Counter Mechanic Guard ---
+        // --- Row 4 (y = 92): Counter Mechanic Guard ---
         _btnCounter = new Sprite();
         _btnCounter.buttonMode = true;
         _btnCounter.useHandCursor = true;
         _btnCounter.x = 8.0;
-        _btnCounter.y = 98.0;
+        _btnCounter.y = 92.0;
 
         _iconCounter = new Shape();
         _btnCounter.addChild(_iconCounter);
@@ -199,7 +199,7 @@ class TopBarAutoPanel extends Sprite {
         _txtCounter.defaultTextFormat = ctrFmt;
         _txtCounter.x = 18.0;
         _txtCounter.y = 1.0;
-        _txtCounter.width = 120.0;
+        _txtCounter.width = 86.0;
         _txtCounter.height = 16.0;
         _txtCounter.selectable = false;
         _txtCounter.mouseEnabled = false;
@@ -235,13 +235,13 @@ class TopBarAutoPanel extends Sprite {
 
         var lbl = new TextField();
         lbl.name = "label";
-        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_PRIMARY, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 10, ApiStyle.COLOR_TEXT_PRIMARY, true);
         fmt.align = TextFormatAlign.CENTER;
         lbl.defaultTextFormat = fmt;
-        lbl.x = 16.0;
-        lbl.y = 4.0;
-        lbl.width = w - 20.0;
-        lbl.height = 20.0;
+        lbl.x = 12.0;
+        lbl.y = 3.0;
+        lbl.width = w - 14.0;
+        lbl.height = 18.0;
         lbl.selectable = false;
         lbl.mouseEnabled = false;
         lbl.text = label;
@@ -282,19 +282,19 @@ class TopBarAutoPanel extends Sprite {
         var dot:Shape = cast btn.getChildByName("dot");
         if (dot != null) {
             dot.graphics.clear();
-            var dotX:Float = 11.0;
+            var dotX:Float = 9.0;
             var dotY:Float = h / 2.0;
             dot.graphics.lineStyle(0, 0, 0);
             if (active) {
                 dot.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 0.35);
-                dot.graphics.drawCircle(dotX, dotY, 4.5);
+                dot.graphics.drawCircle(dotX, dotY, 4.0);
                 dot.graphics.endFill();
                 dot.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 1.0);
-                dot.graphics.drawCircle(dotX, dotY, 2.5);
+                dot.graphics.drawCircle(dotX, dotY, 2.2);
                 dot.graphics.endFill();
             } else {
                 dot.graphics.beginFill(ApiStyle.COLOR_STATUS_INACTIVE, 0.85);
-                dot.graphics.drawCircle(dotX, dotY, 2.5);
+                dot.graphics.drawCircle(dotX, dotY, 2.2);
                 dot.graphics.endFill();
             }
         }
@@ -317,17 +317,17 @@ class TopBarAutoPanel extends Sprite {
 
         g.beginFill(bgCol, 0.95);
         g.lineStyle(1, border);
-        g.drawRoundRect(0, 0, 30.0, 24.0, 4, 4);
+        g.drawRoundRect(0, 0, 24.0, 24.0, 4, 4);
         g.endFill();
 
-        var cx = 15.0;
+        var cx = 12.0;
         var cy = 12.0;
         g.lineStyle(1.8, iconColor, 1.0, true);
-        g.drawCircle(cx, cy, 5.0);
-        g.moveTo(cx - 7.5, cy); g.lineTo(cx - 3.5, cy);
-        g.moveTo(cx + 3.5, cy); g.lineTo(cx + 7.5, cy);
-        g.moveTo(cx, cy - 7.5); g.lineTo(cx, cy - 3.5);
-        g.moveTo(cx, cy + 3.5); g.lineTo(cx, cy + 7.5);
+        g.drawCircle(cx, cy, 4.5);
+        g.moveTo(cx - 6.5, cy); g.lineTo(cx - 3.0, cy);
+        g.moveTo(cx + 3.0, cy); g.lineTo(cx + 6.5, cy);
+        g.moveTo(cx, cy - 6.5); g.lineTo(cx, cy - 3.0);
+        g.moveTo(cx, cy + 3.0); g.lineTo(cx, cy + 6.5);
     }
 
     private function renderCounterBtnStyle(active:Bool, paused:Bool, hover:Bool = false):Void {
@@ -340,7 +340,7 @@ class TopBarAutoPanel extends Sprite {
         var textCol:Int = ApiStyle.COLOR_TEXT_MUTED;
         var iconCol:Int = ApiStyle.COLOR_TEXT_MUTED;
         var bgAlpha:Float = 0.88;
-        var labelText:String = "Counter Defense: OFF";
+        var labelText:String = "Counter: OFF";
 
         if (paused) {
             bgCol = ApiStyle.COLOR_STATUS_WARN;
@@ -348,25 +348,25 @@ class TopBarAutoPanel extends Sprite {
             border = ApiStyle.COLOR_STATUS_WARN;
             textCol = ApiStyle.COLOR_STATUS_WARN;
             iconCol = ApiStyle.COLOR_STATUS_WARN;
-            labelText = "Counter: HOLDING";
+            labelText = "Counter: HOLD";
         } else if (active) {
             bgCol = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE;
             bgAlpha = 0.95;
             border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_STATUS_ACTIVE;
             textCol = ApiStyle.COLOR_STATUS_ACTIVE;
             iconCol = ApiStyle.COLOR_STATUS_ACTIVE;
-            labelText = "Counter Defense: ON";
+            labelText = "Counter: ON";
         } else {
             bgCol = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_CARD;
             border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
             textCol = hover ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
             iconCol = hover ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
-            labelText = "Counter Defense: OFF";
+            labelText = "Counter: OFF";
         }
 
         g.beginFill(bgCol, bgAlpha);
         g.lineStyle(1, border);
-        g.drawRoundRect(0, 0, 140.0, 20.0, 4, 4);
+        g.drawRoundRect(0, 0, 106.0, 20.0, 4, 4);
         g.endFill();
 
         if (_iconCounter != null) {
@@ -407,7 +407,7 @@ class TopBarAutoPanel extends Sprite {
                 }
             }
         }
-        ApiNotificationManager.notify("Attack: " + (next ? "Enabled" : "Disabled"));
+        ApiNotificationManager.notify("Auto: " + (next ? "ON" : "OFF"));
         _lastAtkActive = -1;
     }
 
@@ -423,7 +423,7 @@ class TopBarAutoPanel extends Sprite {
 
     public function startAutoHunt():Void {
         _isHunting = true;
-        var targetStr = (_targetInput != null && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
+        var targetStr = (_targetInput != null && _targetInput.text != "Target (Name/ID)" && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
         if (targetStr == "") targetStr = "*";
 
         if (Api.combat != null && !Api.combat.isRunning()) {
@@ -444,7 +444,7 @@ class TopBarAutoPanel extends Sprite {
             if (Api.player != null && !Api.player.isAlive) return;
             if (Api.map != null && !Api.map.isLoaded) return;
 
-            var raw = (_targetInput != null && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
+            var raw = (_targetInput != null && _targetInput.text != "Target (Name/ID)" && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
             var num = Std.parseInt(raw);
             if (num != null && num > 0 && !StringTools.contains(raw, " ")) {
                 Api.combat.hunt("*", null, 1, num);
@@ -469,7 +469,7 @@ class TopBarAutoPanel extends Sprite {
         if (Api.combat != null) {
             Api.combat.stop();
         }
-        ApiNotificationManager.notify("Hunt stopped.");
+        ApiNotificationManager.notify("Hunt: OFF");
         _lastHuntActive = -1;
     }
 
@@ -477,7 +477,7 @@ class TopBarAutoPanel extends Sprite {
         var next = !CombatEngine.counterHandler;
         if (Api.combat != null) Api.combat.enableCounterHandler(next);
         else CombatEngine.counterHandler = next;
-        ApiNotificationManager.notify("Counter: " + (next ? "Guarding" : "Off"));
+        ApiNotificationManager.notify("Counter: " + (next ? "ON" : "OFF"));
         renderCounterBtnStyle(next, CombatEngine.isPausedByAura, false);
     }
 
@@ -491,9 +491,9 @@ class TopBarAutoPanel extends Sprite {
             haxe.Timer.delay(function():Void {
                 renderGetTargetBtn(false, false);
             }, 180);
-            ApiNotificationManager.notify("Target set: " + ent.name);
+            ApiNotificationManager.notify("Target: " + ent.name);
         } else {
-            ApiNotificationManager.notify("No target monster currently selected");
+            ApiNotificationManager.notify("No target selected");
         }
     }
 
@@ -502,14 +502,14 @@ class TopBarAutoPanel extends Sprite {
         var atkInt = atkRunning ? 1 : 0;
         if (atkInt != _lastAtkActive) {
             _lastAtkActive = atkInt;
-            renderActionBtnStyle(_btnAtk, atkRunning, atkRunning ? "Stop Attack" : "Auto Attack", 138.0, 26.0, false);
+            renderActionBtnStyle(_btnAtk, atkRunning, "Auto", 98.0, 24.0, false);
         }
 
         var huntRunning = _isHunting;
         var huntInt = huntRunning ? 1 : 0;
         if (huntInt != _lastHuntActive) {
             _lastHuntActive = huntInt;
-            renderActionBtnStyle(_btnHunt, huntRunning, huntRunning ? "Stop Hunt" : "Auto Hunt", 138.0, 26.0, false);
+            renderActionBtnStyle(_btnHunt, huntRunning, "Hunt", 98.0, 24.0, false);
         }
 
         var isCounter = CombatEngine.counterHandler;

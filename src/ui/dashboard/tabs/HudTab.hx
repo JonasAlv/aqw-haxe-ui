@@ -3,10 +3,10 @@ package ui.dashboard.tabs;
 #if flash
 import ui.ApiDashboardModal;
 import ui.ApiHudManager;
-import ui.ApiMenuHubWidget;
 import ui.ApiNotificationManager;
 import ui.dashboard.IDashboardTab;
 import ui.topbar.TopBar;
+import ui.widgets.WidgetManager;
 
 class HudTab implements IDashboardTab {
     public function new() {}
@@ -33,97 +33,10 @@ class HudTab implements IDashboardTab {
             }
         );
 
-        modal.addSectionHeader("Modular Widgets");
+        modal.addSectionHeader("Modular Custom Widgets");
 
-        // 0. HUD: Combat Widget
-        modal.addItemRow(
-            "HUD: Combat",
-            "Floating widget with Attack, Hunt, Class, Mode, and Target controls.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = ApiMenuHubWidget.isCombatWidgetEnabled();
-                var next = !cur;
-                ApiMenuHubWidget.setCombatWidgetEnabled(next);
-                ApiNotificationManager.notify("Combat: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiMenuHubWidget.isCombatWidgetEnabled();
-            }
-        );
-
-        modal.addItemRow(
-            "Configure Combat",
-            "Choose options to keep visible when collapsed.",
-            "button",
-            "Configure",
-            false,
-            function():Void {
-                ApiMenuHubWidget.openCombatConfig();
-            }
-        );
-
-        // 0b. HUD: Room Navigation Widget
-        modal.addItemRow(
-            "HUD: Navigation",
-            "Floating widget with Map joiner and Room / Pad jump controls.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = ApiMenuHubWidget.isJumpWidgetEnabled();
-                var next = !cur;
-                ApiMenuHubWidget.setJumpWidgetEnabled(next);
-                ApiNotificationManager.notify("Navigation: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiMenuHubWidget.isJumpWidgetEnabled();
-            }
-        );
-
-        modal.addItemRow(
-            "Configure Navigation",
-            "Choose options to keep visible when collapsed.",
-            "button",
-            "Configure",
-            false,
-            function():Void {
-                ApiMenuHubWidget.openJumpConfig();
-            }
-        );
-
-        // 0c. HUD: Area Players Widget
-        modal.addItemRow(
-            "HUD: Players",
-            "Floating widget listing map players with 1-tap Goto jump.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = ApiMenuHubWidget.isPlayersWidgetEnabled();
-                var next = !cur;
-                ApiMenuHubWidget.setPlayersWidgetEnabled(next);
-                ApiNotificationManager.notify("Players: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiMenuHubWidget.isPlayersWidgetEnabled();
-            }
-        );
-
-        modal.addItemRow(
-            "Configure Players",
-            "Choose options to keep visible when collapsed.",
-            "button",
-            "Configure",
-            false,
-            function():Void {
-                ApiMenuHubWidget.openPlayersConfig();
-            }
-        );
-
-        // Modular Custom Widgets (Managed by ApiMenuHubWidget)
-        var widgets = ApiMenuHubWidget.getWidgets();
+        // Modular Custom Widgets (Managed by WidgetManager)
+        var widgets = WidgetManager.getCustomWidgets();
         for (wDef in widgets) {
             modal.addItemRow(
                 "HUD: " + wDef.title,
@@ -133,7 +46,7 @@ class HudTab implements IDashboardTab {
                 false,
                 function():Void {
                     var next = !wDef.enabled;
-                    ApiMenuHubWidget.setWidgetEnabled(wDef.id, next);
+                    WidgetManager.setCustomWidgetEnabled(wDef.id, next);
                     ApiNotificationManager.notify("Widget '" + wDef.title + "': " + (next ? "Visible" : "Hidden"));
                 },
                 function():Bool {
@@ -148,7 +61,7 @@ class HudTab implements IDashboardTab {
                 "Configure",
                 false,
                 function():Void {
-                    ApiMenuHubWidget.openEditor(wDef);
+                    WidgetManager.openEditor(wDef);
                 }
             );
         }
@@ -161,7 +74,7 @@ class HudTab implements IDashboardTab {
             "Create",
             false,
             function():Void {
-                ApiMenuHubWidget.createNewWidget();
+                WidgetManager.createNewWidget();
             }
         );
 
@@ -173,7 +86,7 @@ class HudTab implements IDashboardTab {
             "Reset",
             false,
             function():Void {
-                ApiMenuHubWidget.resetAllWidgets();
+                WidgetManager.resetAllWidgets();
             }
         );
 
