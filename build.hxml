@@ -9,3 +9,7 @@
 --macro include('ui')
 --macro exclude('com.aqwapi')
 --macro exclude('hscript')
+# Exclude the concrete Overlay from ModUI.swc — aqw-mobile-mod supplies the
+# real AS3 Overlay.as at runtime, so we must not ship a conflicting definition.
+# The source stays concrete for clean type-checking; only the output is stripped.
+--macro exclude('ui.Overlay')

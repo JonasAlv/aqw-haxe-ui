@@ -61,7 +61,7 @@ class ApiMenus {
 
     /**
      * Entry point for launchers without our Overlay (official AQWorlds launcher).
-     * Needs only the stage; builds a self-contained ui.Overlay (-D standalone) and injects.
+     * Needs only the stage; builds a self-contained ui.Overlay and injects.
      */
     public static function injectStandalone(stage:Dynamic):Void {
         try {
@@ -116,8 +116,7 @@ class ApiMenus {
 
         // 3. Build Menu Tabs
         apiMenus = new Vector<Menu>();
-        #if !standalone
-        // Host menu tabs only make sense inside the aqw-mobile-mod launcher panel.
+        // Build all menu tabs — works in both aqw-mobile-mod and standalone launchers.
         var scriptsMenu = buildScriptsMenu(pocket, overlay);
         var automationMenu = buildAutomationMenu(pocket, overlay);
         var enhancementMenu = buildEnhancementMenu(pocket, overlay);
@@ -126,7 +125,6 @@ class ApiMenus {
         apiMenus.push(automationMenu);
         apiMenus.push(enhancementMenu);
         apiMenus.push(settingsMenu);
-        #end
 
         // 4. Handle UI event delegation (restore host menus on showPanelBtn)
         overlay.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
