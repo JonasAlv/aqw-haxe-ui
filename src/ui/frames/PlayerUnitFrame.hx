@@ -16,32 +16,112 @@ import ui.ApiStyle;
 import com.aqwapi.utils.ApiConfig;
 
 /**
- * Compact Player Unit Frame (ElvUI / oUF Style).
+ * Compact Player Unit Frame (WoW / ElvUI Style).
  *
  * Modern, minimalist, portrait-less unit frame displaying:
- * - Level badge, Username, Class & Rank
- * - Health Bar with numeric HP and Shield (+SG)
- * - Mana / Power Bar with numeric MP
+ * - Row 1: [Level] Username
+ * - Row 2: Class Name & Rank
+ * - Health Bar with dynamic WoW color (Green -> Yellow -> Red):
+ *   - Left edge: current HP / max HP (+SG)
+ *   - Right edge: current %
+ * - Mana Bar with current MP in the center
  * - Class Energy / Stamina (SP) hairline stripe
  * - Draggable with persistent screen position
  */
 class PlayerUnitFrame {
+    // =========================================================================
+    // SIZING DEFINITIONS (WoW-Style Unit Frame)
+    // =========================================================================
+    public static inline var FRAME_W:Float              = 130.0; // Horizontal width
+    public static inline var FRAME_H:Float              = 54.0;  // Vertical height (expanded for clarity)
+    public static inline var CORNER_RADIUS:Float        = 4.0;   // Outer frame roundness
+    public static inline var PADDING_X:Float            = 4.0;   // Left/right content margin
+
+    // Header Rows (Name & Class/Rank)
+    public static inline var NAME_Y:Float               = 2.0;   // Name label top offset
+    public static inline var NAME_H:Float               = 11.0;  // Name label height
+    public static inline var SUB_Y:Float                = 13.0;  // Subtitle (Class R<Rank>) top offset
+    public static inline var SUB_H:Float                = 10.0;  // Subtitle height
+
+    // Health Bar
+    public static inline var HP_BAR_Y:Float             = 25.0;  // Health bar top offset
+    public static inline var HP_BAR_H:Float             = 14.0;  // Health bar height
+    public static inline var HP_BAR_W:Float             = 122.0; // FRAME_W - (PADDING_X * 2)
+
+    // Mana Bar
+    public static inline var MP_BAR_Y:Float             = 41.0;  // Mana bar top offset
+    public static inline var MP_BAR_H:Float             = 9.0;   // Mana bar height
+    public static inline var MP_BAR_W:Float             = 122.0; // FRAME_W - (PADDING_X * 2)
+
+    // SP Hairline (Stamina / Class Energy)
+    public static inline var SP_BAR_Y:Float             = 51.5;  // SP indicator top offset
+    public static inline var SP_BAR_H:Float             = 1.5;   // Hairline height
+
+    // =========================================================================
+    // COLOR DEFINITIONS
+    // =========================================================================
+    // Plate & Surface
+    public static inline var COLOR_BG:Int               = 0x0F1117; // Deep dark obsidian surface
+    public static inline var COLOR_BORDER:Int           = 0x242838; // Crisp slate outer border
+    public static inline var COLOR_BAR_BG:Int           = 0x141721; // Bar well background
+
+    // Health Bar Colors (WoW Style Gradient: Healthy Green -> Low Yellow -> Critical Red)
+    public static inline var COLOR_HP_HEALTHY:Int       = 0x22C55E; // Healthy vibrant green (> 50%)
+    public static inline var COLOR_HP_LOW:Int           = 0xEAB308; // Getting low gold/yellow (20% - 50%)
+    public static inline var COLOR_HP_CRITICAL:Int      = 0xEF4444; // Critical danger red (< 20%)
+    public static inline var HP_THRESHOLD_HEALTHY:Float = 0.50;    // Healthy threshold (50%)
+    public static inline var HP_THRESHOLD_CRITICAL:Float= 0.20;    // Critical threshold (20%)
+
+    // Secondary Bars
+    public static inline var COLOR_SHIELD:Int           = 0x00E5FF; // Shield overlay (+SG) cyan
+    public static inline var COLOR_MP:Int               = 0x2563EB; // Mana fill WoW blue
+    public static inline var COLOR_SP:Int               = 0xF59E0B; // Class SP stamina hairline amber
+
+    // Typography
+    public static inline var COLOR_TEXT_NAME:Int        = 0xFFFFFF; // White primary text for name
+    public static inline var COLOR_TEXT_SUB:Int         = 0x94A3B8; // Slate muted text for class/rank
+    public static inline var COLOR_TEXT_BAR:Int         = 0xFFFFFF; // Crisp white text for HP and MP values
+
+    // =========================================================================
+    // HEALTH COLOR INTERPOLATION (WoW ColorGradient)
+    // =========================================================================
+    public static function getHealthColor(ratio:Float):Int {
+        if (ratio >= HP_THRESHOLD_HEALTHY) {
+            // Smooth gradient between Low (Yellow) at 0.50 and Healthy (Green) at 1.00
+            var t:Float = (ratio - HP_THRESHOLD_HEALTHY) / (1.0 - HP_THRESHOLD_HEALTHY);
+            var r = Std.int(0xEA + (0x22 - 0xEA) * t);
+            var g = Std.int(0xB3 + (0xC5 - 0xB3) * t);
+            var b = Std.int(0x08 + (0x5E - 0x08) * t);
+            return (r << 16) | (g << 8) | b;
+        } else if (ratio >= HP_THRESHOLD_CRITICAL) {
+            // Smooth gradient between Critical (Red) at 0.20 and Low (Yellow) at 0.50
+            var t:Float = (ratio - HP_THRESHOLD_CRITICAL) / (HP_THRESHOLD_HEALTHY - HP_THRESHOLD_CRITICAL);
+            var r = Std.int(0xEF + (0xEA - 0xEF) * t);
+            var g = Std.int(0x44 + (0xB3 - 0x44) * t);
+            var b = Std.int(0x44 + (0x08 - 0x44) * t);
+            return (r << 16) | (g << 8) | b;
+        } else {
+            return COLOR_HP_CRITICAL;
+        }
+    }
+
+    // =========================================================================
+    // STATE & VISUAL ELEMENTS
+    // =========================================================================
     private static var _pocket:Dynamic = null;
     private static var _overlay:Dynamic = null;
     private static var _widget:Sprite = null;
     private static var _initialized:Bool = false;
 
-    // Dimensions
-    public static inline var FRAME_W:Float = 130;
-    public static inline var FRAME_H:Float = 32;
-
-    // Visual elements
+    // Visual components
     private static var _bg:Sprite = null;
-    private static var _headerTxt:TextField = null;
+    private static var _nameTxt:TextField = null;
+    private static var _subTxt:TextField = null;
     private static var _hpBarBg:Shape = null;
     private static var _hpBarFill:Shape = null;
     private static var _shieldBarFill:Shape = null;
-    private static var _hpTxt:TextField = null;
+    private static var _hpLeftTxt:TextField = null;
+    private static var _hpRightTxt:TextField = null;
     private static var _mpBarBg:Shape = null;
     private static var _mpBarFill:Shape = null;
     private static var _mpTxt:TextField = null;
@@ -54,7 +134,8 @@ class PlayerUnitFrame {
     private static var _lastMp:Int = -1;
     private static var _lastMaxMp:Int = -1;
     private static var _lastSp:Int = -1;
-    private static var _lastHeaderStr:String = "";
+    private static var _lastNameStr:String = "";
+    private static var _lastSubStr:String = "";
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -100,81 +181,113 @@ class PlayerUnitFrame {
         _widget.x = initX;
         _widget.y = initY;
 
-        // 1. Base Plate & Outer Border (ElvUI style dark obsidian)
+        // 1. Base Plate & Outer Border
         _bg = new Sprite();
-        _bg.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.95);
-        _bg.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT, 0.95);
-        _bg.graphics.drawRoundRect(0, 0, FRAME_W, FRAME_H, 4, 4);
+        _bg.graphics.beginFill(COLOR_BG, 0.95);
+        _bg.graphics.lineStyle(1, COLOR_BORDER, 0.95);
+        _bg.graphics.drawRoundRect(0, 0, FRAME_W, FRAME_H, CORNER_RADIUS, CORNER_RADIUS);
         _bg.graphics.endFill();
         _bg.buttonMode = true;
         _bg.useHandCursor = true;
         _widget.addChild(_bg);
 
-        // 2. Header text: [Level] Class R10 (no username)
-        _headerTxt = new TextField();
-        var hdrFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, ApiStyle.COLOR_TEXT_PRIMARY, true);
-        _headerTxt.defaultTextFormat = hdrFmt;
-        _headerTxt.x = 4;
-        _headerTxt.y = 1;
-        _headerTxt.width = FRAME_W - 8;
-        _headerTxt.height = 12;
-        _headerTxt.selectable = false;
-        _headerTxt.mouseEnabled = false;
-        _widget.addChild(_headerTxt);
+        // 2. Header Rows (Name & Class/Rank)
+        _nameTxt = new TextField();
+        var nameFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, COLOR_TEXT_NAME, true);
+        _nameTxt.defaultTextFormat = nameFmt;
+        _nameTxt.x = PADDING_X;
+        _nameTxt.y = NAME_Y;
+        _nameTxt.width = FRAME_W - (PADDING_X * 2);
+        _nameTxt.height = NAME_H + 2;
+        _nameTxt.selectable = false;
+        _nameTxt.mouseEnabled = false;
+        _widget.addChild(_nameTxt);
 
-        // 3. Health Bar (y: 13, h: 11)
+        _subTxt = new TextField();
+        var subFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_SUB, true);
+        _subTxt.defaultTextFormat = subFmt;
+        _subTxt.x = PADDING_X;
+        _subTxt.y = SUB_Y;
+        _subTxt.width = FRAME_W - (PADDING_X * 2);
+        _subTxt.height = SUB_H + 2;
+        _subTxt.selectable = false;
+        _subTxt.mouseEnabled = false;
+        _widget.addChild(_subTxt);
+
+        // 3. Health Bar
         _hpBarBg = new Shape();
-        _hpBarBg.x = 4;
-        _hpBarBg.y = 13;
-        _hpBarBg.graphics.beginFill(0x2A1115, 0.95);
-        _hpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 11);
+        _hpBarBg.x = PADDING_X;
+        _hpBarBg.y = HP_BAR_Y;
+        _hpBarBg.graphics.beginFill(COLOR_BAR_BG, 0.95);
+        _hpBarBg.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H);
         _hpBarBg.graphics.endFill();
         _widget.addChild(_hpBarBg);
 
         _hpBarFill = new Shape();
-        _hpBarFill.x = 4;
-        _hpBarFill.y = 13;
+        _hpBarFill.x = PADDING_X;
+        _hpBarFill.y = HP_BAR_Y;
         _widget.addChild(_hpBarFill);
 
         _shieldBarFill = new Shape();
-        _shieldBarFill.x = 4;
-        _shieldBarFill.y = 13;
+        _shieldBarFill.x = PADDING_X;
+        _shieldBarFill.y = HP_BAR_Y;
         _widget.addChild(_shieldBarFill);
 
-        _hpTxt = new TextField();
-        var hpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, 0xFFFFFF, true);
-        hpFmt.align = TextFormatAlign.CENTER;
-        _hpTxt.defaultTextFormat = hpFmt;
-        _hpTxt.x = 4;
-        _hpTxt.y = 12;
-        _hpTxt.width = FRAME_W - 8;
-        _hpTxt.height = 13;
-        _hpTxt.selectable = false;
-        _hpTxt.mouseEnabled = false;
-        _widget.addChild(_hpTxt);
+        // Left edge: current hp / max hp (+SG)
+        _hpLeftTxt = new TextField();
+        var hpLeftFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.LEFT);
+        _hpLeftTxt.defaultTextFormat = hpLeftFmt;
+        _hpLeftTxt.x = PADDING_X + 2;
+        _hpLeftTxt.y = HP_BAR_Y - 0.5;
+        _hpLeftTxt.width = HP_BAR_W - 32;
+        _hpLeftTxt.height = HP_BAR_H + 2;
+        _hpLeftTxt.selectable = false;
+        _hpLeftTxt.mouseEnabled = false;
+        _widget.addChild(_hpLeftTxt);
 
-        // 4. Mana / Power Bar (y: 25, h: 5)
+        // Right edge: current %
+        _hpRightTxt = new TextField();
+        var hpRightFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.RIGHT);
+        _hpRightTxt.defaultTextFormat = hpRightFmt;
+        _hpRightTxt.x = PADDING_X;
+        _hpRightTxt.y = HP_BAR_Y - 0.5;
+        _hpRightTxt.width = HP_BAR_W - 2;
+        _hpRightTxt.height = HP_BAR_H + 2;
+        _hpRightTxt.selectable = false;
+        _hpRightTxt.mouseEnabled = false;
+        _widget.addChild(_hpRightTxt);
+
+        // 4. Mana Bar
         _mpBarBg = new Shape();
-        _mpBarBg.x = 4;
-        _mpBarBg.y = 25;
-        _mpBarBg.graphics.beginFill(0x0A1828, 0.95);
-        _mpBarBg.graphics.drawRect(0, 0, FRAME_W - 8, 5);
+        _mpBarBg.x = PADDING_X;
+        _mpBarBg.y = MP_BAR_Y;
+        _mpBarBg.graphics.beginFill(COLOR_BAR_BG, 0.95);
+        _mpBarBg.graphics.drawRect(0, 0, MP_BAR_W, MP_BAR_H);
         _mpBarBg.graphics.endFill();
         _widget.addChild(_mpBarBg);
 
         _mpBarFill = new Shape();
-        _mpBarFill.x = 4;
-        _mpBarFill.y = 25;
+        _mpBarFill.x = PADDING_X;
+        _mpBarFill.y = MP_BAR_Y;
         _widget.addChild(_mpBarFill);
 
+        // Center: current mana number
         _mpTxt = new TextField();
-        _mpTxt.visible = false;
+        var mpFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.0, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.CENTER);
+        _mpTxt.defaultTextFormat = mpFmt;
+        _mpTxt.x = PADDING_X;
+        _mpTxt.y = MP_BAR_Y - 1.5;
+        _mpTxt.width = MP_BAR_W;
+        _mpTxt.height = MP_BAR_H + 3;
+        _mpTxt.selectable = false;
+        _mpTxt.mouseEnabled = false;
+        _mpTxt.visible = true;
         _widget.addChild(_mpTxt);
 
-        // 5. SP hairline indicator (y: 30.5, h: 1.5)
+        // 5. SP Hairline Stripe
         _spBarFill = new Shape();
-        _spBarFill.x = 4;
-        _spBarFill.y = 30.5;
+        _spBarFill.x = PADDING_X;
+        _spBarFill.y = SP_BAR_Y;
         _widget.addChild(_spBarFill);
 
         // 6. Setup Dragging
@@ -222,6 +335,7 @@ class PlayerUnitFrame {
         if (maxMp <= 0) maxMp = 100;
 
         var lvl = Api.player.level;
+        var pName = (Api.player.username != null && Api.player.username != "") ? Api.player.username : "Player";
         var cName = Api.player.className;
         if (cName == "") cName = "Class";
         var rankStr = "";
@@ -239,29 +353,34 @@ class PlayerUnitFrame {
             }
         }
 
-        // 1. Header Text: [Level] Class Rank (no username)
-        var fullHeader = "[" + lvl + "] " + cName + rankStr;
-        if (fullHeader != _lastHeaderStr) {
-            _lastHeaderStr = fullHeader;
-            _headerTxt.text = fullHeader;
+        // 1. Name and Sub labels
+        var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + pName;
+        if (nameText != _lastNameStr) {
+            _lastNameStr = nameText;
+            _nameTxt.text = nameText;
         }
 
-        var barW:Float = FRAME_W - 8;
+        var subText = cName + rankStr;
+        if (subText != _lastSubStr) {
+            _lastSubStr = subText;
+            _subTxt.text = subText;
+        }
 
-        // 2. Health Bar Fill & Text
+        // 2. Health Bar Fill & Texts
         if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield) {
             _lastHp = hp;
             _lastMaxHp = maxHp;
             _lastShield = shield;
 
             var hpRatio = Math.max(0.0, Math.min(1.0, hp / maxHp));
-            var fillW = Math.round(barW * hpRatio);
+            var fillW = Math.round(HP_BAR_W * hpRatio);
+            var hpColor = getHealthColor(hpRatio);
 
             var g = _hpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(ApiStyle.COLOR_STATUS_ERROR, 0.95);
-                g.drawRect(0, 0, fillW, 11);
+                g.beginFill(hpColor, 0.95);
+                g.drawRect(0, 0, fillW, HP_BAR_H);
                 g.endFill();
             }
 
@@ -269,46 +388,49 @@ class PlayerUnitFrame {
             sg.clear();
             if (shield > 0) {
                 var shieldRatio = Math.min(1.0, shield / maxHp);
-                var shieldW = Math.round(barW * shieldRatio);
-                sg.beginFill(ApiStyle.COLOR_ACCENT_CYAN, 0.45);
-                sg.drawRect(0, 0, shieldW, 11);
+                var shieldW = Math.round(HP_BAR_W * shieldRatio);
+                sg.beginFill(COLOR_SHIELD, 0.45);
+                sg.drawRect(0, 0, shieldW, HP_BAR_H);
                 sg.endFill();
             }
 
             var shieldText = (shield > 0) ? " +" + formatNumber(shield) : "";
-            _hpTxt.text = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldText;
+            _hpLeftTxt.text = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldText;
+
+            var hpPercent = (hp > 0 && hpRatio < 0.01) ? 1 : Math.round(hpRatio * 100);
+            _hpRightTxt.text = hpPercent + "%";
         }
 
-        // 3. Mana Bar Fill & Text
+        // 3. Mana Bar Fill & Center Text
         if (mp != _lastMp || maxMp != _lastMaxMp) {
             _lastMp = mp;
             _lastMaxMp = maxMp;
 
             var mpRatio = Math.max(0.0, Math.min(1.0, mp / maxMp));
-            var fillW = Math.round(barW * mpRatio);
+            var fillW = Math.round(MP_BAR_W * mpRatio);
 
             var g = _mpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(0x2563EB, 0.95);
-                g.drawRect(0, 0, fillW, 5);
+                g.beginFill(COLOR_MP, 0.95);
+                g.drawRect(0, 0, fillW, MP_BAR_H);
                 g.endFill();
             }
 
-            _mpTxt.text = formatNumber(mp) + " / " + formatNumber(maxMp);
+            _mpTxt.text = (maxMp > 0 && mp >= 0) ? formatNumber(mp) : "";
         }
 
-        // 4. SP Hairline Stripe
+        // 4. SP Hairline
         if (sp != _lastSp) {
             _lastSp = sp;
             var spRatio = Math.max(0.0, Math.min(1.0, sp / 100.0));
-            var fillW = Math.round(barW * spRatio);
+            var fillW = Math.round(HP_BAR_W * spRatio);
 
             var g = _spBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 0.9);
-                g.drawRect(0, 0, fillW, 1.5);
+                g.beginFill(COLOR_SP, 0.9);
+                g.drawRect(0, 0, fillW, SP_BAR_H);
                 g.endFill();
             }
         }
