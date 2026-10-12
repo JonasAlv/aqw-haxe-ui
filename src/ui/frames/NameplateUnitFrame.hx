@@ -66,6 +66,7 @@ class NameplateDisplay extends Sprite {
     public function new(isEnemy:Bool) {
         super();
         this.isEnemy = isEnemy;
+        this.name = "__nameplate";
         mouseChildren = false;
         buttonMode = true;
         useHandCursor = true;
@@ -350,9 +351,6 @@ class NameplateUnitFrame {
 
             if (dead) {
                 if (p.entity != null) p.entity.showNativeName();
-                if (p.entity != null && p.entity.pMC != null) {
-                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
-                }
                 p.destroy();
                 _activePlates.splice(i, 1);
             }
@@ -381,23 +379,25 @@ class NameplateUnitFrame {
         // Suppress native vector pname and hpBar via API
         ent.hideNativeName();
 
-        // Retrieve existing or create new NameplateDisplay
+        // Retrieve existing child or create new NameplateDisplay using native getChildByName
         var plate:NameplateDisplay = null;
-        if (Reflect.hasField(mc, "__nameplate")) {
-            plate = Reflect.field(mc, "__nameplate");
-        }
+        try {
+            var existingChild:Dynamic = mc.getChildByName("__nameplate");
+            if (existingChild != null && Std.isOfType(existingChild, NameplateDisplay)) {
+                plate = cast existingChild;
+            }
+        } catch (_:Dynamic) {}
 
         if (plate == null) {
             plate = new NameplateDisplay(isEnemy);
             plate.entity = ent;
-            Reflect.setField(mc, "__nameplate", plate);
             mc.addChild(plate);
             _activePlates.push(plate);
         } else {
+            plate.entity = ent;
             if (plate.parent != mc) {
                 mc.addChild(plate);
             }
-            plate.entity = ent;
         }
 
         // Update plate contents using clean EntityDTO
@@ -407,9 +407,6 @@ class NameplateUnitFrame {
     private static function disableAllPlates():Void {
         for (p in _activePlates) {
             if (p.entity != null) p.entity.showNativeName();
-            if (p.entity != null && p.entity.pMC != null) {
-                try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
-            }
             p.destroy();
         }
         _activePlates = [];
@@ -421,9 +418,6 @@ class NameplateUnitFrame {
             var p = _activePlates[i];
             if (p.isEnemy) {
                 if (p.entity != null) p.entity.showNativeName();
-                if (p.entity != null && p.entity.pMC != null) {
-                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
-                }
                 p.destroy();
                 _activePlates.splice(i, 1);
             }
@@ -437,9 +431,6 @@ class NameplateUnitFrame {
             var p = _activePlates[i];
             if (!p.isEnemy) {
                 if (p.entity != null) p.entity.showNativeName();
-                if (p.entity != null && p.entity.pMC != null) {
-                    try { Reflect.deleteField(p.entity.pMC, "__nameplate"); } catch (_:Dynamic) {}
-                }
                 p.destroy();
                 _activePlates.splice(i, 1);
             }
