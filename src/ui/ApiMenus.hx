@@ -52,6 +52,32 @@ class ApiMenus {
         }
     }
 
+    public static function updateFloatingMenuVisibility():Void {
+        if (_floatingMenuBtn == null) return;
+        var inGame = isInGame();
+        if (!inGame) {
+            _floatingMenuBtn.visible = false;
+            return;
+        }
+
+        var isHostPanelOpen:Bool = false;
+        try {
+            if (_host != null && Reflect.hasField(_host, "currentFrameLabel") && Reflect.field(_host, "currentFrameLabel") == "Panel") {
+                isHostPanelOpen = true;
+            }
+        } catch (_:Dynamic) {}
+
+        var isPanelOpen:Bool = isHostPanelOpen || ApiDashboardModal.isOpen();
+        if (isPanelOpen) {
+            _floatingMenuBtn.visible = false;
+            return;
+        }
+
+        var topBarActive = TopBar.isTopBarEnabled();
+        var forceFloating = ApiConfig.getBool("api_floating_menu_enabled", false);
+        _floatingMenuBtn.visible = (!topBarActive || forceFloating);
+    }
+
     /**
      * Universal mod UI entry point. Works with any container:
      * - The Flash Stage (official AQWorlds launcher)
@@ -149,11 +175,8 @@ class ApiMenus {
         // 4. Skua-Style Top Control Bar (Auto, Jump, Players, Menu)
         TopBar.init(theStage, host);
 
-        // 5. Floating On-Screen Menu Button (legacy standalone trigger, default disabled when TopBar is active)
-        var enableFloatingMenu = ApiConfig.getBool("api_floating_menu_enabled", false);
-        if (enableFloatingMenu) {
-            setupFloatingMenuButton(theStage, host);
-        }
+        // 5. Floating On-Screen Menu Button (always active as standalone fallback when TopBar is disabled)
+        setupFloatingMenuButton(theStage, host);
 
         // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
         WidgetManager.init(theStage, host);
@@ -266,6 +289,9 @@ class ApiMenus {
             dragStartX = e.stageX - icon.x;
             dragStartY = e.stageY - icon.y;
             icon.cacheAsBitmap = false;
+            if (theStage != null && icon.parent == theStage) {
+                theStage.setChildIndex(icon, theStage.numChildren - 1);
+            }
         });
 
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
@@ -309,8 +335,14 @@ class ApiMenus {
             }
         });
 
-        // Visible immediately at app launch, hidden ONLY when dashboard modal is open
+        // Manage visibility every frame: visible when TopBar is disabled (or forced), hidden during panels/modals
         icon.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            var inGame = isInGame();
+            if (!inGame) {
+                icon.visible = false;
+                return;
+            }
+
             var isHostPanelOpen:Bool = false;
             try {
                 if (host != null && Reflect.hasField(host, "currentFrameLabel") && Reflect.field(host, "currentFrameLabel") == "Panel") {
@@ -319,7 +351,14 @@ class ApiMenus {
             } catch (_:Dynamic) {}
 
             var isPanelOpen:Bool = isHostPanelOpen || ApiDashboardModal.isOpen();
-            icon.visible = !isPanelOpen;
+            if (isPanelOpen) {
+                icon.visible = false;
+                return;
+            }
+
+            var topBarActive = TopBar.isTopBarEnabled();
+            var forceFloating = ApiConfig.getBool("api_floating_menu_enabled", false);
+            icon.visible = (!topBarActive || forceFloating);
 
             if (icon.visible && theStage != null) {
                 var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
@@ -337,5 +376,6 @@ class ApiMenus {
     public static function inject(target:Dynamic = null):Void {}
     public static function injectStandalone(stage:Dynamic):Void {}
     public static function resetMenuButtonPosition():Void {}
+    public static function updateFloatingMenuVisibility():Void {}
 }
 #end

@@ -1,8 +1,10 @@
 package ui.dashboard.tabs;
 
 #if flash
+import com.aqwapi.utils.ApiConfig;
 import ui.ApiDashboardModal;
 import ui.ApiHudManager;
+import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.dashboard.IDashboardTab;
 import ui.topbar.TopBar;
@@ -26,10 +28,40 @@ class HudTab implements IDashboardTab {
                 var cur = TopBar.isTopBarEnabled();
                 var next = !cur;
                 TopBar.setTopBarEnabled(next);
-                ApiNotificationManager.notify("Top Bar: " + (next ? "Visible" : "Hidden"));
+                ApiNotificationManager.notify(next ? "Top Bar: Visible" : "Top Bar: Hidden (Floating Menu active)");
             },
             function():Bool {
                 return TopBar.isTopBarEnabled();
+            }
+        );
+
+        modal.addItemRow(
+            "Standalone Floating Menu",
+            "Always show floating Menu button even when Top Bar is active.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiConfig.getBool("api_floating_menu_enabled", false);
+                var next = !cur;
+                ApiConfig.setBool("api_floating_menu_enabled", next);
+                ApiMenus.updateFloatingMenuVisibility();
+                ApiNotificationManager.notify("Floating Menu: " + (next ? "Always Visible" : "Only when Top Bar is hidden"));
+            },
+            function():Bool {
+                return ApiConfig.getBool("api_floating_menu_enabled", false);
+            }
+        );
+
+        modal.addItemRow(
+            "Reset Menu Button Position",
+            "Reset standalone floating Menu button position to default (x=80, y=10).",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                ApiMenus.resetMenuButtonPosition();
+                ApiNotificationManager.notify("Menu button position reset!");
             }
         );
 

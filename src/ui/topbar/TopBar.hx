@@ -13,6 +13,7 @@ import flash.text.TextFormatAlign;
 import com.aqwapi.Api;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiDashboardModal;
+import ui.ApiMenus;
 import ui.ApiStyle;
 
 /**
@@ -85,7 +86,13 @@ class TopBar extends Sprite {
 
     public static function setTopBarEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_topbar_enabled", enabled);
-        if (instance != null) instance.visible = enabled;
+        if (instance != null) {
+            instance.visible = enabled;
+            if (!enabled) {
+                instance.closeDropdown();
+            }
+        }
+        ApiMenus.updateFloatingMenuVisibility();
     }
 
     public static function init(stageObj:Dynamic, hostObj:Dynamic = null):Void {
