@@ -59,12 +59,28 @@ class ApiMenus {
     public static var apiMenus:Vector<Menu>;
     public static var lastSelectedMenu:Menu = null;
 
+    /**
+     * Entry point for launchers without our Overlay (official AQWorlds launcher).
+     * Needs only the stage; builds a self-contained ui.Overlay (-D standalone) and injects.
+     */
+    public static function injectStandalone(stage:Dynamic):Void {
+        try {
+            var overlay = new Overlay();
+            stage.addChild(overlay);
+            inject(overlay);
+        } catch (e:Dynamic) {
+            ApiLogger.error("UI", "injectStandalone failed: " + Std.string(e));
+        }
+    }
+
     public static function inject(overlay:Overlay):Void {
         if (_injected) return;
         _injected = true;
         _overlay = overlay;
 
-        var pocket:Dynamic = untyped __global__["Pocket"].SINGLETON;
+        // Pocket only exists in the aqw-mobile-mod launcher; the official launcher has none.
+        var pocket:Dynamic = null;
+        try { pocket = untyped __global__["Pocket"].SINGLETON; } catch (_:Dynamic) {}
         if (pocket == null && overlay.parent != null) {
             pocket = overlay.parent;
         }
@@ -99,16 +115,18 @@ class ApiMenus {
         }
 
         // 3. Build Menu Tabs
+        apiMenus = new Vector<Menu>();
+        #if !standalone
+        // Host menu tabs only make sense inside the aqw-mobile-mod launcher panel.
         var scriptsMenu = buildScriptsMenu(pocket, overlay);
         var automationMenu = buildAutomationMenu(pocket, overlay);
         var enhancementMenu = buildEnhancementMenu(pocket, overlay);
         var settingsMenu = buildSettingsMenu(pocket, overlay);
-
-        apiMenus = new Vector<Menu>();
         apiMenus.push(scriptsMenu);
         apiMenus.push(automationMenu);
         apiMenus.push(enhancementMenu);
         apiMenus.push(settingsMenu);
+        #end
 
         // 4. Handle UI event delegation (restore host menus on showPanelBtn)
         overlay.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
@@ -707,6 +725,7 @@ class ApiMenus {
 #else
 class ApiMenus {
     public static function inject(overlay:Dynamic):Void {}
+    public static function injectStandalone(stage:Dynamic):Void {}
     public static function resetMenuButtonPosition():Void {}
 }
 #end
