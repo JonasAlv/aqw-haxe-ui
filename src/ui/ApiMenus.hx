@@ -66,8 +66,18 @@ class ApiMenus {
     public static function injectStandalone(stage:Dynamic):Void {
         try {
             var overlay = new Overlay();
+            // Defer inject() until ADDED_TO_STAGE so overlay.stage is non-null.
+            var onAdded:Dynamic = null;
+            onAdded = function(ev:Event):Void {
+                overlay.removeEventListener(Event.ADDED_TO_STAGE, onAdded);
+                try {
+                    inject(overlay);
+                } catch (e:Dynamic) {
+                    ApiLogger.error("UI", "injectStandalone inject failed: " + Std.string(e));
+                }
+            };
+            overlay.addEventListener(Event.ADDED_TO_STAGE, onAdded);
             stage.addChild(overlay);
-            inject(overlay);
         } catch (e:Dynamic) {
             ApiLogger.error("UI", "injectStandalone failed: " + Std.string(e));
         }
