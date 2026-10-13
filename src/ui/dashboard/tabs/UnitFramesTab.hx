@@ -52,10 +52,10 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 3. Streamer Mode / Show Class Names (All Frames)
+        // 3. Show Class Names (All Frames)
         modal.addItemRow(
-            "Streamer Mode (Show Class Names)",
-            "Replaces player usernames with class names across all frames and nameplates for streaming privacy.",
+            "Show Class Names",
+            "Replaces player usernames with class names across all frames and nameplates.",
             "toggle",
             "",
             false,
@@ -63,7 +63,7 @@ class UnitFramesTab implements IDashboardTab {
                 var cur = UnitFramesManager.isShowClassNames();
                 var next = !cur;
                 UnitFramesManager.setShowClassNames(next);
-                ApiNotificationManager.notify("Streamer Mode: " + (next ? "Enabled" : "Disabled"));
+                ApiNotificationManager.notify("Show Class Names: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
                 return UnitFramesManager.isShowClassNames();
