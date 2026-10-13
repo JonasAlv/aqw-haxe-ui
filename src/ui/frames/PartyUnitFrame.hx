@@ -43,12 +43,11 @@ class PartyUnitFrame {
     public static inline var CONFIG_POS_X:String         = "api_frame_party_x";
     public static inline var CONFIG_POS_Y:String         = "api_frame_party_y";
 
-    // Geometry
-    public static inline var TILE_W:Float                = 64.0;
-    public static inline var TILE_H:Float                = 54.0;
-    public static inline var GAP:Float                   = 4.0;
-    public static inline var MANA_H:Float                = 3.5;
-    public static inline var HEADER_H:Float              = 14.0;
+    // Geometry (Ultra-compact modern raid frame style)
+    public static inline var TILE_W:Float                = 84.0;
+    public static inline var TILE_H:Float                = 22.0;
+    public static inline var GAP:Float                   = 2.0;
+    public static inline var MANA_H:Float                = 3.0;
 
     // Palette
     public static inline var COLOR_BG:Int                = 0x0F1117; // Obsidian plate
@@ -536,21 +535,26 @@ class PartyTile extends Sprite {
     }
 
     private function buildDisplay():Void {
-        // 1. Tile Well Background
+        var w = PartyUnitFrame.TILE_W;
+        var h = PartyUnitFrame.TILE_H;
+        var hpW = w - 2.0;
+        var hpH = h - PartyUnitFrame.MANA_H - 2.0; // 22 - 3 - 2 = 17px
+        var mpY = 1.0 + hpH; // 18.0
+        var mpH = PartyUnitFrame.MANA_H; // 3.0
+
+        // 1. Tile Background Plate
         _bgWell = new Shape();
         var g = _bgWell.graphics;
         g.beginFill(PartyUnitFrame.COLOR_BG, 0.95);
-        g.drawRect(0, 0, PartyUnitFrame.TILE_W, PartyUnitFrame.TILE_H);
+        g.drawRect(0, 0, w, h);
         g.endFill();
         addChild(_bgWell);
 
-        // 2. Health Bar Well (main body of the square)
-        var hpY:Float = PartyUnitFrame.HEADER_H;
-        var hpH:Float = PartyUnitFrame.TILE_H - PartyUnitFrame.HEADER_H - PartyUnitFrame.MANA_H - 1.0;
+        // 2. Health Bar Well
         _hpBarWell = new Shape();
         var gw = _hpBarWell.graphics;
         gw.beginFill(PartyUnitFrame.COLOR_WELL, 0.9);
-        gw.drawRect(0, hpY, PartyUnitFrame.TILE_W, hpH);
+        gw.drawRect(1, 1, hpW, hpH);
         gw.endFill();
         addChild(_hpBarWell);
 
@@ -562,64 +566,49 @@ class PartyTile extends Sprite {
         _shieldFill = new Shape();
         addChild(_shieldFill);
 
-        // 5. Health Bar 1px Black Border
-        _hpBarBorder = new Shape();
-        var ghb = _hpBarBorder.graphics;
-        ghb.lineStyle(1.0, PartyUnitFrame.COLOR_BORDER, 1.0, true);
-        ghb.drawRect(0.5, hpY + 0.5, PartyUnitFrame.TILE_W - 1.0, hpH - 1.0);
-        addChild(_hpBarBorder);
-
-        // 6. Thin Mana Bar Well (at bottom of square, no text)
-        var mpY:Float = PartyUnitFrame.TILE_H - PartyUnitFrame.MANA_H;
+        // 5. Thin Mana Bar Well
         _mpBarWell = new Shape();
         var gmw = _mpBarWell.graphics;
         gmw.beginFill(PartyUnitFrame.COLOR_MP_WELL, 0.9);
-        gmw.drawRect(0, mpY, PartyUnitFrame.TILE_W, PartyUnitFrame.MANA_H);
+        gmw.drawRect(1, mpY, hpW, mpH);
         gmw.endFill();
         addChild(_mpBarWell);
 
-        // 7. Mana Bar Fill
+        // 6. Mana Bar Fill
         _mpBarFill = new Shape();
         addChild(_mpBarFill);
 
-        // 8. Mana Bar 1px Black Border
-        _mpBarBorder = new Shape();
-        var gmb = _mpBarBorder.graphics;
-        gmb.lineStyle(1.0, PartyUnitFrame.COLOR_BORDER, 1.0, true);
-        gmb.drawRect(0.5, mpY + 0.5, PartyUnitFrame.TILE_W - 1.0, PartyUnitFrame.MANA_H - 1.0);
-        addChild(_mpBarBorder);
-
-        // 9. Overall 1px Outer Tile Border
+        // 7. Outer 1px Solid Border
         _tileBorder = new Shape();
         var gtb = _tileBorder.graphics;
         gtb.lineStyle(1.0, PartyUnitFrame.COLOR_BORDER, 1.0, true);
-        gtb.drawRect(0.5, 0.5, PartyUnitFrame.TILE_W - 1.0, PartyUnitFrame.TILE_H - 1.0);
+        gtb.drawRect(0.5, 0.5, w - 1.0, h - 1.0);
         addChild(_tileBorder);
 
-        // 10. Top Name Text Field
+        // 8. Player Name (Left-aligned over HP bar)
         _nameTxt = new TextField();
-        _nameTxt.x = 2;
-        _nameTxt.y = 0;
-        _nameTxt.width = PartyUnitFrame.TILE_W - 4;
-        _nameTxt.height = PartyUnitFrame.HEADER_H;
+        _nameTxt.x = 3;
+        _nameTxt.y = 1;
+        _nameTxt.width = w - 34; // 50px
+        _nameTxt.height = 16;
         _nameTxt.selectable = false;
         _nameTxt.mouseEnabled = false;
-        var tfName = new TextFormat(ApiStyle.FONT_FAMILY, 9, PartyUnitFrame.COLOR_NAME, true);
-        tfName.align = TextFormatAlign.CENTER;
+        var tfName = new TextFormat(ApiStyle.FONT_FAMILY, 10, PartyUnitFrame.COLOR_NAME, true);
+        tfName.align = TextFormatAlign.LEFT;
         _nameTxt.defaultTextFormat = tfName;
         _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         addChild(_nameTxt);
 
-        // 11. Center 1 Single % Indicator Text Field
+        // 9. Health % Indicator (Right-aligned over HP bar)
         _pctTxt = new TextField();
-        _pctTxt.x = 0;
-        _pctTxt.y = hpY + (hpH - 18) / 2.0;
-        _pctTxt.width = PartyUnitFrame.TILE_W;
-        _pctTxt.height = 20;
+        _pctTxt.x = w - 36;
+        _pctTxt.y = 1;
+        _pctTxt.width = 33;
+        _pctTxt.height = 16;
         _pctTxt.selectable = false;
         _pctTxt.mouseEnabled = false;
-        var tfPct = new TextFormat(ApiStyle.FONT_FAMILY, 12, PartyUnitFrame.COLOR_WHITE, true);
-        tfPct.align = TextFormatAlign.CENTER;
+        var tfPct = new TextFormat(ApiStyle.FONT_FAMILY, 10, PartyUnitFrame.COLOR_WHITE, true);
+        tfPct.align = TextFormatAlign.RIGHT;
         _pctTxt.defaultTextFormat = tfPct;
         _pctTxt.filters = ApiStyle.getTextOutlineFilter();
         addChild(_pctTxt);
@@ -661,15 +650,20 @@ class PartyTile extends Sprite {
         var name = member.username;
         var isLeader = member.isLeader;
         var inCell = member.inCell;
-
         var inRange = member.inRange;
         var isMe = member.isMe;
+
+        var w = PartyUnitFrame.TILE_W;
+        var hpW = w - 2.0;
+        var hpH = PartyUnitFrame.TILE_H - PartyUnitFrame.MANA_H - 2.0;
+        var mpY = 1.0 + hpH;
+        var mpH = PartyUnitFrame.MANA_H;
 
         // Dim tile if not in cell / out of range
         var activeCell = inCell || isMe;
         if (activeCell != _lastInCell) {
             _lastInCell = activeCell;
-            this.alpha = activeCell ? 1.0 : 0.45;
+            this.alpha = activeCell ? 1.0 : 0.55;
         }
 
         // 1. Update Name Text
@@ -677,7 +671,7 @@ class PartyTile extends Sprite {
             _lastName = name;
             _lastIsLeader = isLeader;
 
-            var displayName = (name.length > 7) ? (name.substr(0, 6) + "..") : name;
+            var displayName = (name.length > 8) ? (name.substr(0, 7) + "..") : name;
             if (isLeader) {
                 _nameTxt.text = "[L] " + displayName;
                 var tf = _nameTxt.defaultTextFormat;
@@ -701,21 +695,32 @@ class PartyTile extends Sprite {
             _lastShield = shield;
             _lastInRange = inRange;
 
-            var hpY:Float = PartyUnitFrame.HEADER_H;
-            var hpH:Float = PartyUnitFrame.TILE_H - PartyUnitFrame.HEADER_H - PartyUnitFrame.MANA_H - 1.0;
-
             if (!inRange && !isMe) {
-                // Out of range / stats unknown
-                _pctTxt.text = "?";
+                // Out of range (different map or far away)
+                if (maxHp > 0) {
+                    var hpRatio = member.hpRatio;
+                    var pct = member.hpPercent;
+                    _pctTxt.text = pct + "%";
+                    var color = PartyUnitFrame.getHealthColor(hpRatio);
+                    var fillW = Math.round(hpW * hpRatio);
+                    var g = _hpBarFill.graphics;
+                    g.clear();
+                    if (fillW > 0) {
+                        g.beginFill(color, 0.4); // Dimmed fill
+                        g.drawRect(1, 1, fillW, hpH);
+                        g.endFill();
+                    }
+                } else {
+                    _pctTxt.text = "Far";
+                    _hpBarFill.graphics.clear();
+                }
                 var tf = _pctTxt.defaultTextFormat;
                 tf.color = PartyUnitFrame.COLOR_MUTED;
                 _pctTxt.defaultTextFormat = tf;
                 _pctTxt.setTextFormat(tf);
                 _pctTxt.filters = ApiStyle.getTextOutlineFilter();
-
-                _hpBarFill.graphics.clear();
                 _shieldFill.graphics.clear();
-            } else if (hp <= 0) {
+            } else if (hp <= 0 && inRange) {
                 // Dead
                 _pctTxt.text = "DEAD";
                 var tf = _pctTxt.defaultTextFormat;
@@ -738,12 +743,12 @@ class PartyTile extends Sprite {
 
                 // Health Fill
                 var color = PartyUnitFrame.getHealthColor(hpRatio);
-                var fillW = Math.round(PartyUnitFrame.TILE_W * hpRatio);
+                var fillW = Math.round(hpW * hpRatio);
                 var g = _hpBarFill.graphics;
                 g.clear();
                 if (fillW > 0) {
                     g.beginFill(color, 0.95);
-                    g.drawRect(0, hpY, fillW, hpH);
+                    g.drawRect(1, 1, fillW, hpH);
                     g.endFill();
                 }
 
@@ -752,10 +757,10 @@ class PartyTile extends Sprite {
                 gs.clear();
                 if (shield > 0 && maxHp > 0) {
                     var sRatio = Math.min(1.0, shield / maxHp);
-                    var sW = Math.round(PartyUnitFrame.TILE_W * sRatio);
+                    var sW = Math.round(hpW * sRatio);
                     if (sW > 0) {
-                        gs.beginFill(PartyUnitFrame.COLOR_SHIELD, 0.4);
-                        gs.drawRect(0, hpY, sW, hpH);
+                        gs.beginFill(PartyUnitFrame.COLOR_SHIELD, 0.45);
+                        gs.drawRect(1, 1, sW, hpH);
                         gs.endFill();
                     }
                 }
@@ -768,14 +773,13 @@ class PartyTile extends Sprite {
             _lastMaxMp = maxMp;
 
             var mpRatio = member.mpRatio;
-            var fillW = Math.round(PartyUnitFrame.TILE_W * mpRatio);
-            var mpY:Float = PartyUnitFrame.TILE_H - PartyUnitFrame.MANA_H;
+            var fillW = Math.round(hpW * mpRatio);
 
             var gm = _mpBarFill.graphics;
             gm.clear();
             if (fillW > 0) {
                 gm.beginFill(PartyUnitFrame.COLOR_MP, 0.95);
-                gm.drawRect(0, mpY, fillW, PartyUnitFrame.MANA_H);
+                gm.drawRect(1, mpY, fillW, mpH);
                 gm.endFill();
             }
         }
