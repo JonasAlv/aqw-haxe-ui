@@ -30,6 +30,7 @@ class UnitFramesManager {
         TargetUnitFrame.init(pocket, overlay);
         NameplateUnitFrame.init(pocket, overlay);
         AuraFramesManager.init(pocket, overlay);
+        BossMechanicsBar.init(pocket, overlay);
         syncNativeHideUI();
 
         if (Api.dispatcher != null) {
@@ -113,6 +114,26 @@ class UnitFramesManager {
             setNameplatesEnabled(true);
         }
         NameplateUnitFrame.setPlayerNamesEnabled(enabled);
+    }
+
+    public static inline function isBossMechanicsBarEnabled():Bool {
+        return BossMechanicsBar.isEnabled();
+    }
+
+    public static inline function setBossMechanicsBarEnabled(enabled:Bool):Void {
+        BossMechanicsBar.setEnabled(enabled);
+    }
+
+    public static inline function isTauntAlertsEnabled():Bool {
+        return BossMechanicsBar.isTauntAlertsEnabled();
+    }
+
+    public static inline function setTauntAlertsEnabled(enabled:Bool):Void {
+        BossMechanicsBar.setTauntAlertsEnabled(enabled);
+    }
+
+    public static inline function testBossMechanicsBar():Void {
+        BossMechanicsBar.testPreview();
     }
 
     /**
@@ -248,6 +269,11 @@ class UnitFramesManager {
     public static function setEnemyNameplatesEnabled(enabled:Bool):Void {}
     public static function isPlayerNameplatesEnabled():Bool return false;
     public static function setPlayerNameplatesEnabled(enabled:Bool):Void {}
+    public static function isBossMechanicsBarEnabled():Bool return false;
+    public static function setBossMechanicsBarEnabled(enabled:Bool):Void {}
+    public static function isTauntAlertsEnabled():Bool return false;
+    public static function setTauntAlertsEnabled(enabled:Bool):Void {}
+    public static function testBossMechanicsBar():Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
 }

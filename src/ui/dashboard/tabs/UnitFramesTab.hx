@@ -212,6 +212,59 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        modal.addSectionHeader("Boss Mechanics & Cast Bar");
+
+        // 1. Boss Alert Bar
+        modal.addItemRow(
+            "Boss Alert Bar",
+            "Live countdown cast bar for Ultra Boss charge-ups, wipe mechanics, and destructive attacks.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isBossMechanicsBarEnabled();
+                var next = !cur;
+                UnitFramesManager.setBossMechanicsBarEnabled(next);
+                ApiNotificationManager.notify("Boss Alert Bar: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isBossMechanicsBarEnabled();
+            }
+        );
+
+        // 2. Taunt Expiry Alerts
+        modal.addItemRow(
+            "Taunt Expiry Alerts",
+            "Displays an alert when boss Focus (taunt) drops below 3s so the group knows to re-taunt.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isTauntAlertsEnabled();
+                var next = !cur;
+                UnitFramesManager.setTauntAlertsEnabled(next);
+                ApiNotificationManager.notify("Taunt Expiry Alerts: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isTauntAlertsEnabled();
+            }
+        );
+
+        // 3. Test Preview
+        modal.addItemRow(
+            "Test Alert Bar",
+            "Simulate a live 4-second boss alert bar to preview and drag into position.",
+            "button",
+            "Preview",
+            false,
+            function():Void {
+                UnitFramesManager.testBossMechanicsBar();
+            },
+            function():Bool {
+                return false;
+            }
+        );
+
         modal.addSectionHeader("Floating Combat Text (Damage Numbers)");
 
         // 1. Floating Combat Text
