@@ -258,21 +258,62 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 14. Disable Skill FX
+        // 14. Spell Animations Mode
         modal.addItemRow(
-            "Disable Skill FX",
-            "Disables all skill spell effects and projectile particles, clearing the special effects queue.",
+            "Spell Animations",
+            "Filter combat spell animations: All Spells (Optimized), Self Spells Only, or Disabled.",
+            "button",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    var mode = Api.visual.cycleSkillAnimMode();
+                    var label = Api.visual.getSkillAnimModeLabel();
+                    ApiNotificationManager.notify("Spell Animations: " + label);
+                }
+            },
+            null,
+            function():String {
+                return (Api.visual != null) ? Api.visual.getSkillAnimModeLabel() : "All Spells";
+            }
+        );
+
+        // 15. Fast Spell FX (Lag Killer)
+        modal.addItemRow(
+            "Fast Spell FX (No Blur/Glow)",
+            "Strips expensive CPU blur and glow convolution filters from spell animations and deduplicates AoE hits so All Spells run smoothly at 60 FPS.",
             "toggle",
             "",
             false,
             function():Void {
-                var cur = (Api.visual != null) ? Api.visual.disableSkillAnims : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.disableSkillAnims = next;
-                ApiNotificationManager.notify("Skill FX: " + (next ? "Disabled" : "Enabled"));
+                if (Api.visual != null) {
+                    var next = !Api.visual.optimizeSpellFX;
+                    Api.visual.optimizeSpellFX = next;
+                    ApiNotificationManager.notify("Fast Spell FX: " + (next ? "Enabled (No Lag)" : "Disabled (Native)"));
+                }
             },
             function():Bool {
-                return (Api.visual != null) ? Api.visual.disableSkillAnims : false;
+                return (Api.visual != null) ? Api.visual.optimizeSpellFX : true;
+            }
+        );
+
+        // 16. Max Concurrent Spells
+        modal.addItemRow(
+            "Max Concurrent Spells",
+            "Limits simultaneous active spell animations on screen to eliminate lag spikes during AoE bursts and crowded boss fights.",
+            "button",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    var max = Api.visual.cycleMaxConcurrentSpells();
+                    var label = Api.visual.getMaxConcurrentSpellsLabel();
+                    ApiNotificationManager.notify("Max Concurrent Spells: " + label);
+                }
+            },
+            null,
+            function():String {
+                return (Api.visual != null) ? Api.visual.getMaxConcurrentSpellsLabel() : "6 Spells";
             }
         );
 
