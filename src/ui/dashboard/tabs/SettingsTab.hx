@@ -261,7 +261,7 @@ class SettingsTab implements IDashboardTab {
         // 14. Spell Animations Mode
         modal.addItemRow(
             "Spell Animations",
-            "Filter combat spell animations: All Spells (Optimized), Self Spells Only, or Disabled.",
+            "Choose which combat spell animations to display: All Spells, Self Spells Only, or Disabled.",
             "button",
             "",
             false,
@@ -278,10 +278,10 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 15. Fast Spell FX (Lag Killer)
+        // 15. Fast Spell FX (1x Low Quality)
         modal.addItemRow(
-            "Fast Spell FX (No Blur/Glow)",
-            "Strips expensive CPU blur and glow convolution filters from spell animations and deduplicates AoE hits so All Spells run smoothly at 60 FPS.",
+            "Fast Spell FX (1x Low Quality)",
+            "Lowers heavy 4x/3x filter convolution passes on spells to 1x low passes, preserving all original colors and glows without CPU lag.",
             "toggle",
             "",
             false,
@@ -289,31 +289,11 @@ class SettingsTab implements IDashboardTab {
                 if (Api.visual != null) {
                     var next = !Api.visual.optimizeSpellFX;
                     Api.visual.optimizeSpellFX = next;
-                    ApiNotificationManager.notify("Fast Spell FX: " + (next ? "Enabled (No Lag)" : "Disabled (Native)"));
+                    ApiNotificationManager.notify("Fast Spell FX: " + (next ? "Enabled (1x Low Pass)" : "Disabled (Native)"));
                 }
             },
             function():Bool {
                 return (Api.visual != null) ? Api.visual.optimizeSpellFX : true;
-            }
-        );
-
-        // 16. Max Concurrent Spells
-        modal.addItemRow(
-            "Max Concurrent Spells",
-            "Limits simultaneous active spell animations on screen to eliminate lag spikes during AoE bursts and crowded boss fights.",
-            "button",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    var max = Api.visual.cycleMaxConcurrentSpells();
-                    var label = Api.visual.getMaxConcurrentSpellsLabel();
-                    ApiNotificationManager.notify("Max Concurrent Spells: " + label);
-                }
-            },
-            null,
-            function():String {
-                return (Api.visual != null) ? Api.visual.getMaxConcurrentSpellsLabel() : "6 Spells";
             }
         );
 
