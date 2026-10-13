@@ -297,7 +297,64 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 15. Freeze Monster Animations
+        // 16. Friendly AoE: Caster Only
+        modal.addItemRow(
+            "Friendly AoE: Caster Only",
+            "Multi-target friendly buffs play only on whoever cast them (on yourself if you cast, or on party members if they cast), hiding duplicate effects on everyone else.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    var next = !Api.visual.friendlySelfOnlyFX;
+                    Api.visual.friendlySelfOnlyFX = next;
+                    ApiNotificationManager.notify("Friendly AoE: " + (next ? "Caster Only" : "All Allies"));
+                }
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.friendlySelfOnlyFX : false;
+            }
+        );
+
+        // 17. Hostile AoE: Primary Target Only
+        modal.addItemRow(
+            "Hostile AoE: Primary Target Only",
+            "Multi-target hostile attack animations only play on your primary target, hiding duplicate AoE explosions on secondary monsters.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    var next = !Api.visual.hostilePrimaryOnlyFX;
+                    Api.visual.hostilePrimaryOnlyFX = next;
+                    ApiNotificationManager.notify("Hostile AoE: " + (next ? "Primary Target Only" : "All Monsters"));
+                }
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hostilePrimaryOnlyFX : false;
+            }
+        );
+
+        // 18. Disable Spell Filters (Minimal FX)
+        modal.addItemRow(
+            "Disable Spell Filters (Minimal FX)",
+            "Completely strips blur and glow filters from spells for maximum potato performance. Note: May turn glow-based effects black or naked.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                if (Api.visual != null) {
+                    var next = !Api.visual.disableSpellFilters;
+                    Api.visual.disableSpellFilters = next;
+                    ApiNotificationManager.notify("Spell Filters: " + (next ? "Disabled (Minimal FX)" : "Active"));
+                }
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.disableSpellFilters : false;
+            }
+        );
+
+        // 19. Freeze Monster Animations
         modal.addItemRow(
             "Freeze Monster Animations",
             "Halts animation frame loops on monsters without affecting hitboxes or combat targeting.",
