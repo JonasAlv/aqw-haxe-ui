@@ -258,6 +258,78 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
+        // 13b. Hide Player Capes
+        modal.addItemRow(
+            "Hide Player Capes",
+            "Hides back and cape accessories on other players to reduce visual clutter and particle animations.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.hidePlayerCapes : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hidePlayerCapes = next;
+                ApiNotificationManager.notify("Hide Player Capes: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hidePlayerCapes : false;
+            }
+        );
+
+        // 13c. Hide Player Helmets
+        modal.addItemRow(
+            "Hide Player Helmets",
+            "Hides helmets and hoods on other players and restores their default hairstyle.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.hidePlayerHelms : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hidePlayerHelms = next;
+                ApiNotificationManager.notify("Hide Player Helmets: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hidePlayerHelms : false;
+            }
+        );
+
+        // 13d. Hide Player Weapons
+        modal.addItemRow(
+            "Hide Player Weapons",
+            "Hides weapons on other players to eliminate large animated weapon models and special effect glows.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.hidePlayerWeapons : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hidePlayerWeapons = next;
+                ApiNotificationManager.notify("Hide Player Weapons: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hidePlayerWeapons : false;
+            }
+        );
+
+        // 13e. Show Class Outfit Only
+        modal.addItemRow(
+            "Show Class Outfit Only",
+            "Strips custom armor cosmetic overrides on other players, displaying only their equipped class armor.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.showClassOutfitOnly : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.showClassOutfitOnly = next;
+                ApiNotificationManager.notify("Class Outfit Only: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.showClassOutfitOnly : false;
+            }
+        );
+
         // 14. Spell Animations Mode
         modal.addItemRow(
             "Spell Animations",
@@ -369,6 +441,24 @@ class SettingsTab implements IDashboardTab {
             },
             function():Bool {
                 return (Api.visual != null) ? Api.visual.disableMonsterAnims : false;
+            }
+        );
+
+        // 19b. Instant Freeze Animations (Zero Delay)
+        modal.addItemRow(
+            "Instant Freeze Animations (Zero Delay)",
+            "Instantly halts all idle, walking, and combat animation loops for players, monsters, and weapons before they are ever rendered (zero delay on map join).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.freezeAllAnimations : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.freezeAllAnimations = next;
+                ApiNotificationManager.notify("Instant Freeze Animations: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.freezeAllAnimations : false;
             }
         );
 
