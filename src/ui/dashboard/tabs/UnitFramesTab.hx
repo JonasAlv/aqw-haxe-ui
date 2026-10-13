@@ -64,6 +64,77 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        modal.addSectionHeader("Party & Raid Frames (Grid2 Style)");
+
+        // 1. Party Frames Master Toggle
+        modal.addItemRow(
+            "Party Frames",
+            "Compact square party frames with Healthcolor healthbars, center % indicator, and thin mana bar.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPartyFramesEnabled();
+                var next = !cur;
+                UnitFramesManager.setPartyFramesEnabled(next);
+                ApiNotificationManager.notify("Party Frames: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPartyFramesEnabled();
+            }
+        );
+
+        // 2. Horizontal / Vertical Orientation
+        modal.addItemRow(
+            "Horizontal Layout",
+            "Arrange party frames horizontally in a row instead of vertically (default).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPartyHorizontal();
+                var next = !cur;
+                UnitFramesManager.setPartyHorizontal(next);
+                ApiNotificationManager.notify("Party Layout: " + (next ? "Horizontal" : "Vertical"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPartyHorizontal();
+            }
+        );
+
+        // 3. Include Self
+        modal.addItemRow(
+            "Include Self in Party",
+            "Display your own character alongside party members in the grid (useful for healers/buffers).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPartyIncludeSelf();
+                var next = !cur;
+                UnitFramesManager.setPartyIncludeSelf(next);
+                ApiNotificationManager.notify("Include Self: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPartyIncludeSelf();
+            }
+        );
+
+        // 4. Test Preview
+        modal.addItemRow(
+            "Test Party Frames",
+            "Previews 4 draggable Grid2 party frames with healthcolor gradients for 15 seconds.",
+            "button",
+            "Preview",
+            false,
+            function():Void {
+                UnitFramesManager.testPartyFrames();
+            },
+            function():Bool {
+                return false;
+            }
+        );
+
         modal.addSectionHeader("Overhead Nameplates (WoW Style)");
 
         // 1. Master Nameplates

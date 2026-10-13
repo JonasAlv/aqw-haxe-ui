@@ -31,6 +31,7 @@ class UnitFramesManager {
         NameplateUnitFrame.init(pocket, overlay);
         AuraFramesManager.init(pocket, overlay);
         BossMechanicsBar.init(pocket, overlay);
+        PartyUnitFrame.init(pocket, overlay);
         syncNativeHideUI();
 
         if (Api.dispatcher != null) {
@@ -134,6 +135,34 @@ class UnitFramesManager {
 
     public static inline function testBossMechanicsBar():Void {
         BossMechanicsBar.testPreview();
+    }
+
+    public static inline function isPartyFramesEnabled():Bool {
+        return PartyUnitFrame.isEnabled();
+    }
+
+    public static inline function setPartyFramesEnabled(enabled:Bool):Void {
+        PartyUnitFrame.setEnabled(enabled);
+    }
+
+    public static inline function isPartyHorizontal():Bool {
+        return PartyUnitFrame.isHorizontal();
+    }
+
+    public static inline function setPartyHorizontal(horizontal:Bool):Void {
+        PartyUnitFrame.setHorizontal(horizontal);
+    }
+
+    public static inline function isPartyIncludeSelf():Bool {
+        return PartyUnitFrame.isIncludeSelf();
+    }
+
+    public static inline function setPartyIncludeSelf(includeSelf:Bool):Void {
+        PartyUnitFrame.setIncludeSelf(includeSelf);
+    }
+
+    public static inline function testPartyFrames():Void {
+        PartyUnitFrame.testPreview();
     }
 
     /**
@@ -247,12 +276,14 @@ class UnitFramesManager {
         PlayerUnitFrame.reloadFromConfig();
         TargetUnitFrame.reloadFromConfig();
         NameplateUnitFrame.reloadFromConfig();
+        PartyUnitFrame.reloadFromConfig();
         syncNativeHideUI();
     }
 
     public static function resetAllPositions():Void {
         PlayerUnitFrame.resetPosition();
         TargetUnitFrame.resetPosition();
+        PartyUnitFrame.resetPosition();
         ApiNotificationManager.notify("Unit frame positions reset!");
     }
 }
@@ -274,6 +305,13 @@ class UnitFramesManager {
     public static function isTauntAlertsEnabled():Bool return false;
     public static function setTauntAlertsEnabled(enabled:Bool):Void {}
     public static function testBossMechanicsBar():Void {}
+    public static function isPartyFramesEnabled():Bool return false;
+    public static function setPartyFramesEnabled(enabled:Bool):Void {}
+    public static function isPartyHorizontal():Bool return false;
+    public static function setPartyHorizontal(horizontal:Bool):Void {}
+    public static function isPartyIncludeSelf():Bool return false;
+    public static function setPartyIncludeSelf(includeSelf:Bool):Void {}
+    public static function testPartyFrames():Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
 }
