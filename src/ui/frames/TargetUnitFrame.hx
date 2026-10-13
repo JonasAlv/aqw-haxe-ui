@@ -81,8 +81,9 @@ class TargetUnitFrame {
     public static inline var COLOR_MP:Int               = 0x2563EB; // Mana fill WoW blue
 
     // Typography & Targets
-    public static inline var COLOR_TEXT_PLAYER:Int      = 0x38BDF8; // Sky cyan for other players
-    public static inline var COLOR_TEXT_MONSTER:Int     = 0xFBBF24; // Amber gold for monsters
+    public static inline var COLOR_TEXT_PLAYER:Int      = 0x38BDF8; // Sky cyan/blue for other players
+    public static inline var COLOR_TEXT_ENEMY:Int       = 0xEF4444; // Vibrant red for enemies / monsters
+    public static inline var COLOR_HP_ENEMY:Int         = 0xEF4444; // Vibrant red healthbar fill for enemies
     public static inline var COLOR_TEXT_SUB:Int         = 0x94A3B8; // Slate muted text for class / type tag
     public static inline var COLOR_TEXT_BAR:Int         = 0xFFFFFF; // Crisp white text for HP and MP values
 
@@ -125,10 +126,12 @@ class TargetUnitFrame {
     private static var _hpBarBg:Shape = null;
     private static var _hpBarFill:Shape = null;
     private static var _shieldBarFill:Shape = null;
+    private static var _hpBarBorder:Shape = null;
     private static var _hpLeftTxt:TextField = null;
     private static var _hpRightTxt:TextField = null;
     private static var _mpBarBg:Shape = null;
     private static var _mpBarFill:Shape = null;
+    private static var _mpBarBorder:Shape = null;
     private static var _mpTxt:TextField = null;
 
     // Cache to prevent redundant redraws
@@ -198,7 +201,7 @@ class TargetUnitFrame {
 
         // 2. Header Rows (Name & Class/Type Tag)
         _nameTxt = new TextField();
-        var nameFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, COLOR_TEXT_MONSTER, true);
+        var nameFmt = new TextFormat(ApiStyle.FONT_FAMILY, 8.0, COLOR_TEXT_ENEMY, true);
         _nameTxt.defaultTextFormat = nameFmt;
         _nameTxt.x = PADDING_X;
         _nameTxt.y = NAME_Y;
@@ -256,6 +259,13 @@ class TargetUnitFrame {
         _shieldBarFill.y = HP_BAR_Y;
         _widget.addChild(_shieldBarFill);
 
+        _hpBarBorder = new Shape();
+        _hpBarBorder.x = PADDING_X;
+        _hpBarBorder.y = HP_BAR_Y;
+        _hpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
+        _hpBarBorder.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H);
+        _widget.addChild(_hpBarBorder);
+
         // Left edge: current hp / max hp (+SG)
         _hpLeftTxt = new TextField();
         var hpLeftFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.LEFT);
@@ -295,6 +305,13 @@ class TargetUnitFrame {
         _mpBarFill.x = PADDING_X;
         _mpBarFill.y = MP_BAR_Y;
         _widget.addChild(_mpBarFill);
+
+        _mpBarBorder = new Shape();
+        _mpBarBorder.x = PADDING_X;
+        _mpBarBorder.y = MP_BAR_Y;
+        _mpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
+        _mpBarBorder.graphics.drawRect(0, 0, MP_BAR_W, MP_BAR_H);
+        _widget.addChild(_mpBarBorder);
 
         // Center: current mana number
         _mpTxt = new TextField();
@@ -473,28 +490,31 @@ class TargetUnitFrame {
         // 5. Update Name & Sub labels
         var nameStr = (t.name != "") ? t.name : "Target";
         var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + nameStr;
+        var targetChanged:Bool = (tId != _lastTargetId);
 
-        if (nameText != _lastNameStr || tId != _lastTargetId) {
+        if (nameText != _lastNameStr || targetChanged) {
             _lastNameStr = nameText;
             _nameTxt.text = nameText;
-            _nameTxt.textColor = isPlayerTarget ? COLOR_TEXT_PLAYER : COLOR_TEXT_MONSTER;
+            _nameTxt.textColor = isPlayerTarget ? COLOR_TEXT_PLAYER : COLOR_TEXT_ENEMY;
+            _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
-        if (subText != _lastSubStr || tId != _lastTargetId) {
+        if (subText != _lastSubStr || targetChanged) {
             _lastSubStr = subText;
             _subTxt.text = subText;
+            _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
         _lastTargetId = tId;
 
         // 6. Health Bar Fill & Texts
-        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield) {
+        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield || targetChanged) {
             _lastHp = hp;
             _lastMaxHp = maxHp;
             _lastShield = shield;
 
             var hpRatio = Math.max(0.0, Math.min(1.0, hp / maxHp));
             var fillW = Math.round(HP_BAR_W * hpRatio);
-            var hpColor = getHealthColor(hpRatio);
+            var hpColor = isPlayerTarget ? getHealthColor(hpRatio) : COLOR_HP_ENEMY;
 
             var g = _hpBarFill.graphics;
             g.clear();

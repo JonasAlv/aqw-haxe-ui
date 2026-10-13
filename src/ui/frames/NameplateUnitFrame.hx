@@ -222,10 +222,12 @@ class NameplateDisplay extends Sprite {
         if (rawName != _lastName) {
             _lastName = rawName;
             _nameTxt.text = rawName;
+            _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
         if (rawSub != _lastSub) {
             _lastSub = rawSub;
             _subTxt.text = rawSub;
+            _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
         _nameTxt.visible = showNames;

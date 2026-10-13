@@ -195,8 +195,8 @@ class ApiStyle {
     public static function getTextOutlineFilter():Array<flash.filters.BitmapFilter> {
         if (_TEXT_OUTLINE_FILTERS == null) {
             _TEXT_OUTLINE_FILTERS = [
-                new flash.filters.GlowFilter(0x000000, 1.0, 2.0, 2.0, 5.0, 2),
-                new flash.filters.DropShadowFilter(1.0, 45.0, 0x000000, 0.85, 1.0, 1.0, 2.0, 2)
+                new flash.filters.GlowFilter(0x000000, 1.0, 2.0, 2.0, 8.0, 2),
+                new flash.filters.DropShadowFilter(1.0, 45.0, 0x000000, 1.0, 1.0, 1.0, 4.0, 2)
             ];
         }
         return _TEXT_OUTLINE_FILTERS;

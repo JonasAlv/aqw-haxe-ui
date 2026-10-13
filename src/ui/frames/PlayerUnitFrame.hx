@@ -78,7 +78,7 @@ class PlayerUnitFrame {
     public static inline var COLOR_SP:Int               = 0xF59E0B; // Class SP stamina hairline amber
 
     // Typography
-    public static inline var COLOR_TEXT_NAME:Int        = 0xFFFFFF; // White primary text for name
+    public static inline var COLOR_TEXT_NAME:Int        = 0x38BDF8; // Sky cyan/blue for player name
     public static inline var COLOR_TEXT_SUB:Int         = 0x94A3B8; // Slate muted text for class/rank
     public static inline var COLOR_TEXT_BAR:Int         = 0xFFFFFF; // Crisp white text for HP and MP values
 
@@ -120,10 +120,12 @@ class PlayerUnitFrame {
     private static var _hpBarBg:Shape = null;
     private static var _hpBarFill:Shape = null;
     private static var _shieldBarFill:Shape = null;
+    private static var _hpBarBorder:Shape = null;
     private static var _hpLeftTxt:TextField = null;
     private static var _hpRightTxt:TextField = null;
     private static var _mpBarBg:Shape = null;
     private static var _mpBarFill:Shape = null;
+    private static var _mpBarBorder:Shape = null;
     private static var _mpTxt:TextField = null;
     private static var _spBarFill:Shape = null;
 
@@ -235,6 +237,13 @@ class PlayerUnitFrame {
         _shieldBarFill.y = HP_BAR_Y;
         _widget.addChild(_shieldBarFill);
 
+        _hpBarBorder = new Shape();
+        _hpBarBorder.x = PADDING_X;
+        _hpBarBorder.y = HP_BAR_Y;
+        _hpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
+        _hpBarBorder.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H);
+        _widget.addChild(_hpBarBorder);
+
         // Left edge: current hp / max hp (+SG)
         _hpLeftTxt = new TextField();
         var hpLeftFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.LEFT);
@@ -274,6 +283,13 @@ class PlayerUnitFrame {
         _mpBarFill.x = PADDING_X;
         _mpBarFill.y = MP_BAR_Y;
         _widget.addChild(_mpBarFill);
+
+        _mpBarBorder = new Shape();
+        _mpBarBorder.x = PADDING_X;
+        _mpBarBorder.y = MP_BAR_Y;
+        _mpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
+        _mpBarBorder.graphics.drawRect(0, 0, MP_BAR_W, MP_BAR_H);
+        _widget.addChild(_mpBarBorder);
 
         // Center: current mana number
         _mpTxt = new TextField();
@@ -363,12 +379,15 @@ class PlayerUnitFrame {
         if (nameText != _lastNameStr) {
             _lastNameStr = nameText;
             _nameTxt.text = nameText;
+            _nameTxt.textColor = COLOR_TEXT_NAME;
+            _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
         var subText = cName + rankStr;
         if (subText != _lastSubStr) {
             _lastSubStr = subText;
             _subTxt.text = subText;
+            _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
         // 2. Health Bar Fill & Texts
