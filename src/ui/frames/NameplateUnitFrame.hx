@@ -53,6 +53,7 @@ class NameplateDisplay extends Sprite {
 
     private var _barBg:Shape = null;
     private var _barFill:Shape = null;
+    private var _targetArrows:Shape = null;
     private var _nameTxt:TextField = null;
     private var _subTxt:TextField = null;
 
@@ -80,8 +81,14 @@ class NameplateDisplay extends Sprite {
         _barFill = new Shape();
         addChild(_barFill);
 
+        // 3. Side Target Chevrons
+        _targetArrows = new Shape();
+        _targetArrows.visible = false;
+        addChild(_targetArrows);
+
         // Initial draw of resting well
         drawBarBg(false);
+        drawTargetIndicators(false);
 
         // 3. Name Label
         _nameTxt = new TextField();
@@ -164,6 +171,7 @@ class NameplateDisplay extends Sprite {
         _subTxt.visible = (showNames && _lastSub != "");
 
         drawBarBg(_lastIsTarget);
+        drawTargetIndicators(_lastIsTarget);
         if (_lastHp > 0 && _lastMaxHp > 0) {
             drawHealthBar(_lastHp, _lastMaxHp);
         }
@@ -223,11 +231,12 @@ class NameplateDisplay extends Sprite {
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && rawSub != "");
 
-        // 4. Target Highlight Border via API
+        // 4. Target Highlight Border & Chevrons via API
         var isTarget:Bool = ent.isCurrentTarget;
         if (isTarget != _lastIsTarget) {
             _lastIsTarget = isTarget;
             drawBarBg(isTarget);
+            drawTargetIndicators(isTarget);
         }
 
         // 5. Health Bar Fill & Visibility via API
@@ -270,6 +279,62 @@ class NameplateDisplay extends Sprite {
         g.endFill();
     }
 
+    private function drawTargetIndicators(isTarget:Bool):Void {
+        var g = _targetArrows.graphics;
+        g.clear();
+
+        if (!isTarget) {
+            _targetArrows.visible = false;
+            return;
+        }
+
+        var showBar:Bool = isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled();
+        var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
+
+        if (!showBar && !showNames) {
+            _targetArrows.visible = false;
+            return;
+        }
+
+        _targetArrows.visible = true;
+
+        var barY:Float = showNames ? BAR_Y : 0.0;
+        var centerY:Float = showBar ? (barY + BAR_H / 2.0) : (NAME_Y + NAME_H / 2.0);
+
+        var halfW:Float;
+        if (showBar) {
+            halfW = (BAR_W / 2.0) + 3.5;
+        } else {
+            var txtW:Float = (_nameTxt != null && _nameTxt.textWidth > 0) ? _nameTxt.textWidth : 60.0;
+            halfW = (txtW / 2.0) + 6.0;
+        }
+
+        var arrowW:Float = 5.0;   // Chevron width
+        var arrowH:Float = 7.0;   // Chevron height
+        var halfH:Float = arrowH / 2.0;
+
+        var color:Int = 0xFACC15; // Crisp WoW golden yellow
+        var outlineColor:Int = 0x000000;
+
+        // Left Chevron (points right ► towards the bar)
+        g.lineStyle(1.0, outlineColor, 0.9);
+        g.beginFill(color, 1.0);
+        g.moveTo(-halfW, centerY);
+        g.lineTo(-halfW - arrowW, centerY - halfH);
+        g.lineTo(-halfW - arrowW, centerY + halfH);
+        g.lineTo(-halfW, centerY);
+        g.endFill();
+
+        // Right Chevron (points left ◄ towards the bar)
+        g.lineStyle(1.0, outlineColor, 0.9);
+        g.beginFill(color, 1.0);
+        g.moveTo(halfW, centerY);
+        g.lineTo(halfW + arrowW, centerY - halfH);
+        g.lineTo(halfW + arrowW, centerY + halfH);
+        g.lineTo(halfW, centerY);
+        g.endFill();
+    }
+
     private function drawHealthBar(hp:Int, maxHp:Int):Void {
         var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
         var barY:Float = showNames ? BAR_Y : 0.0;
@@ -290,6 +355,9 @@ class NameplateDisplay extends Sprite {
 
     public function destroy():Void {
         removeEventListener(MouseEvent.CLICK, onClick);
+        if (_targetArrows != null) {
+            _targetArrows.graphics.clear();
+        }
         if (parent != null) {
             try { parent.removeChild(this); } catch (_:Dynamic) {}
         }
@@ -343,6 +411,10 @@ class NameplateUnitFrame {
                 }
             });
         }
+
+        if (isWidgetEnabled() && Api.visual != null) {
+            Api.visual.suppressTargetGlow = true;
+        }
     }
 
     public static inline function isWidgetEnabled():Bool {
@@ -351,6 +423,9 @@ class NameplateUnitFrame {
 
     public static inline function setWidgetEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_enabled", enabled);
+        if (Api.visual != null) {
+            Api.visual.suppressTargetGlow = enabled;
+        }
         if (!enabled) {
             disableAllPlates();
         }
