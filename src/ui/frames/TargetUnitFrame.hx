@@ -489,7 +489,12 @@ class TargetUnitFrame {
         if (maxMp <= 0) maxMp = 100;
 
         // 5. Update Name & Sub labels
+        var showClasses = UnitFramesManager.isShowClassNames();
         var nameStr = (t.name != "") ? t.name : "Target";
+        if (showClasses && isPlayerTarget && subText != "" && subText != "Player") {
+            nameStr = subText;
+            subText = "Player";
+        }
         var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + nameStr;
         var targetChanged:Bool = (tId != _lastTargetId);
 

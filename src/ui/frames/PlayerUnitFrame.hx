@@ -376,7 +376,9 @@ class PlayerUnitFrame {
         }
 
         // 1. Name and Sub labels
-        var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + pName;
+        var showClasses = UnitFramesManager.isShowClassNames();
+        var displayName = (showClasses && cName != "" && cName != "Class") ? cName : pName;
+        var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + displayName;
         if (nameText != _lastNameStr) {
             _lastNameStr = nameText;
             _nameTxt.text = nameText;
@@ -384,7 +386,7 @@ class PlayerUnitFrame {
             _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
-        var subText = cName + rankStr;
+        var subText = showClasses ? (rankStr != "" ? "Rank" + rankStr : "Player") : (cName + rankStr);
         if (subText != _lastSubStr) {
             _lastSubStr = subText;
             _subTxt.text = subText;

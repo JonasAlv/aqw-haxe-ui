@@ -52,6 +52,24 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        // 3. Streamer Mode / Show Class Names (All Frames)
+        modal.addItemRow(
+            "Streamer Mode (Show Class Names)",
+            "Replaces player usernames with class names across all frames and nameplates for streaming privacy.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isShowClassNames();
+                var next = !cur;
+                UnitFramesManager.setShowClassNames(next);
+                ApiNotificationManager.notify("Streamer Mode: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isShowClassNames();
+            }
+        );
+
         // Reset Unit Frames Position
         modal.addItemRow(
             "Reset Frame Positions",
@@ -120,7 +138,25 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 4. Test Preview
+        // 4. Show Class Names (Party)
+        modal.addItemRow(
+            "Show Class Names",
+            "Show class names instead of player usernames on party frame tiles (e.g. 'Lord of Order' instead of player name).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPartyShowClassNames();
+                var next = !cur;
+                UnitFramesManager.setPartyShowClassNames(next);
+                ApiNotificationManager.notify("Party Class Names: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPartyShowClassNames();
+            }
+        );
+
+        // 5. Test Preview
         modal.addItemRow(
             "Test Party Frames",
             "Previews 4 draggable Grid2 party frames with healthcolor gradients for 15 seconds.",

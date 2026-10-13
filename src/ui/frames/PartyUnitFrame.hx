@@ -40,11 +40,12 @@ class PartyUnitFrame {
     public static inline var CONFIG_ENABLED:String       = "api_frame_party_enabled";
     public static inline var CONFIG_HORIZONTAL:String    = "api_frame_party_horizontal";
     public static inline var CONFIG_INCLUDE_SELF:String  = "api_frame_party_include_self";
+    public static inline var CONFIG_SHOW_CLASS:String   = "api_frame_party_show_class";
     public static inline var CONFIG_POS_X:String         = "api_frame_party_x";
     public static inline var CONFIG_POS_Y:String         = "api_frame_party_y";
 
     // Geometry (Ultra-compact modern raid frame style)
-    public static inline var TILE_W:Float                = 84.0;
+    public static inline var TILE_W:Float                = 88.0;
     public static inline var TILE_H:Float                = 22.0;
     public static inline var GAP:Float                   = 2.0;
     public static inline var MANA_H:Float                = 3.0;
@@ -411,6 +412,18 @@ class PartyUnitFrame {
         ApiConfig.setBool(CONFIG_INCLUDE_SELF, includeSelf);
     }
 
+    public static inline function isPartySpecificShowClassNames():Bool {
+        return ApiConfig.getBool(CONFIG_SHOW_CLASS, false);
+    }
+
+    public static inline function isShowClassNames():Bool {
+        return isPartySpecificShowClassNames() || UnitFramesManager.isShowClassNames();
+    }
+
+    public static function setShowClassNames(showClass:Bool):Void {
+        ApiConfig.setBool(CONFIG_SHOW_CLASS, showClass);
+    }
+
     public static function resetPosition():Void {
         var defX = 10;
         var defY = 110;
@@ -461,6 +474,7 @@ class PartyUnitFrame {
     private static function getPreviewMembers():Array<PartyMemberDTO> {
         var m1 = new PartyMemberDTO();
         m1.username = (Api.player != null && Api.player.username != "") ? Api.player.username : "You";
+        m1.className = (Api.player != null && Api.player.className != "") ? Api.player.className : "Dragon of Time";
         m1.hp = 3500; m1.maxHp = 3500;
         m1.mp = 100;  m1.maxMp = 100;
         m1.isLeader = true;
@@ -468,7 +482,8 @@ class PartyUnitFrame {
         m1.inCell = true;
 
         var m2 = new PartyMemberDTO();
-        m2.username = "ArchPaladin";
+        m2.username = "Zhonya";
+        m2.className = "ArchPaladin";
         m2.hp = 3120; m2.maxHp = 4000; // 78%
         m2.mp = 75;   m2.maxMp = 100;
         m2.isLeader = false;
@@ -476,7 +491,8 @@ class PartyUnitFrame {
         m2.inCell = true;
 
         var m3 = new PartyMemberDTO();
-        m3.username = "LordOfOrder";
+        m3.username = "Kira";
+        m3.className = "Lord of Order";
         m3.hp = 1260; m3.maxHp = 3000; // 42%
         m3.mp = 35;   m3.maxMp = 100;
         m3.isLeader = false;
@@ -484,7 +500,8 @@ class PartyUnitFrame {
         m3.inCell = true;
 
         var m4 = new PartyMemberDTO();
-        m4.username = "LegionRev";
+        m4.username = "Aether";
+        m4.className = "Legion Revenant";
         m4.hp = 540;  m4.maxHp = 3000; // 18% (Critical)
         m4.mp = 80;   m4.maxMp = 100;
         m4.isLeader = false;
@@ -521,6 +538,7 @@ class PartyTile extends Sprite {
     private var _lastShield:Int               = -9999;
     private var _lastName:String              = "";
     private var _lastIsLeader:Bool            = false;
+    private var _lastShowClass:Bool           = false;
     private var _lastInCell:Bool              = true;
     private var _lastInRange:Bool             = true;
 
@@ -585,30 +603,30 @@ class PartyTile extends Sprite {
         gtb.drawRect(0.5, 0.5, w - 1.0, h - 1.0);
         addChild(_tileBorder);
 
-        // 8. Player Name (Left-aligned over HP bar)
+        // 8. Player Name (Top-left aligned over HP bar)
         _nameTxt = new TextField();
-        _nameTxt.x = 3;
-        _nameTxt.y = 1;
-        _nameTxt.width = w - 34; // 50px
-        _nameTxt.height = 16;
+        _nameTxt.x = 2;
+        _nameTxt.y = 0;
+        _nameTxt.width = w - 4; // Spans full width for full names
+        _nameTxt.height = 12;
         _nameTxt.selectable = false;
         _nameTxt.mouseEnabled = false;
-        var tfName = new TextFormat(ApiStyle.FONT_FAMILY, 10, PartyUnitFrame.COLOR_NAME, true);
+        var tfName = new TextFormat(ApiStyle.FONT_FAMILY, 8, PartyUnitFrame.COLOR_NAME, true);
         tfName.align = TextFormatAlign.LEFT;
         _nameTxt.defaultTextFormat = tfName;
         _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         addChild(_nameTxt);
 
-        // 9. Health % Indicator (Right-aligned over HP bar)
+        // 9. Health % Indicator (Centered inside health frame)
         _pctTxt = new TextField();
-        _pctTxt.x = w - 36;
-        _pctTxt.y = 1;
-        _pctTxt.width = 33;
-        _pctTxt.height = 16;
+        _pctTxt.x = 0;
+        _pctTxt.y = 6.5;
+        _pctTxt.width = w;
+        _pctTxt.height = 12;
         _pctTxt.selectable = false;
         _pctTxt.mouseEnabled = false;
-        var tfPct = new TextFormat(ApiStyle.FONT_FAMILY, 10, PartyUnitFrame.COLOR_WHITE, true);
-        tfPct.align = TextFormatAlign.RIGHT;
+        var tfPct = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, PartyUnitFrame.COLOR_WHITE, true);
+        tfPct.align = TextFormatAlign.CENTER;
         _pctTxt.defaultTextFormat = tfPct;
         _pctTxt.filters = ApiStyle.getTextOutlineFilter();
         addChild(_pctTxt);
@@ -666,12 +684,17 @@ class PartyTile extends Sprite {
             this.alpha = activeCell ? 1.0 : 0.55;
         }
 
-        // 1. Update Name Text
-        if (name != _lastName || isLeader != _lastIsLeader) {
-            _lastName = name;
-            _lastIsLeader = isLeader;
+        var showClass = PartyUnitFrame.isShowClassNames();
+        var nameToDisplay = (showClass && member.className != null && member.className != "") ? member.className : name;
 
-            var displayName = (name.length > 8) ? (name.substr(0, 7) + "..") : name;
+        // 1. Update Name Text
+        if (nameToDisplay != _lastName || isLeader != _lastIsLeader || showClass != _lastShowClass) {
+            _lastName = nameToDisplay;
+            _lastIsLeader = isLeader;
+            _lastShowClass = showClass;
+
+            var maxLen = isLeader ? 14 : 16;
+            var displayName = (nameToDisplay.length > maxLen) ? (nameToDisplay.substr(0, maxLen - 1) + "..") : nameToDisplay;
             if (isLeader) {
                 _nameTxt.text = "[L] " + displayName;
                 var tf = _nameTxt.defaultTextFormat;
@@ -794,6 +817,9 @@ class PartyUnitFrame {
     public static function setHorizontal(horizontal:Bool):Void {}
     public static function isIncludeSelf():Bool return false;
     public static function setIncludeSelf(includeSelf:Bool):Void {}
+    public static function isPartySpecificShowClassNames():Bool return false;
+    public static function isShowClassNames():Bool return false;
+    public static function setShowClassNames(showClass:Bool):Void {}
     public static function resetPosition():Void {}
     public static function testPreview():Void {}
     public static function reloadFromConfig():Void {}

@@ -161,6 +161,24 @@ class UnitFramesManager {
         PartyUnitFrame.setIncludeSelf(includeSelf);
     }
 
+    public static inline function isShowClassNames():Bool {
+        return ApiConfig.getBool("api_frame_show_class_names", false);
+    }
+
+    public static inline function setShowClassNames(enabled:Bool):Void {
+        ApiConfig.setBool("api_frame_show_class_names", enabled);
+        reloadFromConfig();
+    }
+
+    public static inline function isPartyShowClassNames():Bool {
+        return PartyUnitFrame.isPartySpecificShowClassNames();
+    }
+
+    public static inline function setPartyShowClassNames(enabled:Bool):Void {
+        PartyUnitFrame.setShowClassNames(enabled);
+        PartyUnitFrame.reloadFromConfig();
+    }
+
     public static inline function testPartyFrames():Void {
         PartyUnitFrame.testPreview();
     }
@@ -311,6 +329,10 @@ class UnitFramesManager {
     public static function setPartyHorizontal(horizontal:Bool):Void {}
     public static function isPartyIncludeSelf():Bool return false;
     public static function setPartyIncludeSelf(includeSelf:Bool):Void {}
+    public static function isShowClassNames():Bool return false;
+    public static function setShowClassNames(enabled:Bool):Void {}
+    public static function isPartyShowClassNames():Bool return false;
+    public static function setPartyShowClassNames(enabled:Bool):Void {}
     public static function testPartyFrames():Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
