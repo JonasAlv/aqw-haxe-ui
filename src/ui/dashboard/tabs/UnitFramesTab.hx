@@ -3,7 +3,7 @@ package ui.dashboard.tabs;
 #if flash
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
-import ui.DamageNumbers;
+import ui.frames.DamageNumbers;
 import ui.frames.AuraFramesManager;
 import ui.frames.UnitFramesManager;
 import ui.dashboard.IDashboardTab;

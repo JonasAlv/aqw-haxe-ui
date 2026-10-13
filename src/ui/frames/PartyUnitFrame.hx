@@ -1,6 +1,8 @@
 package ui.frames;
 
 #if flash
+import flash.display.DisplayObject;
+import flash.display.Stage;
 import flash.display.Sprite;
 import flash.display.Shape;
 import flash.text.TextField;
@@ -17,6 +19,8 @@ import com.aqwapi.events.ApiEvent;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiStyle;
 import ui.ApiNotificationManager;
+import ui.ApiMenus;
+import ui.ApiDashboardModal;
 
 /**
  * PartyUnitFrame:
@@ -59,6 +63,7 @@ class PartyUnitFrame {
     public static inline var COLOR_NAME:Int              = 0x38BDF8; // Player name sky cyan
     public static inline var COLOR_LEADER:Int            = 0xFACC15; // Leader tag/name gold
     public static inline var COLOR_WHITE:Int             = 0xFFFFFF; // Crisp white
+    public static inline var COLOR_MUTED:Int             = 0x64748B; // Slate muted for out of range
 
     private static var _pocket:Dynamic                   = null;
     private static var _overlay:Dynamic                  = null;
@@ -78,7 +83,7 @@ class PartyUnitFrame {
     // Preview state
     private static var _previewActive:Bool               = false;
     private static var _previewTimer:Timer               = null;
-    private static var _lastTick:Int                     = 0;
+    private static var _tickTimer:Timer                  = null;
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -86,6 +91,49 @@ class PartyUnitFrame {
 
         _pocket = pocket;
         _overlay = overlay;
+
+        var theStage:Dynamic = null;
+        if (pocket != null && Std.isOfType(pocket, Stage)) {
+            theStage = pocket;
+        } else if (pocket != null && Reflect.hasField(pocket, "stage") && pocket.stage != null) {
+            theStage = pocket.stage;
+        } else if (overlay != null && Reflect.hasField(overlay, "stage") && overlay.stage != null) {
+            theStage = overlay.stage;
+        } else {
+            try {
+                if (Lib.current != null && Lib.current.stage != null) {
+                    theStage = Lib.current.stage;
+                }
+            } catch (_:Dynamic) {}
+        }
+
+        var attach = function(stageObj:Dynamic):Void {
+            if (stageObj == null || _widget != null) return;
+            buildFrame(stageObj);
+        };
+
+        if (theStage != null) {
+            attach(theStage);
+        } else {
+            if (_overlay != null && Std.isOfType(_overlay, DisplayObject)) {
+                cast(_overlay, DisplayObject).addEventListener(Event.ADDED_TO_STAGE, function(ev:Event):Void {
+                    if (_overlay.stage != null && _widget == null) {
+                        attach(_overlay.stage);
+                    }
+                });
+            }
+            if (_pocket != null && Std.isOfType(_pocket, DisplayObject)) {
+                cast(_pocket, DisplayObject).addEventListener(Event.ADDED_TO_STAGE, function(ev:Event):Void {
+                    if (_pocket.stage != null && _widget == null) {
+                        attach(_pocket.stage);
+                    }
+                });
+            }
+        }
+    }
+
+    private static function buildFrame(theStage:Dynamic):Void {
+        if (_widget != null) return;
 
         _widget = new Sprite();
         _widget.name = "PartyUnitFrameWidget";
@@ -96,21 +144,17 @@ class PartyUnitFrame {
         _tilesContainer.name = "PartyTilesContainer";
         _widget.addChild(_tilesContainer);
 
-        // Add to overlay / pocket layer
-        var container:Dynamic = (_overlay != null) ? _overlay : ((_pocket != null) ? _pocket : Lib.current.stage);
-        if (container != null) {
-            container.addChild(_widget);
-        }
-
-        // Setup global dragging listeners on stage
-        var theStage:Dynamic = Lib.current.stage;
-        if (theStage != null) {
-            setupDragging(theStage);
-            theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
-        }
-
         // Restore saved position (or sync with native posParty)
         reloadFromConfig();
+
+        if (theStage != null) {
+            setupDragging(theStage);
+            try {
+                theStage.addChild(_widget);
+            } catch (_:Dynamic) {}
+        }
+
+        startTickTimer();
         syncNativePartyFrame();
     }
 
@@ -136,68 +180,79 @@ class PartyUnitFrame {
     }
 
     // =========================================================================
-    // TICK & UPDATE LOOP
+    // TICK & UPDATE LOOP (Isolated 80ms Timer)
     // =========================================================================
-    private static function onEnterFrame(e:Event):Void {
+    private static function startTickTimer():Void {
+        if (_tickTimer != null) return;
+        _tickTimer = new Timer(80);
+        _tickTimer.addEventListener(TimerEvent.TIMER, function(_):Void {
+            onTick();
+        });
+        _tickTimer.start();
+    }
+
+    private static function onTick():Void {
         if (_widget == null) return;
 
-        var now = Lib.getTimer();
-        if (now - _lastTick < 80) return; // ~12 FPS throttle
-        _lastTick = now;
+        try {
+            var inGame = ApiMenus.isInGame();
+            var isDashboardOpen = ApiDashboardModal.isOpen();
 
-        var enabled = isEnabled();
-        if (!enabled && !_previewActive) {
-            if (_widget.visible) _widget.visible = false;
-            return;
-        }
-
-        // Fetch members to display
-        var memberList:Array<PartyMemberDTO> = [];
-        if (_previewActive) {
-            memberList = getPreviewMembers();
-        } else if (Api.party != null && Api.party.inParty) {
-            memberList = isIncludeSelf() ? Api.party.allMembers : Api.party.members;
-        }
-
-        if (memberList.length == 0) {
-            if (_widget.visible) _widget.visible = false;
-            return;
-        }
-
-        if (!_widget.visible) _widget.visible = true;
-
-        // Ensure correct tile count
-        while (_tiles.length < memberList.length) {
-            var tile = new PartyTile();
-            _tiles.push(tile);
-            _tilesContainer.addChild(tile);
-        }
-        while (_tiles.length > memberList.length) {
-            var tile = _tiles.pop();
-            if (tile.parent != null) tile.parent.removeChild(tile);
-        }
-
-        // Relayout and update tiles
-        var isH = isHorizontal();
-        for (i in 0...memberList.length) {
-            var tile = _tiles[i];
-            if (isH) {
-                tile.x = i * (TILE_W + GAP);
-                tile.y = 0;
-            } else {
-                tile.x = 0;
-                tile.y = i * (TILE_H + GAP);
+            var enabled = isEnabled();
+            if (!inGame || (!enabled && !_previewActive) || isDashboardOpen) {
+                if (_widget.visible) _widget.visible = false;
+                return;
             }
-            tile.update(memberList[i]);
-        }
 
-        syncNativePartyFrame();
+            // Fetch members to display
+            var memberList:Array<PartyMemberDTO> = [];
+            if (_previewActive) {
+                memberList = getPreviewMembers();
+            } else if (Api.party != null && Api.party.inParty) {
+                memberList = isIncludeSelf() ? Api.party.allMembers : Api.party.members;
+            }
+
+            if (memberList.length == 0) {
+                if (_widget.visible) _widget.visible = false;
+                return;
+            }
+
+            if (!_widget.visible) _widget.visible = true;
+
+            // Ensure correct tile count
+            while (_tiles.length < memberList.length) {
+                var tile = new PartyTile();
+                _tiles.push(tile);
+                _tilesContainer.addChild(tile);
+            }
+            while (_tiles.length > memberList.length) {
+                var tile = _tiles.pop();
+                if (tile.parent != null) tile.parent.removeChild(tile);
+            }
+
+            // Relayout and update tiles
+            var isH = isHorizontal();
+            for (i in 0...memberList.length) {
+                var tile = _tiles[i];
+                if (isH) {
+                    tile.x = i * (TILE_W + GAP);
+                    tile.y = 0;
+                } else {
+                    tile.x = 0;
+                    tile.y = i * (TILE_H + GAP);
+                }
+                tile.update(memberList[i]);
+            }
+
+            syncNativePartyFrame();
+        } catch (_:Dynamic) {}
     }
 
     // =========================================================================
     // DRAGGING MECHANICS
     // =========================================================================
     public static function onTileMouseDown(e:MouseEvent):Void {
+        if (_widget == null) return;
         _isDragging = true;
         _hasDragged = false;
         _startDownX = e.stageX;
@@ -206,13 +261,17 @@ class PartyUnitFrame {
         _dragStartY = e.stageY - _widget.y;
 
         if (_widget.parent != null) {
-            _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+            try {
+                _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+            } catch (_:Dynamic) {}
         }
     }
 
     private static function setupDragging(theStage:Dynamic):Void {
+        if (theStage == null) return;
+
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
-            if (_isDragging) {
+            if (_isDragging && _widget != null) {
                 var dx = e.stageX - _startDownX;
                 var dy = e.stageY - _startDownY;
                 if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -224,8 +283,9 @@ class PartyUnitFrame {
                     var sw:Float = (theStage.stageWidth > 0) ? theStage.stageWidth : 960;
                     var sh:Float = (theStage.stageHeight > 0) ? theStage.stageHeight : 550;
 
-                    var totalW:Float = isHorizontal() ? (_tiles.length * (TILE_W + GAP)) : TILE_W;
-                    var totalH:Float = isHorizontal() ? TILE_H : (_tiles.length * (TILE_H + GAP));
+                    var count:Int = (_tiles.length > 0) ? _tiles.length : 1;
+                    var totalW:Float = isHorizontal() ? (count * (TILE_W + GAP) - GAP) : TILE_W;
+                    var totalH:Float = isHorizontal() ? TILE_H : (count * (TILE_H + GAP) - GAP);
                     if (totalW <= 0) totalW = TILE_W;
                     if (totalH <= 0) totalH = TILE_H;
 
@@ -243,7 +303,7 @@ class PartyUnitFrame {
         theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
             if (_isDragging) {
                 _isDragging = false;
-                if (_hasDragged) {
+                if (_hasDragged && _widget != null) {
                     var savedX = Math.round(_widget.x);
                     var savedY = Math.round(_widget.y);
                     ApiConfig.setInt(CONFIG_POS_X, savedX);
@@ -463,6 +523,7 @@ class PartyTile extends Sprite {
     private var _lastName:String              = "";
     private var _lastIsLeader:Bool            = false;
     private var _lastInCell:Bool              = true;
+    private var _lastInRange:Bool             = true;
 
     public function new() {
         super();
@@ -601,10 +662,14 @@ class PartyTile extends Sprite {
         var isLeader = member.isLeader;
         var inCell = member.inCell;
 
+        var inRange = member.inRange;
+        var isMe = member.isMe;
+
         // Dim tile if not in cell / out of range
-        if (inCell != _lastInCell) {
-            _lastInCell = inCell;
-            this.alpha = inCell ? 1.0 : 0.45;
+        var activeCell = inCell || isMe;
+        if (activeCell != _lastInCell) {
+            _lastInCell = activeCell;
+            this.alpha = activeCell ? 1.0 : 0.45;
         }
 
         // 1. Update Name Text
@@ -630,15 +695,27 @@ class PartyTile extends Sprite {
         }
 
         // 2. Update Health & % Indicator
-        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield) {
+        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield || inRange != _lastInRange) {
             _lastHp = hp;
             _lastMaxHp = maxHp;
             _lastShield = shield;
+            _lastInRange = inRange;
 
             var hpY:Float = PartyUnitFrame.HEADER_H;
             var hpH:Float = PartyUnitFrame.TILE_H - PartyUnitFrame.HEADER_H - PartyUnitFrame.MANA_H - 1.0;
 
-            if (hp <= 0) {
+            if (!inRange && !isMe) {
+                // Out of range / stats unknown
+                _pctTxt.text = "?";
+                var tf = _pctTxt.defaultTextFormat;
+                tf.color = PartyUnitFrame.COLOR_MUTED;
+                _pctTxt.defaultTextFormat = tf;
+                _pctTxt.setTextFormat(tf);
+                _pctTxt.filters = ApiStyle.getTextOutlineFilter();
+
+                _hpBarFill.graphics.clear();
+                _shieldFill.graphics.clear();
+            } else if (hp <= 0) {
                 // Dead
                 _pctTxt.text = "DEAD";
                 var tf = _pctTxt.defaultTextFormat;

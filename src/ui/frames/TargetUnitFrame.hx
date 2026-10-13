@@ -3,6 +3,7 @@ package ui.frames;
 #if flash
 import flash.display.Shape;
 import flash.display.Sprite;
+import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
 import flash.text.TextField;
@@ -150,7 +151,7 @@ class TargetUnitFrame {
         _pocket = pocket;
         _overlay = overlay;
 
-        var theStage:Dynamic = (_pocket != null && _pocket.stage != null) ? _pocket.stage : (_overlay != null ? _overlay.stage : null);
+        var theStage:Dynamic = (_pocket != null && Std.isOfType(_pocket, Stage)) ? _pocket : ((_pocket != null && _pocket.stage != null) ? _pocket.stage : (_overlay != null && _overlay.stage != null ? _overlay.stage : null));
 
         var attach = function(stageObj:Dynamic):Void {
             if (stageObj == null || _widget != null) return;

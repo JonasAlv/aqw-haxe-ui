@@ -26,13 +26,13 @@ class UnitFramesManager {
         if (_initialized) return;
         _initialized = true;
 
-        PlayerUnitFrame.init(pocket, overlay);
-        TargetUnitFrame.init(pocket, overlay);
-        NameplateUnitFrame.init(pocket, overlay);
-        AuraFramesManager.init(pocket, overlay);
-        BossMechanicsBar.init(pocket, overlay);
-        PartyUnitFrame.init(pocket, overlay);
-        syncNativeHideUI();
+        try { PlayerUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PlayerUnitFrame init error: " + e); }
+        try { TargetUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] TargetUnitFrame init error: " + e); }
+        try { NameplateUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] NameplateUnitFrame init error: " + e); }
+        try { AuraFramesManager.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] AuraFramesManager init error: " + e); }
+        try { BossMechanicsBar.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] BossMechanicsBar init error: " + e); }
+        try { PartyUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PartyUnitFrame init error: " + e); }
+        try { syncNativeHideUI(); } catch (e:Dynamic) {}
 
         if (Api.dispatcher != null) {
             Api.dispatcher.addEventListener(ApiEvent.ACCOUNT_CHANGED, function(_:Dynamic):Void {

@@ -16,7 +16,7 @@ import ui.widgets.CustomWidgetDef;
 import ui.widgets.CustomWidgetInstance;
 import ui.widgets.WidgetEditorModal;
 import ui.frames.UnitFramesManager;
-import ui.DamageNumbers;
+import ui.frames.DamageNumbers;
 import ui.ApiHudManager;
 
 /**
@@ -61,9 +61,9 @@ class WidgetManager {
             loadAndBuildCustomWidgets();
 
             // 2. Subsystem managers
-            UnitFramesManager.init(theStage, _overlay);
-            DamageNumbers.init(theStage, _overlay);
-            ApiHudManager.init(theStage, _overlay);
+            try { UnitFramesManager.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] UnitFramesManager init error: " + e); }
+            try { DamageNumbers.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] DamageNumbers init error: " + e); }
+            try { ApiHudManager.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] ApiHudManager init error: " + e); }
 
             // 3. Single master frame tick loop
             _theStage.addEventListener(Event.ENTER_FRAME, onStageFrame);
