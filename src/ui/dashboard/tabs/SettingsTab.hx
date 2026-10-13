@@ -331,6 +331,60 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
+        // 18. Hide Monsters
+        modal.addItemRow(
+            "Hide Monsters",
+            "Hides monster character models completely to eliminate all monster rendering overhead.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.hideMonsters : false;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.hideMonsters = next;
+                ApiNotificationManager.notify("Hide Monsters: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.hideMonsters : false;
+            }
+        );
+
+        // 19. Cache Player Bitmaps
+        modal.addItemRow(
+            "Cache Player Bitmaps",
+            "Rasterizes vector character avatars into cached bitmaps with GPU matrix transform. Drastically cuts CPU redraw load while keeping characters visible.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.cachePlayers : true;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.cachePlayers = next;
+                ApiNotificationManager.notify("Cache Players: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.cachePlayers : true;
+            }
+        );
+
+        // 20. Cache Monster Bitmaps
+        modal.addItemRow(
+            "Cache Monster Bitmaps",
+            "Rasterizes monster vector art into cached bitmaps with GPU matrix transform. Greatly boosts FPS in crowded rooms and farm zones.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = (Api.visual != null) ? Api.visual.cacheMonsters : true;
+                var next = !cur;
+                if (Api.visual != null) Api.visual.cacheMonsters = next;
+                ApiNotificationManager.notify("Cache Monsters: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
+            },
+            function():Bool {
+                return (Api.visual != null) ? Api.visual.cacheMonsters : true;
+            }
+        );
+
         // =========================================================================
         // SCREEN & CRT FILTERS (RETRO RETRO-ARCADE MASKS)
         // =========================================================================
