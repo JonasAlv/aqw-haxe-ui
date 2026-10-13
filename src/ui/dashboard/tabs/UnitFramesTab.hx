@@ -248,7 +248,7 @@ class UnitFramesTab implements IDashboardTab {
         // 5. Player Names
         modal.addItemRow(
             "Player Names",
-            "Show usernames and guild titles for players. Turn OFF for healthbars only.",
+            "Show usernames for players. Turn OFF for healthbars only.",
             "toggle",
             "",
             false,
@@ -260,6 +260,24 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return UnitFramesManager.isPlayerNamesEnabled();
+            }
+        );
+
+        // 6. Player Guild Names
+        modal.addItemRow(
+            "Player Guild Names",
+            "Show guild subtitles < Guild > under player names on overhead nameplates.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPlayerGuildNamesEnabled();
+                var next = !cur;
+                UnitFramesManager.setPlayerGuildNamesEnabled(next);
+                ApiNotificationManager.notify("Player Guild Names: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPlayerGuildNamesEnabled();
             }
         );
 

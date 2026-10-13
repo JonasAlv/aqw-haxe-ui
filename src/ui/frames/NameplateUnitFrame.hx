@@ -177,6 +177,13 @@ class NameplateDisplay extends Sprite {
         }
     }
 
+    public function forceUpdateSub():Void {
+        _lastSub = "";
+        if (entity != null) {
+            update(entity);
+        }
+    }
+
     public function update(ent:EntityDTO):Void {
         this.entity = ent;
 
@@ -236,7 +243,7 @@ class NameplateDisplay extends Sprite {
                     rawName = (ent.isAfk ? "<AFK> " : "") + pClass;
                 }
             }
-            if (ent.guild != "") rawSub = "< " + ent.guild + " >";
+            if (NameplateUnitFrame.isShowGuildNames() && ent.guild != "") rawSub = "< " + ent.guild + " >";
         }
 
         // Apply text only when changed
@@ -493,11 +500,23 @@ class NameplateUnitFrame {
         }
     }
 
+    public static inline function isShowGuildNames():Bool {
+        return ApiConfig.getBool("api_frame_nameplates_guild_names", true);
+    }
+
+    public static function setShowGuildNames(enabled:Bool):Void {
+        ApiConfig.setBool("api_frame_nameplates_guild_names", enabled);
+        for (p in _activePlates) {
+            if (!p.isEnemy) p.forceUpdateSub();
+        }
+    }
+
     public static function reloadFromConfig():Void {
         if (!isWidgetEnabled()) {
             disableAllPlates();
         } else {
             for (p in _activePlates) {
+                p.forceUpdateSub();
                 p.updateDisplay();
             }
         }
@@ -621,6 +640,8 @@ class NameplateUnitFrame {
     public static inline function setPlayersEnabled(enabled:Bool):Void {}
     public static inline function isPlayerNamesEnabled():Bool return false;
     public static inline function setPlayerNamesEnabled(enabled:Bool):Void {}
+    public static inline function isShowGuildNames():Bool return true;
+    public static inline function setShowGuildNames(enabled:Bool):Void {}
     public static function reloadFromConfig():Void {}
 }
 #end

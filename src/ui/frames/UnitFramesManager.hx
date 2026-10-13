@@ -117,6 +117,14 @@ class UnitFramesManager {
         NameplateUnitFrame.setPlayerNamesEnabled(enabled);
     }
 
+    public static inline function isPlayerGuildNamesEnabled():Bool {
+        return NameplateUnitFrame.isShowGuildNames();
+    }
+
+    public static function setPlayerGuildNamesEnabled(enabled:Bool):Void {
+        NameplateUnitFrame.setShowGuildNames(enabled);
+    }
+
     public static inline function isBossMechanicsBarEnabled():Bool {
         return BossMechanicsBar.isEnabled();
     }
@@ -318,6 +326,8 @@ class UnitFramesManager {
     public static function setEnemyNameplatesEnabled(enabled:Bool):Void {}
     public static function isPlayerNameplatesEnabled():Bool return false;
     public static function setPlayerNameplatesEnabled(enabled:Bool):Void {}
+    public static function isPlayerGuildNamesEnabled():Bool return true;
+    public static function setPlayerGuildNamesEnabled(enabled:Bool):Void {}
     public static function isBossMechanicsBarEnabled():Bool return false;
     public static function setBossMechanicsBarEnabled(enabled:Bool):Void {}
     public static function isTauntAlertsEnabled():Bool return false;
