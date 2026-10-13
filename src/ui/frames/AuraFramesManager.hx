@@ -1,6 +1,8 @@
 package ui.frames;
 
 #if flash
+import flash.display.DisplayObject;
+import flash.display.MovieClip;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.text.TextField;
@@ -16,20 +18,8 @@ import ui.ApiStyle;
  * AuraFramesManager:
  * Native AQW Aura HUD Optimizer, Cooldown Timer Engine, and Combat Filter.
  *
- * Capabilities:
- * 1. Zero-Lag Aura Sweep:
- *    Neutralizes the native engine's heavy ActMaskReverse (90 vector keyframes)
- *    and synchronous BitmapData.draw software rasterization on every aura cell.
- *    Restores smooth 60 FPS while keeping native icons and drag-and-drop intact.
- *
- * 2. In-Center Cooldown Timers:
- *    Renders crisp, high-contrast numeric CD countdown timers in the center of
- *    active aura icons (e.g. 15s, 4s, 0.8s) with expiry warning colors.
- *
- * 3. Intelligent Aura Filtering ("My Auras Only"):
- *    Filters out debuff clutter applied by other players on the target boss,
- *    keeping only your applied debuffs and the target's own mechanics/shields
- *    (e.g. reflect, shield, counter, boss stances), and tightly repacks the grid.
+ * Uses ONLY public DisplayObject and entity data properties to avoid Flash Error #1069
+ * on sealed private AS3 class members.
  */
 class AuraFramesManager {
     private static var _initialized:Bool = false;
@@ -92,6 +82,30 @@ class AuraFramesManager {
         ApiConfig.setBool("api_auras_lag_killer", v);
     }
 
+    /**
+     * Safely retrieves all child AuraCell instances from an AuraHUD container
+     * without accessing the private 'order' or 'cells' members.
+     */
+    private static function getCells(hud:Dynamic):Array<Dynamic> {
+        var cells:Array<Dynamic> = [];
+        if (hud == null) return cells;
+        try {
+            var num:Int = (hud.numChildren != null) ? hud.numChildren : 0;
+            for (i in 0...num) {
+                var ch:Dynamic = hud.getChildAt(i);
+                if (ch != null && ch.nam != null) {
+                    cells.push(ch);
+                }
+            }
+            cells.sort(function(a:Dynamic, b:Dynamic):Int {
+                var sa:Int = (a.seq != null) ? a.seq : 0;
+                var sb:Int = (b.seq != null) ? b.seq : 0;
+                return sa - sb;
+            });
+        } catch (_:Dynamic) {}
+        return cells;
+    }
+
     private static function onEnterFrame(e:Event):Void {
         if (!ApiMenus.isInGame() || Api.game == null) return;
 
@@ -102,24 +116,22 @@ class AuraFramesManager {
 
         // 1. Process Player Auras (pAurasUI)
         var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
-        if (pUI != null && pUI.visible != false && pUI.order != null) {
-            var pOrder:Array<Dynamic> = cast pUI.order;
-            for (cell in pOrder) {
-                if (cell == null) continue;
+        if (pUI != null && pUI.visible != false) {
+            var pCells:Array<Dynamic> = getCells(pUI);
+            for (cell in pCells) {
                 processCell(cell, nowMs, cdEnabled, lagKiller);
             }
         }
 
         // 2. Process Target Auras (tAurasUI) with Filtering
         var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
-        if (tUI != null && tUI.order != null) {
-            var tOrder:Array<Dynamic> = cast tUI.order;
+        if (tUI != null) {
+            var tCells:Array<Dynamic> = getCells(tUI);
             var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
             var myEntId:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.dataLeaf != null) ? Api.game.world.myAvatar.dataLeaf.entID : null;
 
             var visibleIdx:Int = 0;
-            for (cell in tOrder) {
-                if (cell == null) continue;
+            for (cell in tCells) {
                 processCell(cell, nowMs, cdEnabled, lagKiller);
 
                 var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
@@ -147,21 +159,27 @@ class AuraFramesManager {
     /**
      * Optimizes a single AuraCell:
      * - Suppresses laggy ActMaskReverse dynamic stencil masks and BitmapData.draw
+     *   by neutralizing them in the child display hierarchy (avoiding private member access)
      * - Manages centered numeric cooldown countdown text field
      */
     private static function processCell(cell:Dynamic, nowMs:Float, cdEnabled:Bool, lagKiller:Bool):Void {
         // A. Lag Killer: disable ActMaskReverse dynamic vector mask and software rasterization
-        if (lagKiller) {
+        if (lagKiller && cell.numChildren != null && cell.numChildren > 0) {
             try {
-                if (cell.noSweep != true) cell.noSweep = true;
-                if (cell.dim != null || cell.sweep != null) {
-                    if (Reflect.isFunction(cell.clearSweep)) {
-                        cell.clearSweep();
-                    } else {
-                        if (cell.dim != null && cell.dim.parent != null) cell.dim.parent.removeChild(cell.dim);
-                        if (cell.sweep != null && cell.sweep.parent != null) cell.sweep.parent.removeChild(cell.sweep);
-                        cell.dim = null;
-                        cell.sweep = null;
+                var base:Dynamic = cell.getChildAt(0);
+                if (base != null && base.numChildren != null) {
+                    var n:Int = base.numChildren;
+                    for (j in 0...n) {
+                        var ch:Dynamic = base.getChildAt(j);
+                        if (ch != null) {
+                            if (Std.isOfType(ch, flash.display.Bitmap)) {
+                                ch.visible = false;
+                                ch.mask = null;
+                            } else if (Std.isOfType(ch, flash.display.MovieClip) && ch != base.cnt) {
+                                ch.visible = false;
+                                try { cast(ch, flash.display.MovieClip).stop(); } catch (_:Dynamic) {}
+                            }
+                        }
                     }
                 }
             } catch (_:Dynamic) {}
