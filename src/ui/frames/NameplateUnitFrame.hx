@@ -87,7 +87,7 @@ class NameplateDisplay extends Sprite {
         addChild(_targetArrows);
 
         // Initial draw of resting well
-        drawBarBg(false);
+        drawBarBg();
         drawTargetIndicators(false);
 
         // 3. Name Label
@@ -170,7 +170,7 @@ class NameplateDisplay extends Sprite {
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && _lastSub != "");
 
-        drawBarBg(_lastIsTarget);
+        drawBarBg();
         drawTargetIndicators(_lastIsTarget);
         if (_lastHp > 0 && _lastMaxHp > 0) {
             drawHealthBar(_lastHp, _lastMaxHp);
@@ -231,11 +231,10 @@ class NameplateDisplay extends Sprite {
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && rawSub != "");
 
-        // 4. Target Highlight Border & Chevrons via API
+        // 4. Target Chevrons via API
         var isTarget:Bool = ent.isCurrentTarget;
         if (isTarget != _lastIsTarget) {
             _lastIsTarget = isTarget;
-            drawBarBg(isTarget);
             drawTargetIndicators(isTarget);
         }
 
@@ -257,7 +256,7 @@ class NameplateDisplay extends Sprite {
         }
     }
 
-    private function drawBarBg(isTarget:Bool):Void {
+    private function drawBarBg():Void {
         var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
         var barY:Float = showNames ? BAR_Y : 0.0;
 
@@ -270,11 +269,7 @@ class NameplateDisplay extends Sprite {
         g.endFill();
 
         g.beginFill(isEnemy ? COLOR_BAR_BG_ENEMY : COLOR_BAR_BG_PLAYER, 0.85);
-        if (isTarget) {
-            g.lineStyle(1.5, isEnemy ? COLOR_TARGET_ENEMY : COLOR_TARGET_PLAYER, 1.0);
-        } else {
-            g.lineStyle(1.0, isEnemy ? COLOR_BORDER_ENEMY : COLOR_BORDER_PLAYER, 0.85);
-        }
+        g.lineStyle(1.0, isEnemy ? COLOR_BORDER_ENEMY : COLOR_BORDER_PLAYER, 0.85);
         g.drawRoundRect(-BAR_W / 2, barY, BAR_W, BAR_H, 2, 2);
         g.endFill();
     }
