@@ -101,7 +101,25 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 3. Player Overhead Bars
+        // 3. Enemy Names
+        modal.addItemRow(
+            "Enemy Names",
+            "Show names and race subtitles for enemies. Turn OFF for healthbars only.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isEnemyNamesEnabled();
+                var next = !cur;
+                UnitFramesManager.setEnemyNamesEnabled(next);
+                ApiNotificationManager.notify("Enemy Names: " + (next ? "Enabled" : "Disabled (Bars Only)"));
+            },
+            function():Bool {
+                return UnitFramesManager.isEnemyNamesEnabled();
+            }
+        );
+
+        // 4. Player Overhead Bars
         modal.addItemRow(
             "Player Overhead Bars",
             "Show green health bars above players.",
@@ -116,6 +134,24 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return UnitFramesManager.isPlayerNameplatesEnabled();
+            }
+        );
+
+        // 5. Player Names
+        modal.addItemRow(
+            "Player Names",
+            "Show usernames and guild titles for players. Turn OFF for healthbars only.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isPlayerNamesEnabled();
+                var next = !cur;
+                UnitFramesManager.setPlayerNamesEnabled(next);
+                ApiNotificationManager.notify("Player Names: " + (next ? "Enabled" : "Disabled (Bars Only)"));
+            },
+            function():Bool {
+                return UnitFramesManager.isPlayerNamesEnabled();
             }
         );
 

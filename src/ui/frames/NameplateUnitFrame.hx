@@ -143,8 +143,30 @@ class NameplateDisplay extends Sprite {
     }
 
     public function setBarVisible(show:Bool):Void {
-        _barBg.visible = show;
-        _barFill.visible = show;
+        updateDisplay();
+    }
+
+    public function updateDisplay():Void {
+        var showBar:Bool = isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled();
+        var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
+
+        if (!showBar && !showNames) {
+            visible = false;
+            return;
+        }
+        if (entity != null && entity.isAlive && entity.pMC != null && entity.pMC.visible != false) {
+            visible = true;
+        }
+
+        _barBg.visible = showBar;
+        _barFill.visible = showBar;
+        _nameTxt.visible = showNames;
+        _subTxt.visible = (showNames && _lastSub != "");
+
+        drawBarBg(_lastIsTarget);
+        if (_lastHp > 0 && _lastMaxHp > 0) {
+            drawHealthBar(_lastHp, _lastMaxHp);
+        }
     }
 
     public function update(ent:EntityDTO):Void {
@@ -161,7 +183,6 @@ class NameplateDisplay extends Sprite {
             visible = false;
             return;
         }
-        visible = true;
 
         // 2. Position synchronization: dead-center horizontally above character
         try {
@@ -179,6 +200,7 @@ class NameplateDisplay extends Sprite {
         } catch (_:Dynamic) {}
 
         // 3. Name & Subtitle Text from EntityDTO
+        var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
         var rawName:String = (ent.isAfk ? "<AFK> " : "") + ent.name;
         var rawSub:String = "";
 
@@ -196,8 +218,10 @@ class NameplateDisplay extends Sprite {
         if (rawSub != _lastSub) {
             _lastSub = rawSub;
             _subTxt.text = rawSub;
-            _subTxt.visible = (rawSub != "");
         }
+
+        _nameTxt.visible = showNames;
+        _subTxt.visible = (showNames && rawSub != "");
 
         // 4. Target Highlight Border via API
         var isTarget:Bool = ent.isCurrentTarget;
@@ -211,6 +235,12 @@ class NameplateDisplay extends Sprite {
         _barBg.visible = showBar;
         _barFill.visible = showBar;
 
+        if (!showBar && !showNames) {
+            visible = false;
+            return;
+        }
+        visible = true;
+
         if (showBar && (ent.hp != _lastHp || ent.maxHp != _lastMaxHp)) {
             _lastHp = ent.hp;
             _lastMaxHp = ent.maxHp;
@@ -219,19 +249,31 @@ class NameplateDisplay extends Sprite {
     }
 
     private function drawBarBg(isTarget:Bool):Void {
+        var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
+        var barY:Float = showNames ? BAR_Y : 0.0;
+
         var g = _barBg.graphics;
         g.clear();
+
+        // Transparent hit area for easy click-to-target even on thin 4px bar
+        g.beginFill(0x000000, 0.0);
+        g.drawRect(-BAR_W / 2 - 4, barY - 6, BAR_W + 8, BAR_H + 12);
+        g.endFill();
+
         g.beginFill(isEnemy ? COLOR_BAR_BG_ENEMY : COLOR_BAR_BG_PLAYER, 0.85);
         if (isTarget) {
             g.lineStyle(1.5, isEnemy ? COLOR_TARGET_ENEMY : COLOR_TARGET_PLAYER, 1.0);
         } else {
             g.lineStyle(1.0, isEnemy ? COLOR_BORDER_ENEMY : COLOR_BORDER_PLAYER, 0.85);
         }
-        g.drawRoundRect(-BAR_W / 2, BAR_Y, BAR_W, BAR_H, 2, 2);
+        g.drawRoundRect(-BAR_W / 2, barY, BAR_W, BAR_H, 2, 2);
         g.endFill();
     }
 
     private function drawHealthBar(hp:Int, maxHp:Int):Void {
+        var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
+        var barY:Float = showNames ? BAR_Y : 0.0;
+
         var g = _barFill.graphics;
         g.clear();
         if (hp > 0 && maxHp > 0) {
@@ -240,7 +282,7 @@ class NameplateDisplay extends Sprite {
             if (fillW > 0) {
                 var color:Int = isEnemy ? COLOR_HP_ENEMY : PlayerUnitFrame.getHealthColor(ratio);
                 g.beginFill(color, 1.0);
-                g.drawRoundRect(-BAR_W / 2 + 1, BAR_Y + 1, fillW, BAR_H - 2, 1, 1);
+                g.drawRoundRect(-BAR_W / 2 + 1, barY + 1, fillW, BAR_H - 2, 1, 1);
                 g.endFill();
             }
         }
@@ -321,7 +363,18 @@ class NameplateUnitFrame {
     public static function setEnemiesEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_enemies", enabled);
         for (p in _activePlates) {
-            if (p.isEnemy) p.setBarVisible(enabled);
+            if (p.isEnemy) p.updateDisplay();
+        }
+    }
+
+    public static inline function isEnemyNamesEnabled():Bool {
+        return ApiConfig.getBool("api_frame_nameplates_enemy_names", true);
+    }
+
+    public static function setEnemyNamesEnabled(enabled:Bool):Void {
+        ApiConfig.setBool("api_frame_nameplates_enemy_names", enabled);
+        for (p in _activePlates) {
+            if (p.isEnemy) p.updateDisplay();
         }
     }
 
@@ -332,7 +385,18 @@ class NameplateUnitFrame {
     public static function setPlayersEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_players", enabled);
         for (p in _activePlates) {
-            if (!p.isEnemy) p.setBarVisible(enabled);
+            if (!p.isEnemy) p.updateDisplay();
+        }
+    }
+
+    public static inline function isPlayerNamesEnabled():Bool {
+        return ApiConfig.getBool("api_frame_nameplates_player_names", true);
+    }
+
+    public static function setPlayerNamesEnabled(enabled:Bool):Void {
+        ApiConfig.setBool("api_frame_nameplates_player_names", enabled);
+        for (p in _activePlates) {
+            if (!p.isEnemy) p.updateDisplay();
         }
     }
 
@@ -340,10 +404,8 @@ class NameplateUnitFrame {
         if (!isWidgetEnabled()) {
             disableAllPlates();
         } else {
-            var showEnemies = isEnemiesEnabled();
-            var showPlayers = isPlayersEnabled();
             for (p in _activePlates) {
-                p.setBarVisible(p.isEnemy ? showEnemies : showPlayers);
+                p.updateDisplay();
             }
         }
     }
@@ -460,8 +522,12 @@ class NameplateUnitFrame {
     public static inline function setWidgetEnabled(enabled:Bool):Void {}
     public static inline function isEnemiesEnabled():Bool return false;
     public static inline function setEnemiesEnabled(enabled:Bool):Void {}
+    public static inline function isEnemyNamesEnabled():Bool return false;
+    public static inline function setEnemyNamesEnabled(enabled:Bool):Void {}
     public static inline function isPlayersEnabled():Bool return false;
     public static inline function setPlayersEnabled(enabled:Bool):Void {}
+    public static inline function isPlayerNamesEnabled():Bool return false;
+    public static inline function setPlayerNamesEnabled(enabled:Bool):Void {}
     public static function reloadFromConfig():Void {}
 }
 #end
