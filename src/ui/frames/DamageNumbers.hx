@@ -121,11 +121,11 @@ class DamageParticle extends Sprite {
         y = startY;
         alpha = 1.0;
 
-        baseScale = 1.2;
+        baseScale = 1.15;
         scaleX = baseScale;
         scaleY = baseScale;
         vx = (Math.random() - 0.5) * 0.2;
-        vy = -2.6;
+        vy = -2.0;
 
         visible = true;
     }
@@ -419,11 +419,11 @@ class DamageNumbers {
         if (targetMC == null || targetMC.stage == null) return;
 
         var localCenterX:Float = 0;
-        var localCenterY:Float = -50;
+        var localCenterY:Float = -20;
         try {
             if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
             if (targetMC.pname != null && targetMC.pname.y != 0) {
-                localCenterY = targetMC.pname.y * 0.55;
+                localCenterY = targetMC.pname.y * 0.25; // Lower body / feet area (25% height instead of 55% chest)
             }
         } catch (_:Dynamic) {}
 
@@ -445,7 +445,7 @@ class DamageNumbers {
             }
             var p = acquireParticle();
             if (p != null) {
-                var yOffset:Float = both ? -20.0 : -6.0;
+                var yOffset:Float = both ? -14.0 : 0.0;
                 p.spawnReward(expText, COLOR_XP, 15, screenCenter.x, screenCenter.y + yOffset);
             }
         }
@@ -454,7 +454,7 @@ class DamageNumbers {
             var goldText = "+" + formatNumber(gold) + "g";
             var p = acquireParticle();
             if (p != null) {
-                var yOffset:Float = both ? 6.0 : -6.0;
+                var yOffset:Float = both ? 6.0 : 0.0;
                 p.spawnReward(goldText, COLOR_GOLD, 15, screenCenter.x, screenCenter.y + yOffset);
             }
         }
