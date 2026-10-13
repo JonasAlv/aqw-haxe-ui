@@ -29,6 +29,7 @@ class UnitFramesManager {
         PlayerUnitFrame.init(pocket, overlay);
         TargetUnitFrame.init(pocket, overlay);
         NameplateUnitFrame.init(pocket, overlay);
+        AuraFramesManager.init(pocket, overlay);
         syncNativeHideUI();
 
         if (Api.dispatcher != null) {

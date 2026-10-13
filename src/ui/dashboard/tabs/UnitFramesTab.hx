@@ -4,6 +4,7 @@ package ui.dashboard.tabs;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.DamageNumbers;
+import ui.frames.AuraFramesManager;
 import ui.frames.UnitFramesManager;
 import ui.dashboard.IDashboardTab;
 
@@ -152,6 +153,62 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return UnitFramesManager.isPlayerNamesEnabled();
+            }
+        );
+
+        modal.addSectionHeader("Aura Frames (Buffs & Debuffs)");
+
+        // 1. Aura Lag Killer
+        modal.addItemRow(
+            "Aura Lag Killer",
+            "Eliminates heavy 90-frame vector mask sweeps and software rasterization on native auras.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = AuraFramesManager.isLagKillerEnabled();
+                var next = !cur;
+                AuraFramesManager.setLagKillerEnabled(next);
+                ApiNotificationManager.notify("Aura Lag Killer: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return AuraFramesManager.isLagKillerEnabled();
+            }
+        );
+
+        // 2. Cooldown Timers
+        modal.addItemRow(
+            "Aura CD Timers",
+            "Display numeric countdown seconds in the center of aura icons (e.g. 15s, 4s, 0.8s).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = AuraFramesManager.isCdTimersEnabled();
+                var next = !cur;
+                AuraFramesManager.setCdTimersEnabled(next);
+                ApiNotificationManager.notify("Aura CD Timers: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return AuraFramesManager.isCdTimersEnabled();
+            }
+        );
+
+        // 3. Target Auras Filter
+        modal.addItemRow(
+            "Target Auras Filter",
+            "Show My Auras Only: Displays only your debuffs and boss mechanics (reflect, shields, stances), hiding other players' clutter.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = AuraFramesManager.isMyAurasOnly();
+                var next = !cur;
+                AuraFramesManager.setMyAurasOnly(next);
+                ApiNotificationManager.notify("Target Auras Filter: " + (next ? "My Auras Only" : "All Auras"));
+            },
+            function():Bool {
+                return AuraFramesManager.isMyAurasOnly();
             }
         );
 
