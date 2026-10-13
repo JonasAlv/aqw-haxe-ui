@@ -500,6 +500,24 @@ class UnitFramesTab implements IDashboardTab {
                 return DamageNumbers.isShowHeals();
             }
         );
+
+        // 7. Modern Gold & XP
+        modal.addItemRow(
+            "Modern Gold & XP",
+            "Replace clunky Flash popups with smooth, modern floating Gold and XP text.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = DamageNumbers.isModernRewardsEnabled();
+                var next = !cur;
+                DamageNumbers.setModernRewardsEnabled(next);
+                ApiNotificationManager.notify("Modern Gold & XP: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return DamageNumbers.isModernRewardsEnabled();
+            }
+        );
     }
 }
 #else

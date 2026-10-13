@@ -30,6 +30,7 @@ class DamageParticle extends Sprite {
     public var maxLife:Float = 0.85;
     public var isCrit:Bool = false;
     public var isDot:Bool = false;
+    public var isReward:Bool = false;
     public var inUse:Bool = false;
     public var baseScale:Float = 1.0;
 
@@ -49,6 +50,7 @@ class DamageParticle extends Sprite {
     public function spawn(text:String, color:Int, fontSize:Int, isCritical:Bool, startX:Float, startY:Float, isDamageOverTime:Bool) {
         isCrit = isCritical;
         isDot = isDamageOverTime;
+        isReward = false;
         inUse = true;
         life = 0;
         maxLife = isCrit ? 1.05 : (isDot ? 0.95 : 0.85);
@@ -96,6 +98,38 @@ class DamageParticle extends Sprite {
         visible = true;
     }
 
+    public function spawnReward(text:String, color:Int, fontSize:Int, startX:Float, startY:Float) {
+        isCrit = false;
+        isDot = false;
+        isReward = true;
+        inUse = true;
+        life = 0;
+        maxLife = 1.25;
+
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, fontSize, color, true);
+        fmt.align = TextFormatAlign.CENTER;
+        tf.defaultTextFormat = fmt;
+        tf.text = text;
+
+        var glow = new GlowFilter(0x000000, 1.0, 4, 4, 6, 2);
+        tf.filters = [glow];
+
+        tf.x = -tf.width * 0.5;
+        tf.y = -tf.height * 0.5;
+
+        x = startX;
+        y = startY;
+        alpha = 1.0;
+
+        baseScale = 1.2;
+        scaleX = baseScale;
+        scaleY = baseScale;
+        vx = (Math.random() - 0.5) * 0.2;
+        vy = -2.6;
+
+        visible = true;
+    }
+
     public function step(dt:Float):Bool {
         life += dt;
         if (life >= maxLife) {
@@ -113,6 +147,13 @@ class DamageParticle extends Sprite {
             if (scaleX > 1.25) {
                 scaleX -= dt * 2.5;
                 if (scaleX < 1.25) scaleX = 1.25;
+                scaleY = scaleX;
+            }
+        } else if (isReward) {
+            vy *= 0.93;
+            if (scaleX > 1.0) {
+                scaleX -= dt * 0.8;
+                if (scaleX < 1.0) scaleX = 1.0;
                 scaleY = scaleX;
             }
         } else if (isDot) {
@@ -152,7 +193,7 @@ class DamageNumbers {
     private static var _ticker:Timer = null;
 
     // Object pool
-    private static inline var POOL_SIZE:Int = 50;
+    private static inline var POOL_SIZE:Int = 60;
     private static var _pool:Array<DamageParticle> = [];
     private static var _lastFrameTime:Int = 0;
 
@@ -165,6 +206,8 @@ class DamageNumbers {
     private static inline var COLOR_DODGE:Int     = COLOR_AVOID;
     private static inline var COLOR_MISS:Int      = COLOR_AVOID;
     private static inline var COLOR_INCOMING:Int  = 0xEF4444;
+    private static inline var COLOR_XP:Int        = 0xC084FC; // Radiant purple/lavender
+    private static inline var COLOR_GOLD:Int      = 0xFACC15; // Vibrant gold
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -205,6 +248,11 @@ class DamageNumbers {
 
         theStage.addChild(_container);
 
+        // Suppress native clunky MovieClip popups (goldDisplay, xpDisplay, xpDisplayBonus)
+        try {
+            theStage.addEventListener(Event.ADDED, onDisplayObjectAdded, true, 100, true);
+        } catch (_:Dynamic) {}
+
         // Frame ticker for smooth particle updates. Uses a Timer instead of the stage's
         // ENTER_FRAME event.
         //
@@ -223,6 +271,19 @@ class DamageNumbers {
         ensureSocketHook();
     }
 
+    private static function onDisplayObjectAdded(e:Event):Void {
+        if (!isModernRewardsEnabled()) return;
+        var obj:Dynamic = e.target;
+        if (obj == null) return;
+        try {
+            var qName:String = untyped __global__["flash.utils.getQualifiedClassName"](obj);
+            if (qName == "goldDisplay" || qName == "xpDisplay" || qName == "xpDisplayBonus") {
+                obj.visible = false;
+                obj.alpha = 0;
+            }
+        } catch (_:Dynamic) {}
+    }
+
     private static function onTick(e:TimerEvent):Void {
         var now = ApiTime.getTimer();
         var dt:Float = (now - _lastFrameTime) / 1000.0;
@@ -236,14 +297,16 @@ class DamageNumbers {
 
         var inGame:Bool = (Api.isReady && !ApiDashboardModal.isOpen());
         var enabled:Bool = isEnabled();
+        var rewardsEnabled:Bool = isModernRewardsEnabled();
+        var anyActive:Bool = (enabled || rewardsEnabled);
 
         // Sync native display suppression to the CURRENT state every tick. Previously this only
         // ever set bDisDmgDisplay = true, so toggling our module off left the game's native combat
         // text suppressed forever — and toggling back on produced nothing at all.
         syncNativeDisplay(inGame && enabled);
 
-        _container.visible = (inGame && enabled);
-        if (!inGame || !enabled) return;
+        _container.visible = (inGame && anyActive);
+        if (!inGame || !anyActive) return;
 
         // Update active particles
         for (i in 0..._pool.length) {
@@ -288,7 +351,7 @@ class DamageNumbers {
     // -------------------------------------------------------------------------
 
     private static function handlePacket(e:Dynamic):Void {
-        if (!isEnabled() || !Api.isReady) return;
+        if (!Api.isReady) return;
         try {
             if (e == null || e.params == null || e.params.dataObj == null) return;
             var d:Dynamic = e.params.dataObj;
@@ -296,6 +359,13 @@ class DamageNumbers {
             if (d.cmd != null) cmd = Std.string(d.cmd);
             else if (d[0] != null) cmd = Std.string(d[0]);
             if (cmd == null) return;
+
+            if (cmd == "addGoldExp") {
+                processGoldExpResult(d);
+                return;
+            }
+
+            if (!isEnabled()) return;
 
             if (cmd == "sar") {
                 processSingleResult(d.actionResult);
@@ -318,6 +388,76 @@ class DamageNumbers {
                 processDotResult(d);
             }
         } catch (_:Dynamic) {}
+    }
+
+    private static function processGoldExpResult(d:Dynamic):Void {
+        if (d == null || !isModernRewardsEnabled() || _container == null) return;
+        var exp:Int = (d.intExp != null) ? Std.int(d.intExp) : 0;
+        var bonusExp:Int = (d.bonusExp != null) ? Std.int(d.bonusExp) : 0;
+        var gold:Int = (d.intGold != null) ? Std.int(d.intGold) : 0;
+        if (exp <= 0 && gold <= 0) return;
+
+        var typ:String = (d.typ != null) ? Std.string(d.typ) : "";
+        var id:Dynamic = d.id;
+
+        var tInf:String = "";
+        if (typ == "m" && id != null) {
+            tInf = "m:" + id;
+        } else {
+            var myUid:Dynamic = (Api.game != null && Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
+            if (myUid != null) tInf = "p:" + myUid;
+        }
+
+        var targetMC:Dynamic = (tInf != "") ? getTargetMC(tInf) : null;
+        if (targetMC == null || targetMC.stage == null) {
+            try {
+                if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) {
+                    targetMC = Api.game.world.myAvatar.pMC;
+                }
+            } catch (_:Dynamic) {}
+        }
+        if (targetMC == null || targetMC.stage == null) return;
+
+        var localCenterX:Float = 0;
+        var localCenterY:Float = -50;
+        try {
+            if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
+            if (targetMC.pname != null && targetMC.pname.y != 0) {
+                localCenterY = targetMC.pname.y * 0.55;
+            }
+        } catch (_:Dynamic) {}
+
+        var globalCenter:Point = null;
+        try {
+            globalCenter = targetMC.localToGlobal(new Point(localCenterX, localCenterY));
+        } catch (_:Dynamic) {
+            return;
+        }
+        if (globalCenter == null) return;
+
+        var screenCenter:Point = _container.globalToLocal(globalCenter);
+        var both:Bool = (exp > 0 && gold > 0);
+
+        if (exp > 0) {
+            var expText = "+" + formatNumber(exp) + " XP";
+            if (bonusExp > 0) {
+                expText += " (+" + formatNumber(bonusExp) + ")";
+            }
+            var p = acquireParticle();
+            if (p != null) {
+                var yOffset:Float = both ? -20.0 : -6.0;
+                p.spawnReward(expText, COLOR_XP, 15, screenCenter.x, screenCenter.y + yOffset);
+            }
+        }
+
+        if (gold > 0) {
+            var goldText = "+" + formatNumber(gold) + "g";
+            var p = acquireParticle();
+            if (p != null) {
+                var yOffset:Float = both ? 6.0 : -6.0;
+                p.spawnReward(goldText, COLOR_GOLD, 15, screenCenter.x, screenCenter.y + yOffset);
+            }
+        }
     }
 
     private static function processSingleResult(r:Dynamic):Void {
@@ -677,6 +817,14 @@ class DamageNumbers {
     public static inline function setShowHeals(v:Bool):Void {
         ApiConfig.setBool("api_fct_heals", v);
     }
+
+    public static inline function isModernRewardsEnabled():Bool {
+        return ApiConfig.getBool("api_fct_rewards", true);
+    }
+
+    public static inline function setModernRewardsEnabled(v:Bool):Void {
+        ApiConfig.setBool("api_fct_rewards", v);
+    }
 }
 #else
 class DamageNumbers {
@@ -693,5 +841,7 @@ class DamageNumbers {
     public static function setShowDots(v:Bool):Void {}
     public static function isShowHeals():Bool return false;
     public static function setShowHeals(v:Bool):Void {}
+    public static function isModernRewardsEnabled():Bool return false;
+    public static function setModernRewardsEnabled(v:Bool):Void {}
 }
 #end
