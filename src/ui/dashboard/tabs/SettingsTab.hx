@@ -104,14 +104,14 @@ class SettingsTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                var cur = ApiConfig.getBool("api_private_rooms", true);
+                var cur = ApiConfig.getBool("api_private_rooms", false);
                 var next = !cur;
                 ApiConfig.setBool("api_private_rooms", next);
                 if (Api.map != null) Api.map.usePrivateRoom = next;
                 ApiNotificationManager.notify("Private Rooms: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return (Api.map != null) ? Api.map.usePrivateRoom : ApiConfig.getBool("api_private_rooms", true);
+                return (Api.map != null) ? Api.map.usePrivateRoom : ApiConfig.getBool("api_private_rooms", false);
             }
         );
 
@@ -424,7 +424,7 @@ class SettingsTab implements IDashboardTab {
                 }
             },
             function():Bool {
-                return (Api.visual != null) ? Api.visual.showNames : true;
+                return (Api.visual != null) ? Api.visual.showNames : false;
             }
         );
 
@@ -454,13 +454,13 @@ class SettingsTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                var cur = (Api.visual != null) ? Api.visual.cachePlayers : true;
+                var cur = (Api.visual != null) ? Api.visual.cachePlayers : false;
                 var next = !cur;
                 if (Api.visual != null) Api.visual.cachePlayers = next;
                 ApiNotificationManager.notify("Cache Players: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
             },
             function():Bool {
-                return (Api.visual != null) ? Api.visual.cachePlayers : true;
+                return (Api.visual != null) ? Api.visual.cachePlayers : false;
             }
         );
 
@@ -472,13 +472,13 @@ class SettingsTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                var cur = (Api.visual != null) ? Api.visual.cacheMonsters : true;
+                var cur = (Api.visual != null) ? Api.visual.cacheMonsters : false;
                 var next = !cur;
                 if (Api.visual != null) Api.visual.cacheMonsters = next;
                 ApiNotificationManager.notify("Cache Monsters: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
             },
             function():Bool {
-                return (Api.visual != null) ? Api.visual.cacheMonsters : true;
+                return (Api.visual != null) ? Api.visual.cacheMonsters : false;
             }
         );
 

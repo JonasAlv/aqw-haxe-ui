@@ -59,7 +59,7 @@ class AuraFramesManager {
     }
 
     public static inline function isCdTimersEnabled():Bool {
-        return ApiConfig.getBool("api_auras_cd_timers", true);
+        return ApiConfig.getBool("api_auras_cd_timers", false);
     }
 
     public static function setCdTimersEnabled(v:Bool):Void {
@@ -67,7 +67,7 @@ class AuraFramesManager {
     }
 
     public static inline function isMyAurasOnly():Bool {
-        return ApiConfig.getBool("api_auras_my_only", true);
+        return ApiConfig.getBool("api_auras_my_only", false);
     }
 
     public static function setMyAurasOnly(v:Bool):Void {
@@ -75,7 +75,7 @@ class AuraFramesManager {
     }
 
     public static inline function isLagKillerEnabled():Bool {
-        return ApiConfig.getBool("api_auras_lag_killer", true);
+        return ApiConfig.getBool("api_auras_lag_killer", false);
     }
 
     public static function setLagKillerEnabled(v:Bool):Void {

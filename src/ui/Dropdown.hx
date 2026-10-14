@@ -70,6 +70,7 @@ class Dropdown extends Sprite {
         _btnText.x = 6;
         _btnText.y = (height - 20) / 2;
         _btnText.mouseEnabled = false;
+        _btnText.selectable = false;
         if (_options.length > 0 && _options[0] != null) {
             _selectedIndex = 0;
             _btnText.text = _options[0];

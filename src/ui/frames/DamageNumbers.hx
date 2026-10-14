@@ -419,11 +419,16 @@ class DamageNumbers {
         if (targetMC == null || targetMC.stage == null) return;
 
         var localCenterX:Float = 0;
-        var localCenterY:Float = -20;
+        var localCenterY:Float = -25;
         try {
-            if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
-            if (targetMC.pname != null && targetMC.pname.y != 0) {
-                localCenterY = targetMC.pname.y * 0.25; // Lower body / feet area (25% height instead of 55% chest)
+            var charMC = com.aqwapi.utils.ApiUtils.getCharClip(targetMC);
+            if (charMC != null && charMC.x != null) localCenterX = charMC.x;
+            else if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
+
+            if (targetMC.pname != null && targetMC.pname.y < -20) {
+                localCenterY = targetMC.pname.y * 0.22; // Bottom part of body, strictly above feet
+            } else if (charMC != null && charMC.height > 20) {
+                localCenterY = -Math.max(25.0, charMC.height * 0.22);
             }
         } catch (_:Dynamic) {}
 
@@ -576,16 +581,20 @@ class DamageNumbers {
         if (targetMC == null || targetMC.stage == null) return;
 
         // =====================================================================
-        // CENTER OF UNIT COORDINATE CALCULATION
-        // Places damage numbers right at the chest / torso center of the character
-        // instead of above nametags.
+        // CENTER MID OF MOB COORDINATE CALCULATION
+        // Places damage numbers right at the center mid of the character / mob body.
         // =====================================================================
         var localCenterX:Float = 0;
         var localCenterY:Float = -50;
         try {
-            if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
-            if (targetMC.pname != null && targetMC.pname.y != 0) {
-                localCenterY = targetMC.pname.y * 0.55; // 50-55% height from ground to nametag
+            var charMC = com.aqwapi.utils.ApiUtils.getCharClip(targetMC);
+            if (charMC != null && charMC.x != null) localCenterX = charMC.x;
+            else if (targetMC.mcChar != null) localCenterX = targetMC.mcChar.x;
+
+            if (targetMC.pname != null && targetMC.pname.y < -20) {
+                localCenterY = targetMC.pname.y * 0.50; // Halfway to nameplate = center mid of mob!
+            } else if (charMC != null && charMC.height > 20) {
+                localCenterY = -charMC.height * 0.50;
             }
         } catch (_:Dynamic) {}
 
@@ -819,7 +828,7 @@ class DamageNumbers {
     }
 
     public static inline function isModernRewardsEnabled():Bool {
-        return ApiConfig.getBool("api_fct_rewards", true);
+        return ApiConfig.getBool("api_fct_rewards", false);
     }
 
     public static inline function setModernRewardsEnabled(v:Bool):Void {

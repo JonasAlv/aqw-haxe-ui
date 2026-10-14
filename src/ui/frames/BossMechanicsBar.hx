@@ -109,7 +109,7 @@ class BossMechanicsBar {
     }
 
     public static inline function isEnabled():Bool {
-        return ApiConfig.getBool(CONFIG_ENABLED, true);
+        return ApiConfig.getBool(CONFIG_ENABLED, false);
     }
 
     public static inline function setEnabled(val:Bool):Void {
@@ -120,7 +120,7 @@ class BossMechanicsBar {
     }
 
     public static inline function isTauntAlertsEnabled():Bool {
-        return ApiConfig.getBool(CONFIG_TAUNT_ALERTS, true);
+        return ApiConfig.getBool(CONFIG_TAUNT_ALERTS, false);
     }
 
     public static inline function setTauntAlertsEnabled(val:Bool):Void {

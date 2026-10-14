@@ -32,6 +32,7 @@ class UnitFramesManager {
         try { AuraFramesManager.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] AuraFramesManager init error: " + e); }
         try { BossMechanicsBar.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] BossMechanicsBar init error: " + e); }
         try { PartyUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PartyUnitFrame init error: " + e); }
+        try { installPortraitHooks(); } catch (e:Dynamic) {}
         try { syncNativeHideUI(); } catch (e:Dynamic) {}
 
         if (Api.dispatcher != null) {
@@ -232,8 +233,10 @@ class UnitFramesManager {
             if (g.ui.mcPortrait != null) {
                 if (playerFrameOn) {
                     g.ui.mcPortrait.visible = false;
+                    g.ui.mcPortrait.alpha = 0.0;
                     g.ui.mcPortrait.y = -9999;
                 } else {
+                    g.ui.mcPortrait.alpha = 1.0;
                     g.ui.mcPortrait.y = 0;
                     g.ui.mcPortrait.visible = true;
                     if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
@@ -247,9 +250,11 @@ class UnitFramesManager {
             if (g.ui.mcPortraitTarget != null) {
                 if (targetFrameOn) {
                     g.ui.mcPortraitTarget.visible = false;
+                    g.ui.mcPortraitTarget.alpha = 0.0;
                     g.ui.mcPortraitTarget.y = -9999;
                     if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
                 } else {
+                    g.ui.mcPortraitTarget.alpha = 1.0;
                     g.ui.mcPortraitTarget.y = 0;
                     g.ui.mcPortraitTarget.visible = hasTarget;
                     if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
@@ -266,7 +271,72 @@ class UnitFramesManager {
             if (g.ui.mcInterface != null && g.ui.mcInterface.areaList != null) {
                 g.ui.mcInterface.areaList.visible = !playerFrameOn;
             }
+
+            if (g.world != null && isNameplatesEnabled()) {
+                try { g.world.showHPBar = false; } catch (_:Dynamic) {}
+            }
+            installPortraitHooks();
         } catch (_:Dynamic) {}
+    }
+
+    private static var _hooksInstalled:Bool = false;
+    public static function installPortraitHooks():Void {
+        var g:Dynamic = com.aqwapi.Api.game;
+        if (g == null) return;
+        if (_hooksInstalled) return;
+        if (!Reflect.isFunction(g.showPortrait) && !Reflect.isFunction(g.showPortraitBox)) return;
+        _hooksInstalled = true;
+
+        if (Reflect.isFunction(g.showPortrait)) {
+            var origShow = g.showPortrait;
+            g.showPortrait = function(avt:Dynamic):Dynamic {
+                if (isPlayerFrameEnabled()) {
+                    if (g.ui != null && g.ui.mcPortrait != null) {
+                        g.ui.mcPortrait.visible = false;
+                        g.ui.mcPortrait.alpha = 0.0;
+                        g.ui.mcPortrait.y = -9999;
+                    }
+                    return null;
+                }
+                return origShow(avt);
+            };
+        }
+
+        if (Reflect.isFunction(g.showPortraitTarget)) {
+            var origShowTarget = g.showPortraitTarget;
+            g.showPortraitTarget = function(avt:Dynamic):Dynamic {
+                if (isTargetFrameEnabled()) {
+                    if (g.ui != null && g.ui.mcPortraitTarget != null) {
+                        g.ui.mcPortraitTarget.visible = false;
+                        g.ui.mcPortraitTarget.alpha = 0.0;
+                        g.ui.mcPortraitTarget.y = -9999;
+                        if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
+                    }
+                    return null;
+                }
+                return origShowTarget(avt);
+            };
+        }
+
+        if (Reflect.isFunction(g.showPortraitBox)) {
+            var origShowBox = g.showPortraitBox;
+            g.showPortraitBox = function(avt:Dynamic, mcBox:Dynamic):Dynamic {
+                if (mcBox == g.ui.mcPortrait && isPlayerFrameEnabled()) {
+                    mcBox.visible = false;
+                    mcBox.alpha = 0.0;
+                    mcBox.y = -9999;
+                    return null;
+                }
+                if (mcBox == g.ui.mcPortraitTarget && isTargetFrameEnabled()) {
+                    mcBox.visible = false;
+                    mcBox.alpha = 0.0;
+                    mcBox.y = -9999;
+                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
+                    return null;
+                }
+                return origShowBox(avt, mcBox);
+            };
+        }
     }
 
     public static inline var AURA_ANCHOR_FRAMES:Int = 0;

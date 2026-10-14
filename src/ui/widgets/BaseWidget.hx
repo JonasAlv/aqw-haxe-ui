@@ -36,7 +36,7 @@ class BaseWidget extends Sprite {
     public var defaultHeight:Float;
 
     public var isCollapsed:Bool = false;
-    public var isEnabled:Bool = true;
+    public var isEnabled:Bool = false;
     public var hasConfigButton:Bool = true;
     public var hasCollapseButton:Bool = true;
     public var allowHeaderClickToCollapse:Bool = true;
@@ -73,7 +73,7 @@ class BaseWidget extends Sprite {
         defY:Float,
         defW:Float,
         defH:Float,
-        defaultEnabled:Bool = true,
+        defaultEnabled:Bool = false,
         defaultCollapsed:Bool = false,
         hasConfig:Bool = true
     ) {
@@ -494,6 +494,6 @@ class BaseWidget extends Sprite {
 }
 #else
 class BaseWidget {
-    public function new(id:String, title:String, defX:Float, defY:Float, defW:Float, defH:Float, defaultEnabled:Bool = true, defaultCollapsed:Bool = false, hasConfig:Bool = true) {}
+    public function new(id:String, title:String, defX:Float, defY:Float, defW:Float, defH:Float, defaultEnabled:Bool = false, defaultCollapsed:Bool = false, hasConfig:Bool = true) {}
 }
 #end
