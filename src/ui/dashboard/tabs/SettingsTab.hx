@@ -240,25 +240,6 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 13. Hide Other Players
-        modal.addItemRow(
-            "Hide Other Players",
-            "Hides character models of other players in the room to eliminate vector rasterization lag in crowded fights.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.hidePlayers : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.hidePlayers = next;
-                ApiNotificationManager.notify("Hide Players: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.hidePlayers : false;
-            }
-        );
-
-
         // 14. Spell Animations Mode
         modal.addItemRow(
             "Spell Animations",
@@ -355,24 +336,6 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 19. Freeze Monster Animations
-        modal.addItemRow(
-            "Freeze Monster Animations",
-            "Halts animation frame loops on monsters without affecting hitboxes or combat targeting.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.disableMonsterAnims : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.disableMonsterAnims = next;
-                ApiNotificationManager.notify("Freeze Monster Anims: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.disableMonsterAnims : false;
-            }
-        );
-
         // 19b. Instant Freeze Animations (Zero Delay)
         modal.addItemRow(
             "Instant Freeze Animations (Zero Delay)",
@@ -425,60 +388,6 @@ class SettingsTab implements IDashboardTab {
             },
             function():Bool {
                 return (Api.visual != null) ? Api.visual.showNames : false;
-            }
-        );
-
-        // 18. Hide Monsters
-        modal.addItemRow(
-            "Hide Monsters",
-            "Hides monster character models completely to eliminate all monster rendering overhead.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.hideMonsters : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.hideMonsters = next;
-                ApiNotificationManager.notify("Hide Monsters: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.hideMonsters : false;
-            }
-        );
-
-        // 19. Cache Player Bitmaps
-        modal.addItemRow(
-            "Cache Player Bitmaps",
-            "Rasterizes vector character avatars into cached bitmaps with GPU matrix transform. Drastically cuts CPU redraw load while keeping characters visible.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.cachePlayers : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.cachePlayers = next;
-                ApiNotificationManager.notify("Cache Players: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.cachePlayers : false;
-            }
-        );
-
-        // 20. Cache Monster Bitmaps
-        modal.addItemRow(
-            "Cache Monster Bitmaps",
-            "Rasterizes monster vector art into cached bitmaps with GPU matrix transform. Greatly boosts FPS in crowded rooms and farm zones.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.cacheMonsters : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.cacheMonsters = next;
-                ApiNotificationManager.notify("Cache Monsters: " + (next ? "Enabled (Bitmap)" : "Disabled (Vector)"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.cacheMonsters : false;
             }
         );
 
