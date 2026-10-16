@@ -21,7 +21,6 @@ import ui.ApiStyle;
 import ui.ScreenFilterManager;
 import ui.topbar.StandaloneButtons;
 import ui.topbar.TopBar;
-import ui.vibeskua.TopBarMenuPrototype;
 import ui.widgets.WidgetManager;
 
 class ApiMenus {
@@ -146,37 +145,14 @@ class ApiMenus {
             }
         }
 
-        // 4. Initialize existing panels as the action backend, but hide its old visual bar.
+        // 4. Skua-Style Top Control Bar (Auto, Jump, Players, Menu)
         TopBar.init(theStage, host);
-        TopBar.setNativeBarVisible(false);
 
-        // 5. Keep legacy floating buttons and widgets available.
+        // 5. Standalone Floating Buttons (Menu, Auto, Jump, Players)
         StandaloneButtons.init(theStage, host);
-        WidgetManager.init(theStage, host);
 
-        // 6. Mount the Avalonia-inspired Haxe/Flash menu as the visible top-level bar.
-        var avaloniaMenu = new TopBarMenuPrototype();
-        avaloniaMenu.onAutoToggle = function(enabled:Bool):Void {
-            if (enabled) TopBar.toggleAuto();
-            else TopBar.toggleAuto();
-        };
-        avaloniaMenu.onJumpToggle = function(enabled:Bool):Void {
-            if (enabled) TopBar.toggleJump();
-            else TopBar.toggleJump();
-        };
-        avaloniaMenu.onToolsRequested = function():Void {
-            ApiDashboardModal.show(theStage, host);
-        };
-        avaloniaMenu.onAction = function(action:String):Void {
-            // Existing detailed screens remain available through the dashboard.
-            ApiLogger.info("UI", "Avalonia menu selected: " + action);
-            ApiDashboardModal.show(theStage, host);
-        };
-        avaloniaMenu.visible = isInGame();
-        theStage.addChild(avaloniaMenu);
-        theStage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            avaloniaMenu.visible = isInGame();
-        });
+        // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
+        WidgetManager.init(theStage, host);
 
         // 7. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);
