@@ -172,7 +172,11 @@ class ApiMenus {
             ApiLogger.info("UI", "Avalonia menu selected: " + action);
             ApiDashboardModal.show(theStage, host);
         };
+        avaloniaMenu.visible = isInGame();
         theStage.addChild(avaloniaMenu);
+        theStage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+            avaloniaMenu.visible = isInGame();
+        });
 
         // 7. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);
