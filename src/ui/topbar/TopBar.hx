@@ -32,6 +32,16 @@ import ui.ApiStyle;
  */
 class TopBar extends Sprite {
     public static var instance:TopBar = null;
+    private static var _nativeBarVisible:Bool = true;
+
+    public static function setNativeBarVisible(visible:Bool):Void {
+        _nativeBarVisible = visible;
+        if (instance != null && instance._barContainer != null) {
+            instance._barContainer.visible = visible;
+            if (!visible) instance.closeDropdown();
+        }
+    }
+
 
     private var _stage:Stage;
     private var _host:Dynamic;
@@ -469,7 +479,7 @@ class TopBar extends Sprite {
         this.visible = true;
 
         var isBlocked = ApiDashboardModal.isOpen() || isBlockedByHostPanel();
-        var topBarActive = isTopBarEnabled() && !isBlocked;
+        var topBarActive = _nativeBarVisible && isTopBarEnabled() && !isBlocked;
         if (_barContainer != null) _barContainer.visible = topBarActive;
 
         // 2. Live Auto Combat dot indicator
