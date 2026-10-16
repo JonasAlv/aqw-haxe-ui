@@ -20,6 +20,7 @@ class TopBarMenuPrototype extends Sprite {
     public var onToolsRequested:Void->Void;
 
     static inline var BAR_HEIGHT:Float = 34;
+    static inline var BAR_WIDTH:Float = 820;
     static inline var SURFACE:Int = 0x20242B;
     static inline var SURFACE_HOVER:Int = 0x303640;
     static inline var MENU_SURFACE:Int = 0x262B33;
@@ -37,12 +38,12 @@ class TopBarMenuPrototype extends Sprite {
     public function new() {
         super();
         menuData = [
-            { label: "Scripts", items: ["Script Loader", "Scheduler", "Script Repo", "Loadouts Manager"] },
-            { label: "Options", items: ["Game", "Application", "Themes", "Hotkeys"] },
-            { label: "Tools & Helpers", items: ["Fast Travel", "Loader", "Grabber", "Current Drops", "Junk Items"] },
-            { label: "Combat", items: ["Skills", "Stats", "Runtime Helpers"] },
+            { label: "Scripts", items: ["Script Loader", "Scheduler", "Script Repo"] },
+            { label: "Options", items: ["Game", "Application", "CoreBots", "Application Themes", "HotKeys"] },
+            { label: "Tools & Helpers", items: ["Loadouts Manager", "Fast Travel", "Loader", "Grabber", "Current Drops", "Junk Items"] },
+            { label: "Combat", items: ["Skills", "Stats", "Runtime"] },
             { label: "Bank", items: [] },
-            { label: "Diagnostics", items: ["Logs", "Console", "Packet Spammer", "Packet Logger", "Packet Interceptor"] },
+            { label: "Diagnostics", items: ["Logs", "Console", "Spammer", "Logger", "Interceptor"] },
             { label: "Plugins", items: ["Plugin Manager"] }
         ];
 
@@ -55,11 +56,11 @@ class TopBarMenuPrototype extends Sprite {
     function drawBar():Void {
         graphics.clear();
         graphics.beginFill(SURFACE);
-        graphics.drawRect(0, 0, 760, BAR_HEIGHT);
+        graphics.drawRect(0, 0, BAR_WIDTH, BAR_HEIGHT);
         graphics.endFill();
         graphics.lineStyle(1, BORDER);
         graphics.moveTo(0, BAR_HEIGHT - 1);
-        graphics.lineTo(760, BAR_HEIGHT - 1);
+        graphics.lineTo(BAR_WIDTH, BAR_HEIGHT - 1);
 
         var x:Float = 6;
         for (entry in menuData) {
@@ -100,17 +101,17 @@ class TopBarMenuPrototype extends Sprite {
         }
 
         // Right aligned quick actions, intentionally separate from the menu groups.
-        addQuickAction("Auto", 550, function():Void {
+        addQuickAction("Auto", 610, function():Void {
             autoActive = !autoActive;
-            onAutoToggle == null ? null : onAutoToggle(autoActive);
+            if (onAutoToggle != null) onAutoToggle(autoActive);
             drawQuickState();
         });
-        addQuickAction("Jump", 608, function():Void {
+        addQuickAction("Jump", 668, function():Void {
             jumpActive = !jumpActive;
-            onJumpToggle == null ? null : onJumpToggle(jumpActive);
+            if (onJumpToggle != null) onJumpToggle(jumpActive);
             drawQuickState();
         });
-        addQuickAction("+", 690, function():Void {
+        addQuickAction("+", 780, function():Void {
             if (onToolsRequested != null) onToolsRequested();
             else dispatchAction("Show Bot Windows & Tools");
         });
