@@ -24,6 +24,8 @@ import ui.ApiStyle;
 class AuraFramesManager {
     private static var _initialized:Bool = false;
     private static var _ticker:Sprite = null;
+    private static var _lastTick:Float = 0.0;
+    private static var CD_GLOW:Array<flash.filters.BitmapFilter> = [new flash.filters.GlowFilter(0x000000, 1.0, 3, 3, 4, 1)];
 
     private static inline var PITCH_X:Float = 32.0;
     private static inline var PITCH_Y:Float = 28.0;
@@ -56,6 +58,25 @@ class AuraFramesManager {
                 }
             });
         }
+    }
+
+    public static function resetPositions():Void {
+        try {
+            var g:Dynamic = Api.game;
+            if (g != null) {
+                if (g.pAurasUI != null && Reflect.isFunction(g.pAurasUI.resetPosition)) {
+                    g.pAurasUI.resetPosition();
+                }
+                if (g.tAurasUI != null && Reflect.isFunction(g.tAurasUI.resetPosition)) {
+                    g.tAurasUI.resetPosition();
+                }
+                if (g.litePreference != null && g.litePreference.data != null) {
+                    g.litePreference.data.posAurasP = { "x": 130, "y": 100 };
+                    g.litePreference.data.posAurasT = { "x": 320, "y": 104 };
+                    try { g.litePreference.flush(); } catch (_:Dynamic) {}
+                }
+            }
+        } catch (_:Dynamic) {}
     }
 
     public static inline function isCdTimersEnabled():Bool {
@@ -110,6 +131,10 @@ class AuraFramesManager {
         if (!ApiMenus.isInGame() || Api.game == null) return;
 
         var nowMs:Float = Lib.getTimer();
+        // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
+        if (nowMs - _lastTick < 50.0) return;
+        _lastTick = nowMs;
+
         var cdEnabled:Bool = isCdTimersEnabled();
         var lagKiller:Bool = isLagKillerEnabled();
         var filterMyOnly:Bool = isMyAurasOnly();
@@ -128,7 +153,8 @@ class AuraFramesManager {
         if (tUI != null) {
             var tCells:Array<Dynamic> = getCells(tUI);
             var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-            var myEntId:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.dataLeaf != null) ? Api.game.world.myAvatar.dataLeaf.entID : null;
+            var myUid:Dynamic = (Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
+            var myEntId:Dynamic = (myUid != null) ? myUid : ((Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.dataLeaf != null) ? (Api.game.world.myAvatar.dataLeaf.EntID != null ? Api.game.world.myAvatar.dataLeaf.EntID : Api.game.world.myAvatar.dataLeaf.entID) : null);
 
             var visibleIdx:Int = 0;
             for (cell in tCells) {
@@ -201,7 +227,7 @@ class AuraFramesManager {
             cdTxt.defaultTextFormat = fmt;
             cdTxt.selectable = false;
             cdTxt.mouseEnabled = false;
-            cdTxt.filters = ApiStyle.getTextOutlineFilter();
+            cdTxt.filters = CD_GLOW;
             cdTxt.width = 26;
             cdTxt.height = 14;
             cdTxt.x = 0;
@@ -285,6 +311,7 @@ class AuraFramesManager {
 #else
 class AuraFramesManager {
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {}
+    public static inline function resetPositions():Void {}
     public static inline function isCdTimersEnabled():Bool return false;
     public static inline function setCdTimersEnabled(v:Bool):Void {}
     public static inline function isMyAurasOnly():Bool return false;

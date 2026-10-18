@@ -376,6 +376,16 @@ class UnitFramesManager {
         PartyUnitFrame.resetPosition();
         ApiNotificationManager.notify("Unit frame positions reset!");
     }
+
+    public static function resetPartyPosition():Void {
+        PartyUnitFrame.resetPosition();
+        ApiNotificationManager.notify("Party frame position reset!");
+    }
+
+    public static function resetAuraPositions():Void {
+        AuraFramesManager.resetPositions();
+        ApiNotificationManager.notify("Aura positions reset!");
+    }
 }
 #else
 class UnitFramesManager {
@@ -410,5 +420,7 @@ class UnitFramesManager {
     public static function testPartyFrames():Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
+    public static function resetPartyPosition():Void {}
+    public static function resetAuraPositions():Void {}
 }
 #end

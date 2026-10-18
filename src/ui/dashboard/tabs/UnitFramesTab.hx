@@ -171,6 +171,21 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        // 6. Reset Party Position
+        modal.addItemRow(
+            "Reset Party Position",
+            "Reset Party & Raid Frames to default position (x: 16, y: 110).",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                UnitFramesManager.resetPartyPosition();
+            },
+            function():Bool {
+                return false;
+            }
+        );
+
         modal.addSectionHeader("Overhead Nameplates (WoW Style)");
 
         // 1. Master Nameplates
@@ -334,6 +349,21 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return AuraFramesManager.isMyAurasOnly();
+            }
+        );
+
+        // 4. Reset Aura Positions
+        modal.addItemRow(
+            "Reset Aura Positions",
+            "Reset Player and Target aura frame positions to default native coordinates.",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                UnitFramesManager.resetAuraPositions();
+            },
+            function():Bool {
+                return false;
             }
         );
 

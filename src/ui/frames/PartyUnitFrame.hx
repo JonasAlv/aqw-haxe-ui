@@ -361,7 +361,7 @@ class PartyUnitFrame {
     public static function reloadFromConfig():Void {
         if (_widget == null) return;
 
-        var defaultX:Int = 10;
+        var defaultX:Int = 16;
         var defaultY:Int = 110;
 
         // Try reading native posParty first if not explicitly configured in ApiConfig
@@ -425,7 +425,7 @@ class PartyUnitFrame {
     }
 
     public static function resetPosition():Void {
-        var defX = 10;
+        var defX = 16;
         var defY = 110;
         ApiConfig.setInt(CONFIG_POS_X, defX);
         ApiConfig.setInt(CONFIG_POS_Y, defY);
@@ -529,6 +529,8 @@ class PartyTile extends Sprite {
     private var _nameTxt:TextField;
     private var _pctTxt:TextField;
 
+    private static var TEXT_OUTLINE:Array<flash.filters.BitmapFilter> = [new flash.filters.GlowFilter(0x000000, 1.0, 2, 2, 4, 1)];
+
     // Data cache
     private var _currentMember:PartyMemberDTO = null;
     private var _lastHp:Int                   = -9999;
@@ -614,7 +616,7 @@ class PartyTile extends Sprite {
         var tfName = new TextFormat(ApiStyle.FONT_FAMILY, 8, PartyUnitFrame.COLOR_NAME, true);
         tfName.align = TextFormatAlign.LEFT;
         _nameTxt.defaultTextFormat = tfName;
-        _nameTxt.filters = ApiStyle.getTextOutlineFilter();
+        _nameTxt.filters = TEXT_OUTLINE;
         addChild(_nameTxt);
 
         // 9. Health % Indicator (Centered inside health frame)
@@ -628,7 +630,7 @@ class PartyTile extends Sprite {
         var tfPct = new TextFormat(ApiStyle.FONT_FAMILY, 8.5, PartyUnitFrame.COLOR_WHITE, true);
         tfPct.align = TextFormatAlign.CENTER;
         _pctTxt.defaultTextFormat = tfPct;
-        _pctTxt.filters = ApiStyle.getTextOutlineFilter();
+        _pctTxt.filters = TEXT_OUTLINE;
         addChild(_pctTxt);
     }
 
@@ -653,6 +655,16 @@ class PartyTile extends Sprite {
                 // Instant left-click to target
                 _currentMember.target();
             }
+        });
+
+        this.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            if (_currentMember == null) return;
+            try {
+                var g:Dynamic = Api.game;
+                if (g != null && g.ui != null && g.ui.cMenu != null) {
+                    g.ui.cMenu.fOpenWith("party", { "strUsername": _currentMember.username });
+                }
+            } catch (_:Dynamic) {}
         });
     }
 
@@ -708,7 +720,6 @@ class PartyTile extends Sprite {
                 _nameTxt.defaultTextFormat = tf;
                 _nameTxt.setTextFormat(tf);
             }
-            _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
         // 2. Update Health & % Indicator
@@ -718,7 +729,17 @@ class PartyTile extends Sprite {
             _lastShield = shield;
             _lastInRange = inRange;
 
-            if (!inRange && !isMe) {
+            if (hp <= 0 && maxHp > 0) {
+                // Dead
+                _pctTxt.text = "DEAD";
+                var tf = _pctTxt.defaultTextFormat;
+                tf.color = PartyUnitFrame.COLOR_HP_CRITICAL;
+                _pctTxt.defaultTextFormat = tf;
+                _pctTxt.setTextFormat(tf);
+
+                _hpBarFill.graphics.clear();
+                _shieldFill.graphics.clear();
+            } else if (!inRange && !isMe) {
                 // Out of range (different map or far away)
                 if (maxHp > 0) {
                     var hpRatio = member.hpRatio;
@@ -741,18 +762,6 @@ class PartyTile extends Sprite {
                 tf.color = PartyUnitFrame.COLOR_MUTED;
                 _pctTxt.defaultTextFormat = tf;
                 _pctTxt.setTextFormat(tf);
-                _pctTxt.filters = ApiStyle.getTextOutlineFilter();
-                _shieldFill.graphics.clear();
-            } else if (hp <= 0 && inRange) {
-                // Dead
-                _pctTxt.text = "DEAD";
-                var tf = _pctTxt.defaultTextFormat;
-                tf.color = PartyUnitFrame.COLOR_HP_CRITICAL;
-                _pctTxt.defaultTextFormat = tf;
-                _pctTxt.setTextFormat(tf);
-                _pctTxt.filters = ApiStyle.getTextOutlineFilter();
-
-                _hpBarFill.graphics.clear();
                 _shieldFill.graphics.clear();
             } else {
                 var hpRatio = member.hpRatio;
@@ -762,7 +771,6 @@ class PartyTile extends Sprite {
                 tf.color = PartyUnitFrame.COLOR_WHITE;
                 _pctTxt.defaultTextFormat = tf;
                 _pctTxt.setTextFormat(tf);
-                _pctTxt.filters = ApiStyle.getTextOutlineFilter();
 
                 // Health Fill
                 var color = PartyUnitFrame.getHealthColor(hpRatio);
