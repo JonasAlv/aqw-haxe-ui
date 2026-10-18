@@ -34,6 +34,11 @@ class DamageParticle extends Sprite {
     public var inUse:Bool = false;
     public var baseScale:Float = 1.0;
 
+    // Static cached filters to avoid object allocation and shader churn per particle
+    private static var GLOW_NORMAL:GlowFilter = new GlowFilter(0x000000, 0.95, 3, 3, 4, 1);
+    private static var GLOW_CRIT:GlowFilter = new GlowFilter(0x000000, 1.0, 5, 5, 6, 1);
+    private static var GLOW_REWARD:GlowFilter = new GlowFilter(0x000000, 1.0, 4, 4, 5, 1);
+
     public function new() {
         super();
         mouseEnabled = false;
@@ -62,10 +67,7 @@ class DamageParticle extends Sprite {
 
         // Dark outline glow for high contrast against spell effects
         // Crits get an extra-thick, heavy black outline so they feel thick and punchy
-        var glow = isCrit
-            ? new GlowFilter(0x000000, 1.0, 5, 5, 6, 2)
-            : new GlowFilter(0x000000, 0.95, 3, 3, 4, 1);
-        tf.filters = [glow];
+        tf.filters = isCrit ? [GLOW_CRIT] : [GLOW_NORMAL];
 
         tf.x = -tf.width * 0.5;
         tf.y = -tf.height * 0.5;
@@ -111,8 +113,7 @@ class DamageParticle extends Sprite {
         tf.defaultTextFormat = fmt;
         tf.text = text;
 
-        var glow = new GlowFilter(0x000000, 1.0, 4, 4, 6, 2);
-        tf.filters = [glow];
+        tf.filters = [GLOW_REWARD];
 
         tf.x = -tf.width * 0.5;
         tf.y = -tf.height * 0.5;
@@ -138,11 +139,13 @@ class DamageParticle extends Sprite {
             return false;
         }
 
-        x += vx;
-        y += vy;
+        // Frame-rate independent physics step (normalized around 60fps)
+        var frameFactor:Float = dt * 60.0;
+        x += vx * frameFactor;
+        y += vy * frameFactor;
 
         if (isCrit) {
-            vy *= 0.88;
+            vy *= Math.pow(0.88, frameFactor);
             // Punchy impact pop: quickly collapse from 1.75 down to 1.25 thick font
             if (scaleX > 1.25) {
                 scaleX -= dt * 2.5;
@@ -150,7 +153,7 @@ class DamageParticle extends Sprite {
                 scaleY = scaleX;
             }
         } else if (isReward) {
-            vy *= 0.93;
+            vy *= Math.pow(0.93, frameFactor);
             if (scaleX > 1.0) {
                 scaleX -= dt * 0.8;
                 if (scaleX < 1.0) scaleX = 1.0;
@@ -158,9 +161,9 @@ class DamageParticle extends Sprite {
             }
         } else if (isDot) {
             // Smooth continuous upward drift with very gentle deceleration
-            vy *= 0.97;
+            vy *= Math.pow(0.97, frameFactor);
         } else {
-            vy *= 0.90;
+            vy *= Math.pow(0.90, frameFactor);
         }
 
         // Fade out in last 35% of life
@@ -193,21 +196,27 @@ class DamageNumbers {
     private static var _ticker:Timer = null;
 
     // Object pool
-    private static inline var POOL_SIZE:Int = 60;
+    private static inline var POOL_SIZE:Int = 80;
     private static var _pool:Array<DamageParticle> = [];
     private static var _lastFrameTime:Int = 0;
 
     // Colors
-    private static inline var COLOR_HIT:Int       = 0xFFFFFF; // Crisp white (native AQW: 16777215)
-    private static inline var COLOR_CRIT:Int      = 0xFF9944; // Native AQW radiant orange (16750916)
-    private static inline var COLOR_HEAL:Int      = 0x00FF8A; // Native AQW vibrant green (65450)
-    private static inline var COLOR_DOT:Int       = 0xEE9900; // Native AQW DoT amber/orange (15636736)
-    private static inline var COLOR_AVOID:Int     = 0xEF4444; // Native AQW red (Dodge, Miss, Parry, Block)
-    private static inline var COLOR_DODGE:Int     = COLOR_AVOID;
-    private static inline var COLOR_MISS:Int      = COLOR_AVOID;
-    private static inline var COLOR_INCOMING:Int  = 0xEF4444;
-    private static inline var COLOR_XP:Int        = 0xC084FC; // Radiant purple/lavender
-    private static inline var COLOR_GOLD:Int      = 0xFACC15; // Vibrant gold
+    private static inline var COLOR_HIT:Int           = 0xFFFFFF; // Crisp white (native AQW: 16777215)
+    private static inline var COLOR_CRIT:Int          = 0xFF9944; // Native AQW radiant orange (16750916)
+    private static inline var COLOR_HEAL:Int          = 0x00FF8A; // Native AQW vibrant green (65450)
+    private static inline var COLOR_DOT:Int           = 0xEE9900; // Native AQW DoT amber/orange (15636736)
+    private static inline var COLOR_AVOID_OUT:Int     = 0xEF4444; // Target avoided player's attack (Dodge/Miss/Parry/Block)
+    private static inline var COLOR_AVOID_IN:Int      = 0x38BDF8; // Player evaded incoming attack (Sky Cyan positive feedback)
+    private static inline var COLOR_INCOMING_HIT:Int  = 0xEF4444; // Incoming hit taken by player (Crimson Red)
+    private static inline var COLOR_INCOMING_CRIT:Int = 0xFF2D55; // Incoming crit taken by player (Ruby Crimson)
+    private static inline var COLOR_INCOMING_DOT:Int  = 0xFB7185; // Incoming DoT taken by player (Soft Crimson Rose)
+    private static inline var COLOR_MUTED:Int         = 0x8E95AA; // Immune / Resist / 0 dmg (Clean slate gray)
+    private static inline var COLOR_AVOID:Int         = COLOR_AVOID_OUT;
+    private static inline var COLOR_DODGE:Int         = COLOR_AVOID_OUT;
+    private static inline var COLOR_MISS:Int          = COLOR_AVOID_OUT;
+    private static inline var COLOR_INCOMING:Int      = COLOR_INCOMING_HIT;
+    private static inline var COLOR_XP:Int            = 0xC084FC; // Radiant purple/lavender
+    private static inline var COLOR_GOLD:Int          = 0xFACC15; // Vibrant gold
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -368,14 +377,14 @@ class DamageNumbers {
             if (!isEnabled()) return;
 
             if (cmd == "sar") {
-                processSingleResult(d.actionResult);
+                processSingleResult(d);
             } else if (cmd == "sars") {
                 processMultiResult(d);
             } else if (cmd == "ct") {
                 if (d.sara != null) {
                     var sara:Array<Dynamic> = cast d.sara;
                     for (s in sara) {
-                        if (s != null && s.actionResult != null) processSingleResult(s.actionResult);
+                        if (s != null) processSingleResult(s);
                     }
                 }
                 if (d.sarsa != null) {
@@ -467,28 +476,36 @@ class DamageNumbers {
 
     private static function processSingleResult(r:Dynamic):Void {
         if (r == null) return;
+        var act:Dynamic = (r.actionResult != null) ? r.actionResult : r;
+        if (act == null) return;
         if (r.iRes != null && Std.int(r.iRes) != 1) return;
-        var cInf:String = (r.cInf != null) ? Std.string(r.cInf) : "";
-        var tInf:String = (r.tInf != null) ? Std.string(r.tInf) : "";
-        var hp:Int = (r.hp != null) ? Std.int(r.hp) : 0;
-        var type:String = (r.type != null) ? Std.string(r.type) : "hit";
-        var isDot:Bool = (r.typ != null && Std.string(r.typ) == "d");
-        var isHot:Bool = (r.typ != null && Std.string(r.typ) == "h");
+        if (act.iRes != null && Std.int(act.iRes) != 1) return;
+
+        var cInf:String = (act.cInf != null) ? Std.string(act.cInf) : "";
+        var tInf:String = (act.tInf != null) ? Std.string(act.tInf) : "";
+        var hp:Int = (act.hp != null) ? Std.int(act.hp) : 0;
+        var type:String = (act.type != null) ? Std.string(act.type).toLowerCase() : "hit";
+        var isDot:Bool = (act.typ != null && Std.string(act.typ) == "d");
+        var isHot:Bool = (act.typ != null && Std.string(act.typ) == "h");
 
         spawnCombatNumber(cInf, tInf, hp, type, isDot, isHot);
     }
 
     private static function processMultiResult(m:Dynamic):Void {
         if (m == null) return;
+        var act:Dynamic = (m.actionResult != null) ? m.actionResult : m;
+        if (act == null) return;
         if (m.iRes != null && Std.int(m.iRes) != 1) return;
-        var cInf:String = (m.cInf != null) ? Std.string(m.cInf) : "";
-        if (m.a != null) {
-            var hits:Array<Dynamic> = cast m.a;
+        if (act.iRes != null && Std.int(act.iRes) != 1) return;
+
+        var cInf:String = (act.cInf != null) ? Std.string(act.cInf) : "";
+        if (act.a != null) {
+            var hits:Array<Dynamic> = cast act.a;
             for (hit in hits) {
                 if (hit == null) continue;
                 var tInf:String = (hit.tInf != null) ? Std.string(hit.tInf) : "";
                 var hp:Int = (hit.hp != null) ? Std.int(hit.hp) : 0;
-                var type:String = (hit.type != null) ? Std.string(hit.type) : "hit";
+                var type:String = (hit.type != null) ? Std.string(hit.type).toLowerCase() : "hit";
                 var isDot:Bool = (hit.typ != null && Std.string(hit.typ) == "d");
                 var isHot:Bool = (hit.typ != null && Std.string(hit.typ) == "h");
                 spawnCombatNumber(cInf, tInf, hp, type, isDot, isHot);
@@ -498,9 +515,12 @@ class DamageNumbers {
 
     private static function processDotResult(d:Dynamic):Void {
         if (d == null) return;
+        var cInf:String = (d.cInf != null) ? Std.string(d.cInf) : "";
         var tInf:String = (d.tInf != null) ? Std.string(d.tInf) : "";
         var hp:Int = (d.hp != null) ? Std.int(d.hp) : 0;
-        spawnCombatNumber("", tInf, hp, "dot", true, false);
+        var isHot:Bool = (d.typ != null && Std.string(d.typ) == "h") || (hp < 0);
+        var isDot:Bool = !isHot;
+        spawnCombatNumber(cInf, tInf, hp, isHot ? "hot" : "dot", isDot, isHot);
     }
 
     // -------------------------------------------------------------------------
@@ -537,7 +557,6 @@ class DamageNumbers {
         var myUid:Dynamic = (Api.game != null && Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
         var myTag:String = (myUid != null) ? ("p:" + myUid) : "";
 
-        var isMyAttack:Bool = (cInf != "" && cInf == myTag);
         var isTargetingMe:Bool = (tInf != "" && tInf == myTag);
 
         var isCurrentTarget:Bool = false;
@@ -551,6 +570,8 @@ class DamageNumbers {
                 }
             }
         } catch (_:Dynamic) {}
+
+        var isMyAttack:Bool = (cInf != "" && cInf == myTag) || (cInf == "" && isCurrentTarget && !isTargetingMe);
 
         // Filter evaluation
         // 0 = Self & Target, 1 = Self Only, 2 = Target Only, 3 = All
@@ -631,7 +652,7 @@ class DamageNumbers {
             spawnY += (Math.random() - 0.5) * 14.0;
         }
 
-        // Determine formatting, text, color, and size
+        var isIncoming:Bool = (isTargetingMe && !isMyAttack);
         var isCrit:Bool = (type == "crit");
         var textStr:String = "";
         var textColor:Int = COLOR_HIT;
@@ -639,10 +660,9 @@ class DamageNumbers {
 
         if (isInvertedHeal) {
             // Inverted healing (Decay / reverse heal): dealt as damage to unit!
-            // Red text with '-' prefix, inverted colors for inverted values!
             var dmgAmount:Int = (hp > 0) ? hp : (-hp);
             textStr = "-" + formatNumber(dmgAmount);
-            textColor = COLOR_AVOID; // Red text (0xEF4444)
+            textColor = isIncoming ? COLOR_INCOMING_CRIT : COLOR_AVOID_OUT;
             fontSize = isCrit ? 22 : 14;
         } else if (isNormalHeal) {
             // Active raw healing and HoT: keep '+' prefix in vibrant green
@@ -650,36 +670,50 @@ class DamageNumbers {
             textStr = "+" + formatNumber(healAmount);
             textColor = COLOR_HEAL; // Vibrant green (0x00FF8A)
             fontSize = isCrit ? 22 : 14;
+        } else if (type == "miss" || type == "dodge" || type == "parry" || type == "block") {
+            // Avoidance text: capitalized with exclamation mark
+            textStr = type.charAt(0).toUpperCase() + type.substr(1) + "!";
+            // If player avoided enemy attack, Sky Cyan (positive evasion); if enemy avoided player, Red (missed hit)
+            textColor = isIncoming ? COLOR_AVOID_IN : COLOR_AVOID_OUT;
+            fontSize = 14;
+        } else if (type == "immune") {
+            textStr = "Immune!";
+            textColor = COLOR_MUTED;
+            fontSize = 14;
+        } else if (type == "resist") {
+            textStr = "Resist!";
+            textColor = COLOR_MUTED;
+            fontSize = 14;
+        } else if (isIncoming) {
+            // INCOMING DAMAGE TAKEN BY PLAYER:
+            // High visibility Crimson Red with '-' prefix so the player instantly knows they're taking hits!
+            if (isCrit) {
+                textStr = "-" + formatNumber(hp);
+                textColor = COLOR_INCOMING_CRIT;
+                fontSize = 24;
+            } else if (isDot || type == "dot") {
+                textStr = "-" + formatNumber(hp);
+                textColor = COLOR_INCOMING_DOT;
+                fontSize = 13;
+            } else {
+                textStr = "-" + formatNumber(hp);
+                textColor = COLOR_INCOMING_HIT;
+                fontSize = 15;
+            }
         } else if (type == "crit") {
-            // Direct Crit: clean number (no '-' prefix), radiant orange thick font
+            // Direct Crit dealt by player / ally: clean number (no '-' prefix), radiant orange thick font
             textStr = formatNumber(hp);
             textColor = COLOR_CRIT; // Radiant orange (0xFF9944)
             fontSize = 24;
         } else if (isDot || type == "dot") {
-            // DoT: '-' prefix by default, amber/orange font, floats straight up
+            // DoT dealt to enemy: '-' prefix by default, amber/orange font, floats straight up
             textStr = "-" + formatNumber(hp);
             textColor = COLOR_DOT; // Amber/orange (0xEE9900)
             fontSize = 13;
         } else if (type == "hit") {
-            // Normal hit: clean number (no '-' prefix), crisp white
+            // Normal hit dealt to enemy: clean number (no '-' prefix), crisp white
             textStr = formatNumber(hp);
-            textColor = COLOR_HIT; // Crisp white (0xFFFFFF)
-            fontSize = 14;
-        } else if (type == "miss") {
-            textStr = "Miss!";
-            textColor = COLOR_AVOID; // Avoidance is red text
-            fontSize = 14;
-        } else if (type == "dodge") {
-            textStr = "Dodge!";
-            textColor = COLOR_AVOID;
-            fontSize = 14;
-        } else if (type == "parry") {
-            textStr = "Parry!";
-            textColor = COLOR_AVOID;
-            fontSize = 14;
-        } else if (type == "block") {
-            textStr = "Block!";
-            textColor = COLOR_AVOID;
+            textColor = (hp == 0) ? COLOR_MUTED : COLOR_HIT;
             fontSize = 14;
         } else {
             textStr = formatNumber(hp);
@@ -695,14 +729,25 @@ class DamageNumbers {
     }
 
     private static function acquireParticle():DamageParticle {
+        var oldestIdx:Int = 0;
+        var maxLifeFound:Float = -1.0;
         for (i in 0..._pool.length) {
-            if (!_pool[i].inUse) {
-                return _pool[i];
+            var p = _pool[i];
+            if (!p.inUse) {
+                if (_container != null && _container.numChildren > 1) {
+                    _container.setChildIndex(p, _container.numChildren - 1);
+                }
+                return p;
+            }
+            if (p.life > maxLifeFound) {
+                maxLifeFound = p.life;
+                oldestIdx = i;
             }
         }
-        // Pool saturated: recycle oldest particle
-        var recycled = _pool.shift();
-        _pool.push(recycled);
+        var recycled = _pool[oldestIdx];
+        if (_container != null && _container.numChildren > 1) {
+            _container.setChildIndex(recycled, _container.numChildren - 1);
+        }
         return recycled;
     }
 
@@ -712,7 +757,7 @@ class DamageNumbers {
             if (world == null) return null;
 
             if (tInf.indexOf("m:") == 0) {
-                var monId:Int = Std.parseInt(tInf.substr(2));
+                var monId:Int = Std.parseInt(StringTools.trim(tInf.substr(2)));
                 if (Reflect.hasField(world, "getMonster")) {
                     var mon:Dynamic = world.getMonster(monId);
                     if (mon != null && mon.pMC != null) return mon.pMC;
@@ -722,7 +767,11 @@ class DamageNumbers {
                     if (mon != null && mon.pMC != null) return mon.pMC;
                 }
             } else if (tInf.indexOf("p:") == 0) {
-                var uid:Int = Std.parseInt(tInf.substr(2));
+                var uid:Int = Std.parseInt(StringTools.trim(tInf.substr(2)));
+                var myUid:Dynamic = (Api.game != null && Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
+                if (myUid != null && uid == Std.int(myUid)) {
+                    if (world.myAvatar != null && world.myAvatar.pMC != null) return world.myAvatar.pMC;
+                }
                 if (world.myAvatar != null && world.myAvatar.dataLeaf != null && world.myAvatar.dataLeaf.EntID == uid) {
                     return world.myAvatar.pMC;
                 }
@@ -740,33 +789,42 @@ class DamageNumbers {
     }
 
     private static function formatNumber(val:Int):String {
+        var isNeg:Bool = (val < 0);
+        var absVal:Int = isNeg ? -val : val;
+
+        var formatted:String = "";
         if (isCompactFormat()) {
-            if (val >= 1000000) {
-                var m = Math.round(val / 100000) / 10.0;
-                return m + "M";
-            } else if (val >= 10000) {
-                var k = Math.round(val / 100) / 10.0;
-                return k + "K";
+            if (absVal >= 1000000) {
+                var m = Math.round(absVal / 100000) / 10.0;
+                formatted = m + "M";
+            } else if (absVal >= 10000) {
+                var k = Math.round(absVal / 100) / 10.0;
+                formatted = k + "K";
             }
         }
 
-        // Comma formatting (e.g. 1,234,567)
-        var s:String = Std.string(val);
-        var len:Int = s.length;
-        if (len <= 3) return s;
-
-        var res:String = "";
-        var count:Int = 0;
-        var i:Int = len - 1;
-        while (i >= 0) {
-            res = s.charAt(i) + res;
-            count++;
-            if (count % 3 == 0 && i > 0) {
-                res = "," + res;
+        if (formatted == "") {
+            var s:String = Std.string(absVal);
+            var len:Int = s.length;
+            if (len <= 3) {
+                formatted = s;
+            } else {
+                var res:String = "";
+                var count:Int = 0;
+                var i:Int = len - 1;
+                while (i >= 0) {
+                    res = s.charAt(i) + res;
+                    count++;
+                    if (count % 3 == 0 && i > 0) {
+                        res = "," + res;
+                    }
+                    i--;
+                }
+                formatted = res;
             }
-            i--;
         }
-        return res;
+
+        return isNeg ? ("-" + formatted) : formatted;
     }
 
     // -------------------------------------------------------------------------
