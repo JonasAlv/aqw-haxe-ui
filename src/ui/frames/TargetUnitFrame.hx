@@ -380,6 +380,22 @@ class TargetUnitFrame {
             }
 
             _widget.visible = true;
+
+            var targetContainer:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui : theStage;
+            if (targetContainer != null && _widget.parent != targetContainer) {
+                try {
+                    if (_widget.parent != null) _widget.parent.removeChild(_widget);
+                    if (targetContainer == Api.game.ui && Api.game.ui.mcPortraitTarget != null) {
+                        var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPortraitTarget) + 1;
+                        Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                    } else {
+                        targetContainer.addChild(_widget);
+                    }
+                } catch (_:Dynamic) {
+                    try { theStage.addChild(_widget); } catch (_:Dynamic) {}
+                }
+            }
+
             syncNativeUI();
             updateTargetState(t);
         });
@@ -476,7 +492,7 @@ class TargetUnitFrame {
                 subText = "[BOSS] " + race;
                 subColor = COLOR_TEXT_BOSS;
             } else if (t.stars > 1) {
-                subText = race + " (" + t.stars + "★)";
+                subText = race + " (" + t.stars + ")";
             } else {
                 subText = race;
             }
@@ -629,28 +645,67 @@ class TargetUnitFrame {
             startDownY = e.stageY;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
-            theStage.setChildIndex(_widget, theStage.numChildren - 1);
+            try {
+                if (_widget.parent != null) {
+                    _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+                    var g:Dynamic = Api.game;
+                    if (g != null && g.ui != null && _widget.parent == g.ui) {
+                        if (g.ui.cMenu != null && g.ui.cMenu.parent == g.ui) {
+                            g.ui.setChildIndex(g.ui.cMenu, g.ui.numChildren - 1);
+                        }
+                        if (g.ui.ToolTip != null && g.ui.ToolTip.parent == g.ui) {
+                            g.ui.setChildIndex(g.ui.ToolTip, g.ui.numChildren - 1);
+                        }
+                    }
+                }
+            } catch (_:Dynamic) {}
         });
 
         _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            e.stopPropagation();
             try {
                 var g:Dynamic = Api.game;
                 if (g == null || g.ui == null || g.ui.cMenu == null || g.world == null || g.world.myAvatar == null) return;
                 var target:Dynamic = g.world.myAvatar.target;
                 if (target == null) return;
 
-                var npcType:String = (target.npcType != null) ? Std.string(target.npcType) : "player";
-                if (npcType == "player") {
+                var isMonster:Bool = false;
+                try {
+                    if (target.objData != null && (target.objData.MonMapID != null || target.objData.MonID != null)) {
+                        isMonster = true;
+                    } else if (target.dataLeaf != null && target.dataLeaf.MonID != null) {
+                        isMonster = true;
+                    }
+                } catch (_:Dynamic) {}
+
+                if (!isMonster) {
                     var isSelf:Bool = (target == g.world.myAvatar);
+                    var charId:Int = 0;
+                    var uName:String = "";
+                    try {
+                        if (target.objData != null) {
+                            if (target.objData.CharID != null) charId = Std.int(target.objData.CharID);
+                            if (target.objData.strUsername != null) uName = Std.string(target.objData.strUsername);
+                        }
+                    } catch (_:Dynamic) {}
                     var params:Dynamic = {
-                        "ID": (target.objData != null && target.objData.CharID != null) ? target.objData.CharID : 0,
-                        "strUsername": (target.objData != null && target.objData.strUsername != null) ? target.objData.strUsername : ""
+                        "ID": charId,
+                        "strUsername": uName
                     };
                     g.ui.cMenu.fOpenWith(isSelf ? "self" : "user", params);
-                } else if (npcType == "monster") {
-                    var monId:Int = (target.objData != null && target.objData.MonMapID != null) ? Std.int(target.objData.MonMapID) : 0;
-                    var monName:String = (target.objData != null && target.objData.strMonName != null) ? Std.string(target.objData.strMonName) : "";
-                    var monObj:Dynamic = (g.world.getMonster != null) ? g.world.getMonster(monId) : null;
+                } else {
+                    var monId:Int = 0;
+                    var monName:String = "";
+                    try {
+                        if (target.objData != null) {
+                            if (target.objData.MonMapID != null) monId = Std.int(target.objData.MonMapID);
+                            if (target.objData.strMonName != null) monName = Std.string(target.objData.strMonName);
+                        }
+                    } catch (_:Dynamic) {}
+                    var monObj:Dynamic = null;
+                    try {
+                        if (g.world.getMonster != null) monObj = g.world.getMonster(monId);
+                    } catch (_:Dynamic) {}
                     var monMc:Dynamic = (monObj != null && monObj.pMC != null) ? monObj.pMC : ((target.pMC != null) ? target.pMC : null);
                     var params:Dynamic = {
                         "ID": monId,
@@ -659,6 +714,13 @@ class TargetUnitFrame {
                     };
                     g.ui.cMenu.fOpenWith("mons", params);
                 }
+
+                // Bring cMenu to top of ui container so it renders in front of unit frames
+                try {
+                    if (g.ui.cMenu.parent != null) {
+                        g.ui.cMenu.parent.setChildIndex(g.ui.cMenu, g.ui.cMenu.parent.numChildren - 1);
+                    }
+                } catch (_:Dynamic) {}
             } catch (_:Dynamic) {}
         });
 

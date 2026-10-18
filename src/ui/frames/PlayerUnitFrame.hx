@@ -345,6 +345,20 @@ class PlayerUnitFrame {
             var isPanelOpen:Bool = isHostPanel || ApiDashboardModal.isOpen();
             _widget.visible = !isPanelOpen;
             if (_widget.visible) {
+                var targetContainer:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui : theStage;
+                if (targetContainer != null && _widget.parent != targetContainer) {
+                    try {
+                        if (_widget.parent != null) _widget.parent.removeChild(_widget);
+                        if (targetContainer == Api.game.ui && Api.game.ui.mcPortrait != null) {
+                            var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPortrait) + 1;
+                            Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                        } else {
+                            targetContainer.addChild(_widget);
+                        }
+                    } catch (_:Dynamic) {
+                        try { theStage.addChild(_widget); } catch (_:Dynamic) {}
+                    }
+                }
                 syncNativeUI();
                 updateState();
             }
@@ -494,19 +508,46 @@ class PlayerUnitFrame {
             startDownY = e.stageY;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
-            theStage.setChildIndex(_widget, theStage.numChildren - 1);
+            try {
+                if (_widget.parent != null) {
+                    _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+                    var g:Dynamic = Api.game;
+                    if (g != null && g.ui != null && _widget.parent == g.ui) {
+                        if (g.ui.cMenu != null && g.ui.cMenu.parent == g.ui) {
+                            g.ui.setChildIndex(g.ui.cMenu, g.ui.numChildren - 1);
+                        }
+                        if (g.ui.ToolTip != null && g.ui.ToolTip.parent == g.ui) {
+                            g.ui.setChildIndex(g.ui.ToolTip, g.ui.numChildren - 1);
+                        }
+                    }
+                }
+            } catch (_:Dynamic) {}
         });
 
         _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            e.stopPropagation();
             try {
                 var g:Dynamic = Api.game;
                 if (g != null && g.ui != null && g.ui.cMenu != null && g.world != null && g.world.myAvatar != null) {
                     var myAv = g.world.myAvatar;
+                    var charId:Int = 0;
+                    var uName:String = "";
+                    try {
+                        if (myAv.objData != null) {
+                            if (myAv.objData.CharID != null) charId = Std.int(myAv.objData.CharID);
+                            if (myAv.objData.strUsername != null) uName = Std.string(myAv.objData.strUsername);
+                        }
+                    } catch (_:Dynamic) {}
                     var params:Dynamic = {
-                        "ID": (myAv.objData != null && myAv.objData.CharID != null) ? myAv.objData.CharID : 0,
-                        "strUsername": (myAv.objData != null && myAv.objData.strUsername != null) ? myAv.objData.strUsername : ""
+                        "ID": charId,
+                        "strUsername": uName
                     };
                     g.ui.cMenu.fOpenWith("self", params);
+                    try {
+                        if (g.ui.cMenu.parent != null) {
+                            g.ui.cMenu.parent.setChildIndex(g.ui.cMenu, g.ui.cMenu.parent.numChildren - 1);
+                        }
+                    } catch (_:Dynamic) {}
                 }
             } catch (_:Dynamic) {}
         });

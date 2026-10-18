@@ -80,7 +80,7 @@ class AuraFramesManager {
     }
 
     public static inline function isCdTimersEnabled():Bool {
-        return ApiConfig.getBool("api_auras_cd_timers", false);
+        return ApiConfig.getBool("api_auras_cd_timers", true);
     }
 
     public static function setCdTimersEnabled(v:Bool):Void {
@@ -88,7 +88,7 @@ class AuraFramesManager {
     }
 
     public static inline function isMyAurasOnly():Bool {
-        return ApiConfig.getBool("api_auras_my_only", false);
+        return ApiConfig.getBool("api_auras_my_only", true);
     }
 
     public static function setMyAurasOnly(v:Bool):Void {
@@ -155,25 +155,29 @@ class AuraFramesManager {
 
     private static function getMyUids():Array<Dynamic> {
         var uids:Array<Dynamic> = [];
-        if (Api.game != null) {
-            if (Api.game.sfc != null && Api.game.sfc.myUserId != null) {
-                uids.push(Api.game.sfc.myUserId);
-            }
-            if (Api.game.world != null) {
-                if (Api.game.world.myAvatar != null) {
-                    var av:Dynamic = Api.game.world.myAvatar;
-                    if (av.uid != null) uids.push(av.uid);
-                    if (av.dataLeaf != null) {
-                        if (av.dataLeaf.entID != null) uids.push(av.dataLeaf.entID);
-                        if (av.dataLeaf.EntID != null) uids.push(av.dataLeaf.EntID);
+        try {
+            if (Api.game != null) {
+                if (Api.game.sfc != null && Api.game.sfc.myUserId != null) {
+                    uids.push(Api.game.sfc.myUserId);
+                }
+                if (Api.game.world != null) {
+                    var w:Dynamic = Api.game.world;
+                    if (w.myAvatar != null) {
+                        var av:Dynamic = w.myAvatar;
+                        if (av.uid != null) uids.push(av.uid);
+                        if (av.dataLeaf != null) {
+                            if (av.dataLeaf.entID != null) uids.push(av.dataLeaf.entID);
+                            if (av.dataLeaf.EntID != null) uids.push(av.dataLeaf.EntID);
+                        }
+                    }
+                    if (Api.game.sfc != null && Api.game.sfc.myUserName != null && w.uoTree != null) {
+                        var unm:String = Std.string(Api.game.sfc.myUserName).toLowerCase();
+                        var ml:Dynamic = untyped w.uoTree[unm];
+                        if (ml != null && ml.entID != null) uids.push(ml.entID);
                     }
                 }
-                try {
-                    var ml:Dynamic = Api.game.world.myLeaf();
-                    if (ml != null && ml.entID != null) uids.push(ml.entID);
-                } catch (_:Dynamic) {}
             }
-        }
+        } catch (_:Dynamic) {}
         return uids;
     }
 
@@ -190,43 +194,46 @@ class AuraFramesManager {
         var lists:Array<Dynamic> = [];
         if (entity == null) return lists;
 
-        if (entity.dataLeaf != null) {
-            if (entity.dataLeaf.auras != null) lists.push(entity.dataLeaf.auras);
-            if (entity.dataLeaf.passives != null) lists.push(entity.dataLeaf.passives);
-        }
-        if (entity.auras != null) {
-            lists.push(entity.auras);
-        }
+        try {
+            if (entity.dataLeaf != null) {
+                if (entity.dataLeaf.auras != null) lists.push(entity.dataLeaf.auras);
+                if (entity.dataLeaf.passives != null) lists.push(entity.dataLeaf.passives);
+            }
+            if (entity.auras != null) {
+                lists.push(entity.auras);
+            }
 
-        if (Api.game != null && Api.game.world != null) {
-            var w:Dynamic = Api.game.world;
-            if (isMonster) {
-                var mmid:Dynamic = null;
-                if (entity.dataLeaf != null && entity.dataLeaf.MonMapID != null) mmid = entity.dataLeaf.MonMapID;
-                else if (entity.objData != null && entity.objData.MonMapID != null) mmid = entity.objData.MonMapID;
-                if (mmid != null && w.monTree != null) {
-                    var monLeaf:Dynamic = Reflect.field(w.monTree, Std.string(mmid));
-                    if (monLeaf != null) {
-                        if (monLeaf.auras != null) lists.push(monLeaf.auras);
-                        if (monLeaf.passives != null) lists.push(monLeaf.passives);
+            if (Api.game != null && Api.game.world != null) {
+                var w:Dynamic = Api.game.world;
+                if (isMonster) {
+                    var mmid:Dynamic = null;
+                    if (entity.dataLeaf != null && entity.dataLeaf.MonMapID != null) mmid = entity.dataLeaf.MonMapID;
+                    else if (entity.objData != null && entity.objData.MonMapID != null) mmid = entity.objData.MonMapID;
+                    if (mmid != null && w.monTree != null) {
+                        var monLeaf:Dynamic = untyped w.monTree[mmid];
+                        if (monLeaf == null) monLeaf = untyped w.monTree[Std.string(mmid)];
+                        if (monLeaf != null) {
+                            if (monLeaf.auras != null) lists.push(monLeaf.auras);
+                            if (monLeaf.passives != null) lists.push(monLeaf.passives);
+                        }
                     }
-                }
-            } else {
-                var pnm:String = null;
-                if (entity.pnm != null) pnm = Std.string(entity.pnm);
-                else if (entity.dataLeaf != null && entity.dataLeaf.strUsername != null) pnm = Std.string(entity.dataLeaf.strUsername);
-                if (pnm == null && w.myAvatar == entity && Api.game.sfc != null && Api.game.sfc.myUserName != null) {
-                    pnm = Std.string(Api.game.sfc.myUserName);
-                }
-                if (pnm != null && w.uoTree != null) {
-                    var uoLeaf:Dynamic = Reflect.field(w.uoTree, pnm.toLowerCase());
-                    if (uoLeaf != null) {
-                        if (uoLeaf.auras != null) lists.push(uoLeaf.auras);
-                        if (uoLeaf.passives != null) lists.push(uoLeaf.passives);
+                } else {
+                    var pnm:String = null;
+                    if (entity.pnm != null) pnm = Std.string(entity.pnm);
+                    else if (entity.dataLeaf != null && entity.dataLeaf.strUsername != null) pnm = Std.string(entity.dataLeaf.strUsername);
+                    if (pnm == null && w.myAvatar == entity && Api.game.sfc != null && Api.game.sfc.myUserName != null) {
+                        pnm = Std.string(Api.game.sfc.myUserName);
+                    }
+                    if (pnm != null && w.uoTree != null) {
+                        var uoLeaf:Dynamic = untyped w.uoTree[pnm.toLowerCase()];
+                        if (uoLeaf != null) {
+                            if (uoLeaf.auras != null) lists.push(uoLeaf.auras);
+                            if (uoLeaf.passives != null) lists.push(uoLeaf.passives);
+                        }
                     }
                 }
             }
-        }
+        } catch (_:Dynamic) {}
         return lists;
     }
 
@@ -285,6 +292,12 @@ class AuraFramesManager {
             } catch (_:Dynamic) {}
         }
 
+        try {
+            if (cdTxt.parent == cell && cell.numChildren != null && cell.getChildIndex(cdTxt) != cell.numChildren - 1) {
+                cell.setChildIndex(cdTxt, cell.numChildren - 1);
+            }
+        } catch (_:Dynamic) {}
+
         if (cdEnabled && cell.h != null && cell.h.end != null && cell.h.end > 0) {
             var endMs:Float = cell.h.end;
             var remMs:Float = endMs - nowMs;
@@ -322,86 +335,96 @@ class AuraFramesManager {
     }
 
     private static function onEnterFrame(e:Event):Void {
-        if (!ApiMenus.isInGame() || Api.game == null) return;
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
 
-        var nowMs:Float = Lib.getTimer();
-        // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
-        if (nowMs - _lastTick < 50.0) return;
-        _lastTick = nowMs;
+            var nowMs:Float = Lib.getTimer();
+            // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
+            if (nowMs - _lastTick < 50.0) return;
+            _lastTick = nowMs;
 
-        var cdEnabled:Bool = isCdTimersEnabled();
-        var lagKiller:Bool = isLagKillerEnabled();
-        var filterMyOnly:Bool = isMyAurasOnly();
-        var myUids:Array<Dynamic> = filterMyOnly ? getMyUids() : null;
+            var cdEnabled:Bool = isCdTimersEnabled();
+            var lagKiller:Bool = isLagKillerEnabled();
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var myUids:Array<Dynamic> = filterMyOnly ? getMyUids() : null;
 
-        // 1. Process Player Auras (pAurasUI)
-        var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
-        if (pUI != null) {
-            var pCells:Array<Dynamic> = getCells(pUI);
-            if (pCells.length > 0) {
-                var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
-                var visibleIdx:Int = 0;
-                for (cell in pCells) {
-                    processCell(cell, nowMs, cdEnabled, lagKiller);
+            // 1. Process Player Auras (pAurasUI)
+            try {
+                var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
+                if (pUI != null) {
+                    var pCells:Array<Dynamic> = getCells(pUI);
+                    if (pCells.length > 0) {
+                        var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
+                        var visibleIdx:Int = 0;
+                        for (cell in pCells) {
+                            try {
+                                processCell(cell, nowMs, cdEnabled, lagKiller);
 
-                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
-                    var showCell:Bool = true;
-                    if (filterMyOnly) {
-                        showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
-                    }
+                                var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                                var showCell:Bool = true;
+                                if (filterMyOnly) {
+                                    showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
+                                }
 
-                    if (!showCell) {
-                        cell.visible = false;
-                    } else {
-                        cell.visible = true;
-                        if (filterMyOnly) {
-                            cell.x = (visibleIdx % PER_ROW) * PITCH_X;
-                            cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                                if (!showCell) {
+                                    cell.visible = false;
+                                } else {
+                                    cell.visible = true;
+                                    if (filterMyOnly) {
+                                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                                    }
+                                    visibleIdx++;
+                                }
+                            } catch (_:Dynamic) {}
                         }
-                        visibleIdx++;
-                    }
-                }
 
-                if (filterMyOnly && visibleIdx == 0 && pUI.visible == true) {
-                    pUI.visible = false;
-                }
-            }
-        }
-
-        // 2. Process Target Auras (tAurasUI) with Filtering
-        var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
-        if (tUI != null) {
-            var tCells:Array<Dynamic> = getCells(tUI);
-            if (tCells.length > 0) {
-                var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-                var visibleIdx:Int = 0;
-                for (cell in tCells) {
-                    processCell(cell, nowMs, cdEnabled, lagKiller);
-
-                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
-                    var showCell:Bool = true;
-                    if (filterMyOnly) {
-                        showCell = shouldShowTargetAura(auraName, targetObj, myUids);
-                    }
-
-                    if (!showCell) {
-                        cell.visible = false;
-                    } else {
-                        cell.visible = true;
-                        if (filterMyOnly) {
-                            cell.x = (visibleIdx % PER_ROW) * PITCH_X;
-                            cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                        if (filterMyOnly && visibleIdx == 0 && pUI.visible == true) {
+                            pUI.visible = false;
                         }
-                        visibleIdx++;
                     }
                 }
+            } catch (_:Dynamic) {}
 
-                // Hide the entire frame if all target debuffs belong to other players
-                if (filterMyOnly && visibleIdx == 0 && tUI.visible == true) {
-                    tUI.visible = false;
+            // 2. Process Target Auras (tAurasUI) with Filtering
+            try {
+                var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
+                if (tUI != null) {
+                    var tCells:Array<Dynamic> = getCells(tUI);
+                    if (tCells.length > 0) {
+                        var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+                        var visibleIdx:Int = 0;
+                        for (cell in tCells) {
+                            try {
+                                processCell(cell, nowMs, cdEnabled, lagKiller);
+
+                                var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                                var showCell:Bool = true;
+                                if (filterMyOnly) {
+                                    showCell = shouldShowTargetAura(auraName, targetObj, myUids);
+                                }
+
+                                if (!showCell) {
+                                    cell.visible = false;
+                                } else {
+                                    cell.visible = true;
+                                    if (filterMyOnly) {
+                                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                                    }
+                                    visibleIdx++;
+                                }
+                            } catch (_:Dynamic) {}
+                        }
+
+                        // Hide the entire frame if all target debuffs belong to other players
+                        if (filterMyOnly && visibleIdx == 0 && tUI.visible == true) {
+                            tUI.visible = false;
+                        }
+                    }
                 }
-            }
-        }
+            } catch (_:Dynamic) {}
+        } catch (_:Dynamic) {}
     }
 
     /**
@@ -411,59 +434,69 @@ class AuraFramesManager {
      */
     private static function shouldShowPlayerAura(auraName:String, myAvatar:Dynamic, myUids:Array<Dynamic>):Bool {
         if (auraName == "" || myAvatar == null) return true;
-        var searchName:String = auraName.toLowerCase();
-        var lists:Array<Dynamic> = getEntityAurasLists(myAvatar, false);
+        try {
+            var searchName:String = auraName.toLowerCase();
+            var lists:Array<Dynamic> = getEntityAurasLists(myAvatar, false);
 
-        var isPvP:Bool = (Api.game != null && Api.game.world != null && Api.game.world.bPvP == true);
-        var foundFromOtherPlayer:Bool = false;
-        var foundFromSelfOrMonster:Bool = false;
-
-        for (arr in lists) {
-            var len:Int = 0;
+            var isPvP:Bool = false;
             try {
-                if (arr != null && untyped arr.length != null) {
-                    len = Std.int(untyped arr.length);
+                if (Api.game != null && Api.game.world != null) {
+                    isPvP = (Api.game.world.bPvP == true);
                 }
             } catch (_:Dynamic) {}
 
-            for (i in 0...len) {
-                var a:Dynamic = untyped arr[i];
-                if (a == null || a.nam == null) continue;
-                if (Std.string(a.nam).toLowerCase() == searchName) {
-                    var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
-                    var cid:Dynamic = a.casterId;
+            var foundFromOtherPlayer:Bool = false;
+            var foundFromSelfOrMonster:Bool = false;
 
-                    var isMine:Bool = isMyId(cid, myUids) || (cid == null && ct != "p") || a.passive == true || a.potionType != null;
-                    var isMonster:Bool = (ct == "m");
+            for (arr in lists) {
+                var len:Int = 0;
+                try {
+                    if (arr != null && untyped arr.length != null) {
+                        len = Std.int(untyped arr.length);
+                    }
+                } catch (_:Dynamic) {}
 
-                    if (isMine || isMonster) {
-                        foundFromSelfOrMonster = true;
-                    } else if (ct == "p" && cid != null && !isMyId(cid, myUids)) {
-                        if (!isPvP) {
-                            foundFromOtherPlayer = true;
-                        } else {
-                            var isEnemy:Bool = false;
-                            try {
-                                var otherLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.getUoLeafById)) ? Api.game.world.getUoLeafById(cid) : null;
-                                var myLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.myLeaf)) ? Api.game.world.myLeaf() : null;
-                                if (otherLeaf != null && myLeaf != null && otherLeaf.pvpTeam != null && myLeaf.pvpTeam != null) {
-                                    if (otherLeaf.pvpTeam != myLeaf.pvpTeam) isEnemy = true;
-                                }
-                            } catch (_:Dynamic) {}
-                            if (isEnemy) {
-                                foundFromSelfOrMonster = true;
-                            } else {
+                for (i in 0...len) {
+                    var a:Dynamic = untyped arr[i];
+                    if (a == null || a.nam == null) continue;
+                    if (Std.string(a.nam).toLowerCase() == searchName) {
+                        var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                        var cid:Dynamic = a.casterId;
+
+                        var isMine:Bool = isMyId(cid, myUids) || (cid == null && ct != "p") || a.passive == true || a.potionType != null;
+                        var isMonster:Bool = (ct == "m");
+
+                        if (isMine || isMonster) {
+                            foundFromSelfOrMonster = true;
+                        } else if (ct == "p" && cid != null && !isMyId(cid, myUids)) {
+                            if (!isPvP) {
                                 foundFromOtherPlayer = true;
+                            } else {
+                                var isEnemy:Bool = false;
+                                try {
+                                    var otherLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.getUoLeafById)) ? Api.game.world.getUoLeafById(cid) : null;
+                                    var myLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.myLeaf)) ? Api.game.world.myLeaf() : null;
+                                    if (otherLeaf != null && myLeaf != null && otherLeaf.pvpTeam != null && myLeaf.pvpTeam != null) {
+                                        if (otherLeaf.pvpTeam != myLeaf.pvpTeam) isEnemy = true;
+                                    }
+                                } catch (_:Dynamic) {}
+                                if (isEnemy) {
+                                    foundFromSelfOrMonster = true;
+                                } else {
+                                    foundFromOtherPlayer = true;
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        if (foundFromSelfOrMonster) return true;
-        if (foundFromOtherPlayer) return false;
-        return true;
+            if (foundFromSelfOrMonster) return true;
+            if (foundFromOtherPlayer) return false;
+            return true;
+        } catch (_:Dynamic) {
+            return true;
+        }
     }
 
     /**
@@ -474,65 +507,74 @@ class AuraFramesManager {
      */
     private static function shouldShowTargetAura(auraName:String, targetObj:Dynamic, myUids:Array<Dynamic>):Bool {
         if (auraName == "" || targetObj == null) return true;
-        var searchName:String = auraName.toLowerCase();
+        try {
+            var searchName:String = auraName.toLowerCase();
 
-        var isMonsterTarget:Bool = true;
-        if (targetObj.npcType != null) {
-            var n:String = Std.string(targetObj.npcType).toLowerCase();
-            isMonsterTarget = (n == "monster" || n == "mon");
-        } else if (targetObj.isMyAvatar != null) {
-            isMonsterTarget = false;
-        }
-
-        var lists:Array<Dynamic> = getEntityAurasLists(targetObj, isMonsterTarget);
-
-        var targetMonMapId:Dynamic = null;
-        if (targetObj.dataLeaf != null && targetObj.dataLeaf.MonMapID != null) targetMonMapId = targetObj.dataLeaf.MonMapID;
-        else if (targetObj.objData != null && targetObj.objData.MonMapID != null) targetMonMapId = targetObj.objData.MonMapID;
-
-        var foundMine:Bool = false;
-        var foundMonsterBuff:Bool = false;
-        var foundOtherPlayer:Bool = false;
-
-        for (arr in lists) {
-            var len:Int = 0;
+            var isMonsterTarget:Bool = false;
+            var targetMonMapId:Dynamic = null;
             try {
-                if (arr != null && untyped arr.length != null) {
-                    len = Std.int(untyped arr.length);
+                if (targetObj.dataLeaf != null) {
+                    if (targetObj.dataLeaf.MonMapID != null || targetObj.dataLeaf.MonID != null) {
+                        isMonsterTarget = true;
+                        targetMonMapId = targetObj.dataLeaf.MonMapID;
+                    }
+                }
+                if (!isMonsterTarget && targetObj.objData != null) {
+                    if (targetObj.objData.MonMapID != null || targetObj.objData.MonID != null) {
+                        isMonsterTarget = true;
+                        targetMonMapId = targetObj.objData.MonMapID;
+                    }
                 }
             } catch (_:Dynamic) {}
 
-            for (i in 0...len) {
-                var a:Dynamic = untyped arr[i];
-                if (a == null || a.nam == null) continue;
-                if (Std.string(a.nam).toLowerCase() == searchName) {
-                    var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
-                    var cid:Dynamic = a.casterId;
+            var lists:Array<Dynamic> = getEntityAurasLists(targetObj, isMonsterTarget);
 
-                    var isMine:Bool = isMyId(cid, myUids);
-                    var isMonster:Bool = (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId)));
+            var foundMine:Bool = false;
+            var foundMonsterBuff:Bool = false;
+            var foundOtherPlayer:Bool = false;
 
-                    if (isMine) {
-                        foundMine = true;
-                    } else if (isMonster && isMonsterTarget) {
-                        foundMonsterBuff = true;
-                    } else if (ct == "p" || (cid != null && !isMyId(cid, myUids))) {
-                        foundOtherPlayer = true;
+            for (arr in lists) {
+                var len:Int = 0;
+                try {
+                    if (arr != null && untyped arr.length != null) {
+                        len = Std.int(untyped arr.length);
+                    }
+                } catch (_:Dynamic) {}
+
+                for (i in 0...len) {
+                    var a:Dynamic = untyped arr[i];
+                    if (a == null || a.nam == null) continue;
+                    if (Std.string(a.nam).toLowerCase() == searchName) {
+                        var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                        var cid:Dynamic = a.casterId;
+
+                        var isMine:Bool = isMyId(cid, myUids);
+                        var isMonster:Bool = (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId)));
+
+                        if (isMine) {
+                            foundMine = true;
+                        } else if (isMonster && isMonsterTarget) {
+                            foundMonsterBuff = true;
+                        } else if (ct == "p" || (cid != null && !isMyId(cid, myUids))) {
+                            foundOtherPlayer = true;
+                        }
                     }
                 }
             }
-        }
 
-        if (foundMine) return true;
-        if (isMonsterTarget && foundMonsterBuff) return true;
-        if (foundOtherPlayer) return false;
+            if (foundMine) return true;
+            if (isMonsterTarget && foundMonsterBuff) return true;
+            if (foundOtherPlayer) return false;
 
-        if (isMonsterTarget) {
-            if (isKnownMonsterMechanic(searchName)) return true;
+            if (isMonsterTarget) {
+                if (isKnownMonsterMechanic(searchName)) return true;
+                return false;
+            }
+
             return false;
+        } catch (_:Dynamic) {
+            return true;
         }
-
-        return false;
     }
 }
 #else

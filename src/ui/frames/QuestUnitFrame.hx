@@ -217,16 +217,29 @@ class QuestUnitFrame {
             _content.y = _scrollY;
         });
 
-        // 4. Setup Dragging
-        setupDragging(theStage);
-
-        // 5. EnterFrame Loop (Throttled update ~400ms + visibility sync)
+        // 5. EnterFrame Loop (Throttled update ~400ms + visibility sync + active notification sweeper)
         _widget.addEventListener(Event.ENTER_FRAME, function(_:Event):Void {
             var inGame = ApiMenus.isInGame();
             if (!inGame) {
                 _widget.visible = false;
                 return;
             }
+
+            if (isHideProgressTextEnabled()) {
+                try {
+                    var g:Dynamic = Api.game;
+                    if (g != null) {
+                        if (g.litePreference != null && g.litePreference.data != null && g.litePreference.data.bQuestNotif != false) {
+                            g.litePreference.data.bQuestNotif = false;
+                        }
+                        if (g.ui != null && g.ui.mcUpdates != null) {
+                            installMcUpdatesListener();
+                            sweepMcUpdates(g.ui.mcUpdates);
+                        }
+                    }
+                } catch (_:Dynamic) {}
+            }
+
             var isEnabled = isWidgetEnabled();
             if (!isEnabled) {
                 _widget.visible = false;
@@ -277,14 +290,18 @@ class QuestUnitFrame {
                     if (g.litePreference.data.bDisQTracker != true) {
                         g.litePreference.data.bDisQTracker = true;
                     }
+                    if (isHideProgressTextEnabled() && g.litePreference.data.bQuestNotif != false) {
+                        g.litePreference.data.bQuestNotif = false;
+                    }
                 }
 
                 // 3. Install hooks on mcQTracker
                 installTrackerHooks();
 
-                // 4. Install addUpdate hook if progress text hiding is enabled
+                // 4. Hook mcUpdates listener if progress text hiding is enabled
                 if (isHideProgressTextEnabled()) {
-                    installAddUpdateHook();
+                    installMcUpdatesListener();
+                    sweepMcUpdates(g.ui.mcUpdates);
                 }
             }
         } catch (_:Dynamic) {}
@@ -689,9 +706,60 @@ class QuestUnitFrame {
 
     public static function setHideProgressTextEnabled(enabled:Bool):Void {
         ApiConfig.setBool(CONFIG_HIDE_PROGRESS_TEXT, enabled);
-        if (enabled) {
-            installAddUpdateHook();
-        }
+        try {
+            var g:Dynamic = Api.game;
+            if (g != null) {
+                if (g.litePreference != null && g.litePreference.data != null) {
+                    if (enabled) {
+                        g.litePreference.data.bQuestNotif = false;
+                    }
+                }
+                if (enabled && g.ui != null && g.ui.mcUpdates != null) {
+                    installMcUpdatesListener();
+                    sweepMcUpdates(g.ui.mcUpdates);
+                }
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    private static var _mcUpdatesHooked:Bool = false;
+    public static function installMcUpdatesListener():Void {
+        if (_mcUpdatesHooked) return;
+        var g:Dynamic = Api.game;
+        if (g == null || g.ui == null || g.ui.mcUpdates == null) return;
+        _mcUpdatesHooked = true;
+        try {
+            g.ui.mcUpdates.addEventListener(Event.ADDED, function(_:Event):Void {
+                if (isHideProgressTextEnabled()) {
+                    sweepMcUpdates(g.ui.mcUpdates);
+                }
+            });
+        } catch (_:Dynamic) {}
+    }
+
+    public static function sweepMcUpdates(mcUpdates:Dynamic):Void {
+        if (mcUpdates == null) return;
+        try {
+            var num:Int = (mcUpdates.numChildren != null) ? mcUpdates.numChildren : 0;
+            var i:Int = num - 1;
+            while (i >= 0) {
+                var ch:Dynamic = mcUpdates.getChildAt(i);
+                if (ch != null && ch != mcUpdates.uproto) {
+                    var txt:String = null;
+                    try {
+                        if (ch.t1 != null && ch.t1.ti != null && ch.t1.ti.text != null) {
+                            txt = Std.string(ch.t1.ti.text);
+                        }
+                    } catch (_:Dynamic) {}
+                    if (txt != null && isQuestProgressNotification(txt)) {
+                        ch.visible = false;
+                        try { ch.stop(); } catch (_:Dynamic) {}
+                        try { mcUpdates.removeChild(ch); } catch (_:Dynamic) {}
+                    }
+                }
+                i--;
+            }
+        } catch (_:Dynamic) {}
     }
 
     public static function installAddUpdateHook():Void {
@@ -711,8 +779,10 @@ class QuestUnitFrame {
 
     private static function isQuestProgressNotification(msg:String):Bool {
         if (msg == null || msg == "") return false;
-        if (StringTools.endsWith(msg, " complete!")) return true;
-        if (msg.indexOf(": ") != -1 && RE_PROGRESS_TEXT.match(msg)) return true;
+        var trim:String = StringTools.trim(msg);
+        if (StringTools.endsWith(trim, " complete!")) return true;
+        if (trim.indexOf(": ") != -1 && RE_PROGRESS_TEXT.match(trim)) return true;
+        if (RE_PROGRESS_TEXT.match(trim)) return true;
         return false;
     }
 }
