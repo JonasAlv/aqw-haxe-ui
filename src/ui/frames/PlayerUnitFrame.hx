@@ -497,6 +497,20 @@ class PlayerUnitFrame {
             theStage.setChildIndex(_widget, theStage.numChildren - 1);
         });
 
+        _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            try {
+                var g:Dynamic = Api.game;
+                if (g != null && g.ui != null && g.ui.cMenu != null && g.world != null && g.world.myAvatar != null) {
+                    var myAv = g.world.myAvatar;
+                    var params:Dynamic = {
+                        "ID": (myAv.objData != null && myAv.objData.CharID != null) ? myAv.objData.CharID : 0,
+                        "strUsername": (myAv.objData != null && myAv.objData.strUsername != null) ? myAv.objData.strUsername : ""
+                    };
+                    g.ui.cMenu.fOpenWith("self", params);
+                }
+            } catch (_:Dynamic) {}
+        });
+
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
             if (isDragging) {
                 var dx = e.stageX - startDownX;

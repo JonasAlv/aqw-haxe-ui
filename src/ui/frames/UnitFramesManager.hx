@@ -32,6 +32,7 @@ class UnitFramesManager {
         try { AuraFramesManager.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] AuraFramesManager init error: " + e); }
         try { BossMechanicsBar.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] BossMechanicsBar init error: " + e); }
         try { PartyUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PartyUnitFrame init error: " + e); }
+        try { QuestUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] QuestUnitFrame init error: " + e); }
         try { installPortraitHooks(); } catch (e:Dynamic) {}
         try { syncNativeHideUI(); } catch (e:Dynamic) {}
 
@@ -367,6 +368,7 @@ class UnitFramesManager {
         TargetUnitFrame.reloadFromConfig();
         NameplateUnitFrame.reloadFromConfig();
         PartyUnitFrame.reloadFromConfig();
+        QuestUnitFrame.reloadFromConfig();
         syncNativeHideUI();
     }
 
@@ -374,6 +376,7 @@ class UnitFramesManager {
         PlayerUnitFrame.resetPosition();
         TargetUnitFrame.resetPosition();
         PartyUnitFrame.resetPosition();
+        QuestUnitFrame.resetPosition();
         ApiNotificationManager.notify("Unit frame positions reset!");
     }
 
@@ -385,6 +388,27 @@ class UnitFramesManager {
     public static function resetAuraPositions():Void {
         AuraFramesManager.resetPositions();
         ApiNotificationManager.notify("Aura positions reset!");
+    }
+
+    public static inline function isQuestFrameEnabled():Bool {
+        return QuestUnitFrame.isWidgetEnabled();
+    }
+
+    public static inline function setQuestFrameEnabled(enabled:Bool):Void {
+        QuestUnitFrame.setWidgetEnabled(enabled);
+    }
+
+    public static function resetQuestPosition():Void {
+        QuestUnitFrame.resetPosition();
+        ApiNotificationManager.notify("Quest frame position reset!");
+    }
+
+    public static inline function isHideQuestProgressTextEnabled():Bool {
+        return QuestUnitFrame.isHideProgressTextEnabled();
+    }
+
+    public static inline function setHideQuestProgressTextEnabled(enabled:Bool):Void {
+        QuestUnitFrame.setHideProgressTextEnabled(enabled);
     }
 }
 #else
@@ -418,6 +442,11 @@ class UnitFramesManager {
     public static function isPartyShowClassNames():Bool return false;
     public static function setPartyShowClassNames(enabled:Bool):Void {}
     public static function testPartyFrames():Void {}
+    public static function isQuestFrameEnabled():Bool return false;
+    public static function setQuestFrameEnabled(enabled:Bool):Void {}
+    public static function isHideQuestProgressTextEnabled():Bool return false;
+    public static function setHideQuestProgressTextEnabled(enabled:Bool):Void {}
+    public static function resetQuestPosition():Void {}
     public static function reloadFromConfig():Void {}
     public static function resetAllPositions():Void {}
     public static function resetPartyPosition():Void {}

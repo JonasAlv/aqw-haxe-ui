@@ -632,6 +632,36 @@ class TargetUnitFrame {
             theStage.setChildIndex(_widget, theStage.numChildren - 1);
         });
 
+        _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            try {
+                var g:Dynamic = Api.game;
+                if (g == null || g.ui == null || g.ui.cMenu == null || g.world == null || g.world.myAvatar == null) return;
+                var target:Dynamic = g.world.myAvatar.target;
+                if (target == null) return;
+
+                var npcType:String = (target.npcType != null) ? Std.string(target.npcType) : "player";
+                if (npcType == "player") {
+                    var isSelf:Bool = (target == g.world.myAvatar);
+                    var params:Dynamic = {
+                        "ID": (target.objData != null && target.objData.CharID != null) ? target.objData.CharID : 0,
+                        "strUsername": (target.objData != null && target.objData.strUsername != null) ? target.objData.strUsername : ""
+                    };
+                    g.ui.cMenu.fOpenWith(isSelf ? "self" : "user", params);
+                } else if (npcType == "monster") {
+                    var monId:Int = (target.objData != null && target.objData.MonMapID != null) ? Std.int(target.objData.MonMapID) : 0;
+                    var monName:String = (target.objData != null && target.objData.strMonName != null) ? Std.string(target.objData.strMonName) : "";
+                    var monObj:Dynamic = (g.world.getMonster != null) ? g.world.getMonster(monId) : null;
+                    var monMc:Dynamic = (monObj != null && monObj.pMC != null) ? monObj.pMC : ((target.pMC != null) ? target.pMC : null);
+                    var params:Dynamic = {
+                        "ID": monId,
+                        "strUsername": monName,
+                        "target": monMc
+                    };
+                    g.ui.cMenu.fOpenWith("mons", params);
+                }
+            } catch (_:Dynamic) {}
+        });
+
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
             if (isDragging) {
                 var dx = e.stageX - startDownX;

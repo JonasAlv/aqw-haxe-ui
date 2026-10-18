@@ -82,6 +82,59 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
+        modal.addSectionHeader("Quest Frame (ElvUI Style)");
+
+        // 1. Quest Frame Master Toggle
+        modal.addItemRow(
+            "Quest Frame",
+            "Sleek minimalist ElvUI quest tracker docked at screen mid-right, replacing the native Quest Tracker.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isQuestFrameEnabled();
+                var next = !cur;
+                UnitFramesManager.setQuestFrameEnabled(next);
+                ApiNotificationManager.notify("Quest Frame: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isQuestFrameEnabled();
+            }
+        );
+
+        // 2. Hide Quest Progress Text
+        modal.addItemRow(
+            "Hide Quest Progress Text",
+            "Hides the large yellow quest progress notifications that pop up in the middle of the screen (e.g. 'Shadow Hunt Medal: 1/5').",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isHideQuestProgressTextEnabled();
+                var next = !cur;
+                UnitFramesManager.setHideQuestProgressTextEnabled(next);
+                ApiNotificationManager.notify("Quest Progress Text: " + (next ? "Hidden" : "Shown"));
+            },
+            function():Bool {
+                return UnitFramesManager.isHideQuestProgressTextEnabled();
+            }
+        );
+
+        // 3. Reset Quest Position
+        modal.addItemRow(
+            "Reset Quest Position",
+            "Reset Quest Frame to default mid-right position (x: 730, y: 180).",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                UnitFramesManager.resetQuestPosition();
+            },
+            function():Bool {
+                return false;
+            }
+        );
+
         modal.addSectionHeader("Party & Raid Frames (Grid2 Style)");
 
         // 1. Party Frames Master Toggle
@@ -334,10 +387,10 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 3. Target Auras Filter
+        // 3. Combat Auras Filter
         modal.addItemRow(
-            "Target Auras Filter",
-            "Show My Auras Only: Displays only your debuffs and boss mechanics (reflect, shields, stances), hiding other players' clutter.",
+            "Combat Auras Filter",
+            "Show My Auras Only: Displays only your debuffs and boss mechanics on target, and your own buffs/debuffs on player (excludes other players' clutter).",
             "toggle",
             "",
             false,
@@ -345,7 +398,7 @@ class UnitFramesTab implements IDashboardTab {
                 var cur = AuraFramesManager.isMyAurasOnly();
                 var next = !cur;
                 AuraFramesManager.setMyAurasOnly(next);
-                ApiNotificationManager.notify("Target Auras Filter: " + (next ? "My Auras Only" : "All Auras"));
+                ApiNotificationManager.notify("Combat Auras Filter: " + (next ? "My Auras Only" : "All Auras"));
             },
             function():Bool {
                 return AuraFramesManager.isMyAurasOnly();

@@ -127,59 +127,107 @@ class AuraFramesManager {
         return cells;
     }
 
-    private static function onEnterFrame(e:Event):Void {
-        if (!ApiMenus.isInGame() || Api.game == null) return;
+    private static var KNOWN_MONSTER_AURAS:Array<String> = [
+        "counter attack",
+        "retaliate",
+        "fox",
+        "damage reflect",
+        "reflect",
+        "reflective shield",
+        "talon twisting",
+        "safeguard",
+        "focus",
+        "enraged",
+        "shield",
+        "absolute defense",
+        "defiance",
+        "stone skin",
+        "absorb",
+        "inner fire"
+    ];
 
-        var nowMs:Float = Lib.getTimer();
-        // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
-        if (nowMs - _lastTick < 50.0) return;
-        _lastTick = nowMs;
+    private static function isKnownMonsterMechanic(searchName:String):Bool {
+        for (m in KNOWN_MONSTER_AURAS) {
+            if (searchName == m || searchName.indexOf(m) != -1) return true;
+        }
+        return false;
+    }
 
-        var cdEnabled:Bool = isCdTimersEnabled();
-        var lagKiller:Bool = isLagKillerEnabled();
-        var filterMyOnly:Bool = isMyAurasOnly();
-
-        // 1. Process Player Auras (pAurasUI)
-        var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
-        if (pUI != null && pUI.visible != false) {
-            var pCells:Array<Dynamic> = getCells(pUI);
-            for (cell in pCells) {
-                processCell(cell, nowMs, cdEnabled, lagKiller);
+    private static function getMyUids():Array<Dynamic> {
+        var uids:Array<Dynamic> = [];
+        if (Api.game != null) {
+            if (Api.game.sfc != null && Api.game.sfc.myUserId != null) {
+                uids.push(Api.game.sfc.myUserId);
+            }
+            if (Api.game.world != null) {
+                if (Api.game.world.myAvatar != null) {
+                    var av:Dynamic = Api.game.world.myAvatar;
+                    if (av.uid != null) uids.push(av.uid);
+                    if (av.dataLeaf != null) {
+                        if (av.dataLeaf.entID != null) uids.push(av.dataLeaf.entID);
+                        if (av.dataLeaf.EntID != null) uids.push(av.dataLeaf.EntID);
+                    }
+                }
+                try {
+                    var ml:Dynamic = Api.game.world.myLeaf();
+                    if (ml != null && ml.entID != null) uids.push(ml.entID);
+                } catch (_:Dynamic) {}
             }
         }
+        return uids;
+    }
 
-        // 2. Process Target Auras (tAurasUI) with Filtering
-        var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
-        if (tUI != null) {
-            var tCells:Array<Dynamic> = getCells(tUI);
-            var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-            var myUid:Dynamic = (Api.game.sfc != null) ? Api.game.sfc.myUserId : null;
-            var myEntId:Dynamic = (myUid != null) ? myUid : ((Api.game.world != null && Api.game.world.myAvatar != null && Api.game.world.myAvatar.dataLeaf != null) ? (Api.game.world.myAvatar.dataLeaf.EntID != null ? Api.game.world.myAvatar.dataLeaf.EntID : Api.game.world.myAvatar.dataLeaf.entID) : null);
+    private static function isMyId(id:Dynamic, myUids:Array<Dynamic>):Bool {
+        if (id == null || myUids == null) return false;
+        var sId:String = Std.string(id);
+        for (m in myUids) {
+            if (m != null && Std.string(m) == sId) return true;
+        }
+        return false;
+    }
 
-            var visibleIdx:Int = 0;
-            for (cell in tCells) {
-                processCell(cell, nowMs, cdEnabled, lagKiller);
+    private static function getEntityAurasLists(entity:Dynamic, isMonster:Bool):Array<Dynamic> {
+        var lists:Array<Dynamic> = [];
+        if (entity == null) return lists;
 
-                var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
-                var isOtherPlayer:Bool = filterMyOnly && isAuraFromOtherPlayer(auraName, targetObj, myEntId);
+        if (entity.dataLeaf != null) {
+            if (entity.dataLeaf.auras != null) lists.push(entity.dataLeaf.auras);
+            if (entity.dataLeaf.passives != null) lists.push(entity.dataLeaf.passives);
+        }
+        if (entity.auras != null) {
+            lists.push(entity.auras);
+        }
 
-                if (isOtherPlayer) {
-                    cell.visible = false;
-                } else {
-                    cell.visible = true;
-                    if (filterMyOnly) {
-                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
-                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+        if (Api.game != null && Api.game.world != null) {
+            var w:Dynamic = Api.game.world;
+            if (isMonster) {
+                var mmid:Dynamic = null;
+                if (entity.dataLeaf != null && entity.dataLeaf.MonMapID != null) mmid = entity.dataLeaf.MonMapID;
+                else if (entity.objData != null && entity.objData.MonMapID != null) mmid = entity.objData.MonMapID;
+                if (mmid != null && w.monTree != null) {
+                    var monLeaf:Dynamic = Reflect.field(w.monTree, Std.string(mmid));
+                    if (monLeaf != null) {
+                        if (monLeaf.auras != null) lists.push(monLeaf.auras);
+                        if (monLeaf.passives != null) lists.push(monLeaf.passives);
                     }
-                    visibleIdx++;
+                }
+            } else {
+                var pnm:String = null;
+                if (entity.pnm != null) pnm = Std.string(entity.pnm);
+                else if (entity.dataLeaf != null && entity.dataLeaf.strUsername != null) pnm = Std.string(entity.dataLeaf.strUsername);
+                if (pnm == null && w.myAvatar == entity && Api.game.sfc != null && Api.game.sfc.myUserName != null) {
+                    pnm = Std.string(Api.game.sfc.myUserName);
+                }
+                if (pnm != null && w.uoTree != null) {
+                    var uoLeaf:Dynamic = Reflect.field(w.uoTree, pnm.toLowerCase());
+                    if (uoLeaf != null) {
+                        if (uoLeaf.auras != null) lists.push(uoLeaf.auras);
+                        if (uoLeaf.passives != null) lists.push(uoLeaf.passives);
+                    }
                 }
             }
-
-            // Hide the entire frame if all target debuffs belong to other players
-            if (filterMyOnly && visibleIdx == 0 && tUI.visible == true) {
-                tUI.visible = false;
-            }
         }
+        return lists;
     }
 
     /**
@@ -273,39 +321,218 @@ class AuraFramesManager {
         }
     }
 
-    /**
-     * Determines whether an aura on the target was applied exclusively by an external player.
-     * Retains:
-     * - Auras applied by the player (casterId == myEntId)
-     * - The target's own self-auras, shields, passives, and boss mechanics (casterType == "m" or passive)
-     */
-    private static function isAuraFromOtherPlayer(auraName:String, targetObj:Dynamic, myEntId:Dynamic):Bool {
-        if (targetObj == null || targetObj.dataLeaf == null || myEntId == null) return false;
-        var leaf:Dynamic = targetObj.dataLeaf;
-        var aurasList:Dynamic = leaf.auras;
-        if (aurasList == null) return false;
+    private static function onEnterFrame(e:Event):Void {
+        if (!ApiMenus.isInGame() || Api.game == null) return;
 
-        var targetEntId:Dynamic = leaf.entID;
-        var foundOtherPlayer:Bool = false;
-        var foundMineOrTarget:Bool = false;
+        var nowMs:Float = Lib.getTimer();
+        // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
+        if (nowMs - _lastTick < 50.0) return;
+        _lastTick = nowMs;
 
-        var len:Int = (Reflect.hasField(aurasList, "length")) ? Std.int(aurasList.length) : 0;
-        for (i in 0...len) {
-            var a:Dynamic = aurasList[i];
-            if (a == null || a.nam == null) continue;
-            if (Std.string(a.nam).toLowerCase() == auraName.toLowerCase()) {
-                var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
-                var cid:Dynamic = a.casterId;
-                if (ct == "m" || a.passive == true || cid == myEntId || (targetEntId != null && cid == targetEntId)) {
-                    foundMineOrTarget = true;
-                } else if (ct == "p" && cid != null && cid != myEntId) {
-                    foundOtherPlayer = true;
+        var cdEnabled:Bool = isCdTimersEnabled();
+        var lagKiller:Bool = isLagKillerEnabled();
+        var filterMyOnly:Bool = isMyAurasOnly();
+        var myUids:Array<Dynamic> = filterMyOnly ? getMyUids() : null;
+
+        // 1. Process Player Auras (pAurasUI)
+        var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
+        if (pUI != null) {
+            var pCells:Array<Dynamic> = getCells(pUI);
+            if (pCells.length > 0) {
+                var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
+                var visibleIdx:Int = 0;
+                for (cell in pCells) {
+                    processCell(cell, nowMs, cdEnabled, lagKiller);
+
+                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                    var showCell:Bool = true;
+                    if (filterMyOnly) {
+                        showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
+                    }
+
+                    if (!showCell) {
+                        cell.visible = false;
+                    } else {
+                        cell.visible = true;
+                        if (filterMyOnly) {
+                            cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                            cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                        }
+                        visibleIdx++;
+                    }
+                }
+
+                if (filterMyOnly && visibleIdx == 0 && pUI.visible == true) {
+                    pUI.visible = false;
                 }
             }
         }
 
-        if (foundMineOrTarget) return false; // Definitely keep
-        return foundOtherPlayer; // Hide if only cast by an external third-party player
+        // 2. Process Target Auras (tAurasUI) with Filtering
+        var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
+        if (tUI != null) {
+            var tCells:Array<Dynamic> = getCells(tUI);
+            if (tCells.length > 0) {
+                var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+                var visibleIdx:Int = 0;
+                for (cell in tCells) {
+                    processCell(cell, nowMs, cdEnabled, lagKiller);
+
+                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                    var showCell:Bool = true;
+                    if (filterMyOnly) {
+                        showCell = shouldShowTargetAura(auraName, targetObj, myUids);
+                    }
+
+                    if (!showCell) {
+                        cell.visible = false;
+                    } else {
+                        cell.visible = true;
+                        if (filterMyOnly) {
+                            cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                            cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                        }
+                        visibleIdx++;
+                    }
+                }
+
+                // Hide the entire frame if all target debuffs belong to other players
+                if (filterMyOnly && visibleIdx == 0 && tUI.visible == true) {
+                    tUI.visible = false;
+                }
+            }
+        }
+    }
+
+    /**
+     * Determines whether an aura on the player should be displayed:
+     * - Retains: Player's own buffs, potions, passives, and ALL debuffs on player (monster attacks, boss DoTs, etc.)
+     * - Excludes: Buffs cast by external party members (LoO, SC, LR, AP buffs)
+     */
+    private static function shouldShowPlayerAura(auraName:String, myAvatar:Dynamic, myUids:Array<Dynamic>):Bool {
+        if (auraName == "" || myAvatar == null) return true;
+        var searchName:String = auraName.toLowerCase();
+        var lists:Array<Dynamic> = getEntityAurasLists(myAvatar, false);
+
+        var isPvP:Bool = (Api.game != null && Api.game.world != null && Api.game.world.bPvP == true);
+        var foundFromOtherPlayer:Bool = false;
+        var foundFromSelfOrMonster:Bool = false;
+
+        for (arr in lists) {
+            var len:Int = 0;
+            try {
+                if (arr != null && untyped arr.length != null) {
+                    len = Std.int(untyped arr.length);
+                }
+            } catch (_:Dynamic) {}
+
+            for (i in 0...len) {
+                var a:Dynamic = untyped arr[i];
+                if (a == null || a.nam == null) continue;
+                if (Std.string(a.nam).toLowerCase() == searchName) {
+                    var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                    var cid:Dynamic = a.casterId;
+
+                    var isMine:Bool = isMyId(cid, myUids) || (cid == null && ct != "p") || a.passive == true || a.potionType != null;
+                    var isMonster:Bool = (ct == "m");
+
+                    if (isMine || isMonster) {
+                        foundFromSelfOrMonster = true;
+                    } else if (ct == "p" && cid != null && !isMyId(cid, myUids)) {
+                        if (!isPvP) {
+                            foundFromOtherPlayer = true;
+                        } else {
+                            var isEnemy:Bool = false;
+                            try {
+                                var otherLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.getUoLeafById)) ? Api.game.world.getUoLeafById(cid) : null;
+                                var myLeaf:Dynamic = (Api.game.world != null && Reflect.isFunction(Api.game.world.myLeaf)) ? Api.game.world.myLeaf() : null;
+                                if (otherLeaf != null && myLeaf != null && otherLeaf.pvpTeam != null && myLeaf.pvpTeam != null) {
+                                    if (otherLeaf.pvpTeam != myLeaf.pvpTeam) isEnemy = true;
+                                }
+                            } catch (_:Dynamic) {}
+                            if (isEnemy) {
+                                foundFromSelfOrMonster = true;
+                            } else {
+                                foundFromOtherPlayer = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (foundFromSelfOrMonster) return true;
+        if (foundFromOtherPlayer) return false;
+        return true;
+    }
+
+    /**
+     * Determines whether an aura on the target should be displayed:
+     * - Retains: Player's debuffs on target (casterId == myEntId)
+     * - Retains: Monster's own buffs, passives, stances, shields, and mechanics (casterType == "m" or passive)
+     * - Excludes: Other players' debuffs and buffs completely
+     */
+    private static function shouldShowTargetAura(auraName:String, targetObj:Dynamic, myUids:Array<Dynamic>):Bool {
+        if (auraName == "" || targetObj == null) return true;
+        var searchName:String = auraName.toLowerCase();
+
+        var isMonsterTarget:Bool = true;
+        if (targetObj.npcType != null) {
+            var n:String = Std.string(targetObj.npcType).toLowerCase();
+            isMonsterTarget = (n == "monster" || n == "mon");
+        } else if (targetObj.isMyAvatar != null) {
+            isMonsterTarget = false;
+        }
+
+        var lists:Array<Dynamic> = getEntityAurasLists(targetObj, isMonsterTarget);
+
+        var targetMonMapId:Dynamic = null;
+        if (targetObj.dataLeaf != null && targetObj.dataLeaf.MonMapID != null) targetMonMapId = targetObj.dataLeaf.MonMapID;
+        else if (targetObj.objData != null && targetObj.objData.MonMapID != null) targetMonMapId = targetObj.objData.MonMapID;
+
+        var foundMine:Bool = false;
+        var foundMonsterBuff:Bool = false;
+        var foundOtherPlayer:Bool = false;
+
+        for (arr in lists) {
+            var len:Int = 0;
+            try {
+                if (arr != null && untyped arr.length != null) {
+                    len = Std.int(untyped arr.length);
+                }
+            } catch (_:Dynamic) {}
+
+            for (i in 0...len) {
+                var a:Dynamic = untyped arr[i];
+                if (a == null || a.nam == null) continue;
+                if (Std.string(a.nam).toLowerCase() == searchName) {
+                    var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                    var cid:Dynamic = a.casterId;
+
+                    var isMine:Bool = isMyId(cid, myUids);
+                    var isMonster:Bool = (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId)));
+
+                    if (isMine) {
+                        foundMine = true;
+                    } else if (isMonster && isMonsterTarget) {
+                        foundMonsterBuff = true;
+                    } else if (ct == "p" || (cid != null && !isMyId(cid, myUids))) {
+                        foundOtherPlayer = true;
+                    }
+                }
+            }
+        }
+
+        if (foundMine) return true;
+        if (isMonsterTarget && foundMonsterBuff) return true;
+        if (foundOtherPlayer) return false;
+
+        if (isMonsterTarget) {
+            if (isKnownMonsterMechanic(searchName)) return true;
+            return false;
+        }
+
+        return false;
     }
 }
 #else
