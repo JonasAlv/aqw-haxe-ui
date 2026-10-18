@@ -33,6 +33,8 @@ class PlayerUnitFrame {
     // =========================================================================
     // SIZING DEFINITIONS (WoW-Style Unit Frame)
     // =========================================================================
+    public static inline var DEFAULT_X:Float            = 16.0;  // Default X (top left, replaces native mcPortrait)
+    public static inline var DEFAULT_Y:Float            = 14.0;  // Default Y (top left, replaces native mcPortrait)
     public static inline var FRAME_W:Float              = 130.0; // Horizontal width
     public static inline var FRAME_H:Float              = 54.0;  // Vertical height (expanded for clarity)
     public static inline var CORNER_RADIUS:Float        = 4.0;   // Outer frame roundness
@@ -168,11 +170,17 @@ class PlayerUnitFrame {
         _widget = new Sprite();
         _widget.name = "PlayerUnitFrame";
 
-        // Restore saved position (default: x: 180, y: 380)
+        // Restore saved position (default: x: DEFAULT_X, y: DEFAULT_Y)
         var savedX = ApiConfig.getInt("api_frame_player_x", -1);
         var savedY = ApiConfig.getInt("api_frame_player_y", -1);
-        var initX:Float = (savedX >= 0) ? savedX : 180;
-        var initY:Float = (savedY >= 0) ? savedY : 380;
+        if (savedX == 180 && savedY == 380) {
+            savedX = -1;
+            savedY = -1;
+            ApiConfig.setInt("api_frame_player_x", Std.int(DEFAULT_X));
+            ApiConfig.setInt("api_frame_player_y", Std.int(DEFAULT_Y));
+        }
+        var initX:Float = (savedX >= 0) ? savedX : DEFAULT_X;
+        var initY:Float = (savedY >= 0) ? savedY : DEFAULT_Y;
 
         var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
         var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
@@ -251,7 +259,7 @@ class PlayerUnitFrame {
         _hpLeftTxt.defaultTextFormat = hpLeftFmt;
         _hpLeftTxt.x = PADDING_X + 2;
         _hpLeftTxt.y = HP_BAR_Y - 0.5;
-        _hpLeftTxt.width = HP_BAR_W - 32;
+        _hpLeftTxt.width = HP_BAR_W - 28;
         _hpLeftTxt.height = HP_BAR_H + 2;
         _hpLeftTxt.selectable = false;
         _hpLeftTxt.mouseEnabled = false;
@@ -262,9 +270,9 @@ class PlayerUnitFrame {
         _hpRightTxt = new TextField();
         var hpRightFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.RIGHT);
         _hpRightTxt.defaultTextFormat = hpRightFmt;
-        _hpRightTxt.x = PADDING_X;
+        _hpRightTxt.x = FRAME_W - PADDING_X - 26;
         _hpRightTxt.y = HP_BAR_Y - 0.5;
-        _hpRightTxt.width = HP_BAR_W - 2;
+        _hpRightTxt.width = 24;
         _hpRightTxt.height = HP_BAR_H + 2;
         _hpRightTxt.selectable = false;
         _hpRightTxt.mouseEnabled = false;
@@ -360,20 +368,10 @@ class PlayerUnitFrame {
         var pName = (Api.player.username != null && Api.player.username != "") ? Api.player.username : "Player";
         var cName = Api.player.className;
         if (cName == "") cName = "Class";
-        var rankStr = "";
-        var shield:Int = 0;
-        var sp:Int = 100;
-
-        if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) {
-            var avt:Dynamic = Api.game.world.myAvatar;
-            if (avt.objData != null && avt.objData.iRank != null) {
-                rankStr = " R" + Std.string(avt.objData.iRank);
-            }
-            if (avt.dataLeaf != null) {
-                if (avt.dataLeaf.intSG != null) shield = Std.int(untyped avt.dataLeaf.intSG);
-                if (avt.dataLeaf.intSP != null) sp = Std.int(untyped avt.dataLeaf.intSP);
-            }
-        }
+        var r = Api.player.classRank;
+        var rankStr = (r > 0) ? " R" + r : "";
+        var shield:Int = Api.player.shield;
+        var sp:Int = Api.player.sp;
 
         // 1. Name and Sub labels
         var showClasses = UnitFramesManager.isShowClassNames();
@@ -464,11 +462,19 @@ class PlayerUnitFrame {
     }
 
     private static function formatNumber(n:Int):String {
+        if (n >= 10000000) {
+            return Std.string(Math.round(n / 1000000)) + "M";
+        }
         if (n >= 1000000) {
             return (Math.round(n / 100000) / 10.0) + "M";
         }
-        if (n >= 100000) {
-            return (Math.round(n / 1000)) + "k";
+        if (n >= 10000) {
+            var kVal:Float = n / 1000.0;
+            var r10:Float = Math.round(kVal * 10.0) / 10.0;
+            if (r10 == Math.round(kVal)) {
+                return Std.string(Math.round(kVal)) + "k";
+            }
+            return r10 + "k";
         }
         return Std.string(n);
     }
@@ -486,7 +492,6 @@ class PlayerUnitFrame {
             hasDragged = false;
             startDownX = e.stageX;
             startDownY = e.stageY;
-            _widget.cacheAsBitmap = true;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
             theStage.setChildIndex(_widget, theStage.numChildren - 1);
@@ -519,7 +524,6 @@ class PlayerUnitFrame {
         theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
             if (isDragging) {
                 isDragging = false;
-                _widget.cacheAsBitmap = true;
                 if (hasDragged) {
                     ApiConfig.setInt("api_frame_player_x", Math.round(_widget.x));
                     ApiConfig.setInt("api_frame_player_y", Math.round(_widget.y));
@@ -541,8 +545,24 @@ class PlayerUnitFrame {
         if (_widget == null) return;
         var savedX = ApiConfig.getInt("api_frame_player_x", -1);
         var savedY = ApiConfig.getInt("api_frame_player_y", -1);
-        _widget.x = (savedX >= 0) ? savedX : 180;
-        _widget.y = (savedY >= 0) ? savedY : 380;
+        if (savedX == 180 && savedY == 380) {
+            savedX = -1;
+            savedY = -1;
+            ApiConfig.setInt("api_frame_player_x", Std.int(DEFAULT_X));
+            ApiConfig.setInt("api_frame_player_y", Std.int(DEFAULT_Y));
+        }
+        var curX:Float = (savedX >= 0) ? savedX : DEFAULT_X;
+        var curY:Float = (savedY >= 0) ? savedY : DEFAULT_Y;
+        if (_widget.stage != null) {
+            var sw:Float = _widget.stage.stageWidth > 0 ? _widget.stage.stageWidth : 960;
+            var sh:Float = _widget.stage.stageHeight > 0 ? _widget.stage.stageHeight : 550;
+            if (curX > sw - FRAME_W - ApiStyle.SCREEN_MARGIN) curX = sw - FRAME_W - ApiStyle.SCREEN_MARGIN;
+            if (curY > sh - FRAME_H - ApiStyle.SCREEN_MARGIN) curY = sh - FRAME_H - ApiStyle.SCREEN_MARGIN;
+            if (curX < ApiStyle.SCREEN_MARGIN) curX = ApiStyle.SCREEN_MARGIN;
+            if (curY < ApiStyle.SCREEN_MARGIN) curY = ApiStyle.SCREEN_MARGIN;
+        }
+        _widget.x = curX;
+        _widget.y = curY;
         _widget.visible = isWidgetEnabled();
         UnitFramesManager.syncNativeHideUI();
     }
@@ -558,17 +578,17 @@ class PlayerUnitFrame {
     }
 
     public static function resetPosition():Void {
-        ApiConfig.setInt("api_frame_player_x", 180);
-        ApiConfig.setInt("api_frame_player_y", 380);
+        ApiConfig.setInt("api_frame_player_x", Std.int(DEFAULT_X));
+        ApiConfig.setInt("api_frame_player_y", Std.int(DEFAULT_Y));
         if (_widget != null) {
-            _widget.x = 180;
-            _widget.y = 380;
+            _widget.x = DEFAULT_X;
+            _widget.y = DEFAULT_Y;
         }
     }
 
     public static inline function getWidget():Sprite return _widget;
-    public static inline function getFrameX():Float return (_widget != null) ? _widget.x : 180;
-    public static inline function getFrameY():Float return (_widget != null) ? _widget.y : 380;
+    public static inline function getFrameX():Float return (_widget != null) ? _widget.x : DEFAULT_X;
+    public static inline function getFrameY():Float return (_widget != null) ? _widget.y : DEFAULT_Y;
     public static inline function isFrameVisible():Bool return (_widget != null && _widget.visible);
 }
 #else
@@ -578,8 +598,8 @@ class PlayerUnitFrame {
     public static function setWidgetEnabled(enabled:Bool):Void {}
     public static function resetPosition():Void {}
     public static function reloadFromConfig():Void {}
-    public static inline function getFrameX():Float return 180;
-    public static inline function getFrameY():Float return 380;
+    public static inline function getFrameX():Float return 16.0;
+    public static inline function getFrameY():Float return 14.0;
     public static inline function isFrameVisible():Bool return false;
 }
 #end

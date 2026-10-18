@@ -264,13 +264,7 @@ class UnitFramesManager {
                 }
             }
 
-            if (g.ui.monsterIcon != null) g.ui.monsterIcon.visible = (!targetFrameOn && hasTarget);
-            if (g.ui.iconQuest != null) g.ui.iconQuest.visible = (!targetFrameOn && hasTarget);
 
-            // Area list (quest / area tracker)
-            if (g.ui.mcInterface != null && g.ui.mcInterface.areaList != null) {
-                g.ui.mcInterface.areaList.visible = !playerFrameOn;
-            }
 
             if (g.world != null && isNameplatesEnabled()) {
                 try { g.world.showHPBar = false; } catch (_:Dynamic) {}

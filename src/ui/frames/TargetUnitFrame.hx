@@ -34,6 +34,8 @@ class TargetUnitFrame {
     // =========================================================================
     // SIZING DEFINITIONS (WoW-Style Target Frame)
     // =========================================================================
+    public static inline var DEFAULT_X:Float            = 154.0; // Adjacent to PlayerUnitFrame (16 + 130 + 8)
+    public static inline var DEFAULT_Y:Float            = 14.0;  // Top edge, replaces native mcPortraitTarget
     public static inline var FRAME_W:Float              = 130.0; // Horizontal width
     public static inline var FRAME_H:Float              = 54.0;  // Vertical height (expanded for clarity)
     public static inline var CORNER_RADIUS:Float        = 4.0;   // Outer frame roundness
@@ -52,15 +54,20 @@ class TargetUnitFrame {
     public static inline var SUB_Y:Float                = 13.0;  // Subtitle (Class or Type Tag) top offset
     public static inline var SUB_H:Float                = 10.0;  // Subtitle height
 
-    // Health Bar
+    // Health Bar (Adaptive: 14px when target has mana, 24px when target has 0 mana!)
     public static inline var HP_BAR_Y:Float             = 25.0;  // Health bar top offset
-    public static inline var HP_BAR_H:Float             = 14.0;  // Health bar height
+    public static inline var HP_BAR_H_NORMAL:Float      = 14.0;  // Standard health bar height
+    public static inline var HP_BAR_H_EXPANDED:Float    = 24.0;  // Expanded health bar height (0-MP monsters)
     public static inline var HP_BAR_W:Float             = 122.0; // FRAME_W - (PADDING_X * 2)
 
     // Mana Bar
     public static inline var MP_BAR_Y:Float             = 41.0;  // Mana bar top offset
     public static inline var MP_BAR_H:Float             = 9.0;   // Mana bar height
     public static inline var MP_BAR_W:Float             = 122.0; // FRAME_W - (PADDING_X * 2)
+
+    // Additional Typography & Colors
+    public static inline var COLOR_TEXT_FRIENDLY_NPC:Int = 0x34D399; // Mint/emerald green for friendly NPCs
+    public static inline var COLOR_TEXT_BOSS:Int         = 0xF59E0B; // Amber gold for Bosses
 
     // =========================================================================
     // COLOR DEFINITIONS
@@ -142,6 +149,7 @@ class TargetUnitFrame {
     private static var _lastShield:Int = -1;
     private static var _lastMp:Int = -1;
     private static var _lastMaxMp:Int = -1;
+    private static var _lastHasMana:Bool = true;
     private static var _lastNameStr:String = "";
     private static var _lastSubStr:String = "";
 
@@ -173,11 +181,17 @@ class TargetUnitFrame {
         _widget = new Sprite();
         _widget.name = "TargetUnitFrame";
 
-        // Restore saved position (default: x: 370, y: 380 - adjacent to PlayerUnitFrame)
+        // Restore saved position (default: x: DEFAULT_X, y: DEFAULT_Y - adjacent to PlayerUnitFrame)
         var savedX = ApiConfig.getInt("api_frame_target_x", -1);
         var savedY = ApiConfig.getInt("api_frame_target_y", -1);
-        var initX:Float = (savedX >= 0) ? savedX : 370;
-        var initY:Float = (savedY >= 0) ? savedY : 380;
+        if (savedX == 370 && savedY == 380) {
+            savedX = -1;
+            savedY = -1;
+            ApiConfig.setInt("api_frame_target_x", Std.int(DEFAULT_X));
+            ApiConfig.setInt("api_frame_target_y", Std.int(DEFAULT_Y));
+        }
+        var initX:Float = (savedX >= 0) ? savedX : DEFAULT_X;
+        var initY:Float = (savedY >= 0) ? savedY : DEFAULT_Y;
 
         var sw:Float = theStage.stageWidth > 0 ? theStage.stageWidth : 960;
         var sh:Float = theStage.stageHeight > 0 ? theStage.stageHeight : 550;
@@ -246,7 +260,7 @@ class TargetUnitFrame {
         _hpBarBg.x = PADDING_X;
         _hpBarBg.y = HP_BAR_Y;
         _hpBarBg.graphics.beginFill(COLOR_BAR_BG, 0.95);
-        _hpBarBg.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H);
+        _hpBarBg.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H_NORMAL);
         _hpBarBg.graphics.endFill();
         _widget.addChild(_hpBarBg);
 
@@ -264,7 +278,7 @@ class TargetUnitFrame {
         _hpBarBorder.x = PADDING_X;
         _hpBarBorder.y = HP_BAR_Y;
         _hpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
-        _hpBarBorder.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H);
+        _hpBarBorder.graphics.drawRect(0, 0, HP_BAR_W, HP_BAR_H_NORMAL);
         _widget.addChild(_hpBarBorder);
 
         // Left edge: current hp / max hp (+SG)
@@ -273,8 +287,8 @@ class TargetUnitFrame {
         _hpLeftTxt.defaultTextFormat = hpLeftFmt;
         _hpLeftTxt.x = PADDING_X + 2;
         _hpLeftTxt.y = HP_BAR_Y - 0.5;
-        _hpLeftTxt.width = HP_BAR_W - 32;
-        _hpLeftTxt.height = HP_BAR_H + 2;
+        _hpLeftTxt.width = HP_BAR_W - 28;
+        _hpLeftTxt.height = HP_BAR_H_NORMAL + 2;
         _hpLeftTxt.selectable = false;
         _hpLeftTxt.mouseEnabled = false;
         _hpLeftTxt.filters = ApiStyle.getBarTextOutlineFilter();
@@ -284,10 +298,10 @@ class TargetUnitFrame {
         _hpRightTxt = new TextField();
         var hpRightFmt = new TextFormat(ApiStyle.FONT_FAMILY, 7.5, COLOR_TEXT_BAR, true, false, false, null, null, TextFormatAlign.RIGHT);
         _hpRightTxt.defaultTextFormat = hpRightFmt;
-        _hpRightTxt.x = PADDING_X;
+        _hpRightTxt.x = FRAME_W - PADDING_X - 26;
         _hpRightTxt.y = HP_BAR_Y - 0.5;
-        _hpRightTxt.width = HP_BAR_W - 2;
-        _hpRightTxt.height = HP_BAR_H + 2;
+        _hpRightTxt.width = 24;
+        _hpRightTxt.height = HP_BAR_H_NORMAL + 2;
         _hpRightTxt.selectable = false;
         _hpRightTxt.mouseEnabled = false;
         _hpRightTxt.filters = ApiStyle.getBarTextOutlineFilter();
@@ -356,9 +370,10 @@ class TargetUnitFrame {
                 return;
             }
 
-            // Visible only when target is active and alive
-            var t = (Api.player != null) ? Api.player.target : null;
-            if (t == null || !t.isAlive) {
+            // Visible while player has an active target
+            var hasTarget:Bool = (Api.player != null && Api.player.hasTarget);
+            var t = hasTarget ? Api.player.target : null;
+            if (t == null) {
                 _widget.visible = false;
                 _lastTargetId = "";
                 return;
@@ -406,127 +421,136 @@ class TargetUnitFrame {
         if (t == null) return;
 
         var tId = (t.id != "") ? t.id : t.name;
-        var hp = t.hp;
-        var maxHp = (t.maxHp > 0) ? t.maxHp : hp;
+        var isDead:Bool = (!t.isAlive || t.hp <= 0);
+        var hp:Int = isDead ? 0 : t.hp;
+        var maxHp:Int = (t.maxHp > 0) ? t.maxHp : (hp > 0 ? hp : 1);
         if (maxHp <= 0) maxHp = 1;
-        var mp = t.mp;
-        var maxMp = 100;
+        var mp:Int = t.mp;
+        var maxMp:Int = t.maxMp;
+        var shield:Int = isDead ? 0 : t.shield;
+        var lvl:Int = t.level;
 
-        var lvl:Int = 0;
+        var isPlayerTarget:Bool = t.isPlayer;
+        var isSelf:Bool = t.isMyAvatar;
+        var isHostile:Bool = t.isHostilePvP;
+
+        // 1. Adaptive Mana Bar Layout (Monsters without mana get expanded 24px HP bar!)
+        var hasMana:Bool = (maxMp > 0);
+        var hpBarH:Float = hasMana ? HP_BAR_H_NORMAL : HP_BAR_H_EXPANDED;
+        var hasManaChanged:Bool = (hasMana != _lastHasMana);
+
+        if (hasManaChanged) {
+            _lastHasMana = hasMana;
+            _hpBarBg.graphics.clear();
+            _hpBarBg.graphics.beginFill(COLOR_BAR_BG, 0.95);
+            _hpBarBg.graphics.drawRect(0, 0, HP_BAR_W, hpBarH);
+            _hpBarBg.graphics.endFill();
+
+            _hpBarBorder.graphics.clear();
+            _hpBarBorder.graphics.lineStyle(1.0, 0x000000, 1.0);
+            _hpBarBorder.graphics.drawRect(0, 0, HP_BAR_W, hpBarH);
+
+            _mpBarBg.visible = hasMana;
+            _mpBarFill.visible = hasMana;
+            _mpBarBorder.visible = hasMana;
+            _mpTxt.visible = hasMana;
+
+            var textY:Float = hasMana ? (HP_BAR_Y - 0.5) : (HP_BAR_Y + 4.5);
+            _hpLeftTxt.y = textY;
+            _hpRightTxt.y = textY;
+        }
+
+        // 2. Subtitle Resolution (Class/Rank or Race/Boss/Stars or [DEAD])
         var subText:String = "";
-        var isPlayerTarget:Bool = false;
-        var shield:Int = 0;
-
-        // 1. Check if target is a known player in world.uoTree
-        if (Api.game != null && Api.game.world != null && Api.game.world.uoTree != null) {
-            try {
-                var uLeaf:Dynamic = Reflect.field(Api.game.world.uoTree, t.name.toLowerCase());
-                if (uLeaf != null) {
-                    isPlayerTarget = true;
-                    if (uLeaf.strClassName != null && Std.string(uLeaf.strClassName) != "") {
-                        subText = Std.string(uLeaf.strClassName);
-                    } else if (uLeaf.objData != null && uLeaf.objData.strClassName != null) {
-                        subText = Std.string(uLeaf.objData.strClassName);
-                    }
-                }
-            } catch (_:Dynamic) {}
-        }
-
-        // 2. Check target's raw object data
-        if (t.raw != null) {
-            var od:Dynamic = Reflect.field(t.raw, "objData");
-            var dl:Dynamic = Reflect.field(t.raw, "dataLeaf");
-            if (od != null) {
-                if (od.intLevel != null) lvl = Std.int(untyped od.intLevel);
-                if (od.strUsername != null && Std.string(od.strUsername) != "") {
-                    isPlayerTarget = true;
-                }
-                if (od.strClassName != null && Std.string(od.strClassName) != "") {
-                    isPlayerTarget = true;
-                    subText = Std.string(od.strClassName);
-                }
-                if (!isPlayerTarget && (subText == "" || subText == "None")) {
-                    if (od.sRace != null && od.sRace != "None" && Std.string(od.sRace) != "") {
-                        subText = Std.string(od.sRace);
-                    }
-                }
-                if (od.intMPMax != null) maxMp = Std.int(untyped od.intMPMax);
-            }
-            if (dl != null) {
-                if (dl.intLevel != null && lvl == 0) lvl = Std.int(untyped dl.intLevel);
-                if (dl.intMPMax != null && maxMp == 100) maxMp = Std.int(untyped dl.intMPMax);
-                if (dl.intSG != null) shield = Std.int(untyped dl.intSG);
-                if (!isPlayerTarget && (subText == "" || subText == "None")) {
-                    if (dl.sRace != null && dl.sRace != "None" && Std.string(dl.sRace) != "") {
-                        subText = Std.string(dl.sRace);
-                    }
-                }
+        var subColor:Int = COLOR_TEXT_SUB;
+        if (isSelf) {
+            var cName = (t.className != "" && t.className != "Class") ? t.className : (Api.player != null ? Api.player.className : "Class");
+            var r = (t.classRank > 0) ? t.classRank : (Api.player != null ? Api.player.classRank : 1);
+            subText = cName + (r > 0 ? " R" + r : "");
+        } else if (isPlayerTarget) {
+            var cName = (t.className != "" && t.className != "Class") ? t.className : "Player";
+            subText = cName + (t.classRank > 0 ? " R" + t.classRank : "");
+        } else {
+            var race = (t.race != "" && t.race != "None") ? t.race : "Monster";
+            if (t.isBoss) {
+                subText = "[BOSS] " + race;
+                subColor = COLOR_TEXT_BOSS;
+            } else if (t.stars > 1) {
+                subText = race + " (" + t.stars + "★)";
+            } else {
+                subText = race;
             }
         }
 
-        // 3. Fallback for monster type tag via world.monTree
-        if (!isPlayerTarget && (subText == "" || subText == "None") && Api.game != null && Api.game.world != null && Api.game.world.monTree != null) {
-            try {
-                var mKey:String = (t.mapId != "") ? t.mapId : t.id;
-                if (mKey != "" && Reflect.hasField(Api.game.world.monTree, mKey)) {
-                    var mLeaf:Dynamic = Reflect.field(Api.game.world.monTree, mKey);
-                    if (mLeaf != null) {
-                        if (mLeaf.intLevel != null && lvl == 0) lvl = Std.int(untyped mLeaf.intLevel);
-                        if (mLeaf.sRace != null && mLeaf.sRace != "None" && Std.string(mLeaf.sRace) != "") {
-                            subText = Std.string(mLeaf.sRace);
-                        } else if (mLeaf.sDesc != null && Std.string(mLeaf.sDesc) != "") {
-                            subText = Std.string(mLeaf.sDesc);
-                        }
-                    }
-                }
-            } catch (_:Dynamic) {}
+        if (isDead) {
+            subText = "[DEAD] " + subText;
+            subColor = COLOR_TEXT_ENEMY;
         }
 
-        // 4. Default fallback labels
-        if (subText == "" || subText == "None") {
-            subText = isPlayerTarget ? "Player" : "Monster";
-        }
-        if (maxMp <= 0) maxMp = 100;
-
-        // 5. Update Name & Sub labels
+        // 3. Name & Hostility Colors
         var showClasses = UnitFramesManager.isShowClassNames();
         var nameStr = (t.name != "") ? t.name : "Target";
-        if (showClasses && isPlayerTarget && subText != "" && subText != "Player") {
-            nameStr = subText;
-            subText = "Player";
+        if (isSelf) {
+            nameStr = t.name + " (You)";
+        } else if (showClasses && isPlayerTarget && t.className != "" && t.className != "Class") {
+            nameStr = t.className;
         }
         var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + nameStr;
         var targetChanged:Bool = (tId != _lastTargetId);
 
+        var nameColor:Int;
+        var hpColor:Int;
+        var hpRatio = Math.max(0.0, Math.min(1.0, hp / maxHp));
+
+        if (isSelf) {
+            nameColor = COLOR_TEXT_PLAYER;
+            hpColor = getHealthColor(hpRatio);
+        } else if (isPlayerTarget) {
+            if (isHostile) {
+                nameColor = COLOR_TEXT_ENEMY;
+                hpColor = COLOR_HP_ENEMY;
+            } else {
+                nameColor = COLOR_TEXT_PLAYER;
+                hpColor = getHealthColor(hpRatio);
+            }
+        } else {
+            if (!isHostile) {
+                nameColor = COLOR_TEXT_FRIENDLY_NPC;
+                hpColor = getHealthColor(hpRatio);
+            } else {
+                nameColor = t.isBoss ? COLOR_TEXT_BOSS : COLOR_TEXT_ENEMY;
+                hpColor = COLOR_HP_ENEMY;
+            }
+        }
+
         if (nameText != _lastNameStr || targetChanged) {
             _lastNameStr = nameText;
             _nameTxt.text = nameText;
-            _nameTxt.textColor = isPlayerTarget ? COLOR_TEXT_PLAYER : COLOR_TEXT_ENEMY;
+            _nameTxt.textColor = nameColor;
             _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
         if (subText != _lastSubStr || targetChanged) {
             _lastSubStr = subText;
             _subTxt.text = subText;
+            _subTxt.textColor = subColor;
             _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
         _lastTargetId = tId;
 
-        // 6. Health Bar Fill & Texts
-        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield || targetChanged) {
+        // 4. Health Bar Fill & Texts
+        if (hp != _lastHp || maxHp != _lastMaxHp || shield != _lastShield || targetChanged || hasManaChanged) {
             _lastHp = hp;
             _lastMaxHp = maxHp;
             _lastShield = shield;
 
-            var hpRatio = Math.max(0.0, Math.min(1.0, hp / maxHp));
             var fillW = Math.round(HP_BAR_W * hpRatio);
-            var hpColor = isPlayerTarget ? getHealthColor(hpRatio) : COLOR_HP_ENEMY;
 
             var g = _hpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
                 g.beginFill(hpColor, 0.95);
-                g.drawRect(0, 0, fillW, HP_BAR_H);
+                g.drawRect(0, 0, fillW, hpBarH);
                 g.endFill();
             }
 
@@ -536,19 +560,24 @@ class TargetUnitFrame {
                 var shieldRatio = Math.min(1.0, shield / maxHp);
                 var shieldW = Math.round(HP_BAR_W * shieldRatio);
                 sg.beginFill(COLOR_SHIELD, 0.45);
-                sg.drawRect(0, 0, shieldW, HP_BAR_H);
+                sg.drawRect(0, 0, shieldW, hpBarH);
                 sg.endFill();
             }
 
-            var shieldText = (shield > 0) ? " +" + formatNumber(shield) : "";
-            _hpLeftTxt.text = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldText;
+            if (isDead) {
+                _hpLeftTxt.text = "0 / " + formatNumber(maxHp);
+                _hpRightTxt.text = "0%";
+            } else {
+                var shieldText = (shield > 0) ? " +" + formatNumber(shield) : "";
+                _hpLeftTxt.text = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldText;
 
-            var hpPercent = (hp > 0 && hpRatio < 0.01) ? 1 : Math.round(hpRatio * 100);
-            _hpRightTxt.text = hpPercent + "%";
+                var hpPercent = (hp > 0 && hpRatio < 0.01) ? 1 : Math.round(hpRatio * 100);
+                _hpRightTxt.text = hpPercent + "%";
+            }
         }
 
-        // 7. Mana Bar Fill & Center Text
-        if (mp != _lastMp || maxMp != _lastMaxMp) {
+        // 5. Mana Bar Fill & Center Text (only if entity has mana)
+        if (hasMana && (mp != _lastMp || maxMp != _lastMaxMp || targetChanged)) {
             _lastMp = mp;
             _lastMaxMp = maxMp;
 
@@ -568,11 +597,19 @@ class TargetUnitFrame {
     }
 
     private static function formatNumber(n:Int):String {
+        if (n >= 10000000) {
+            return Std.string(Math.round(n / 1000000)) + "M";
+        }
         if (n >= 1000000) {
             return (Math.round(n / 100000) / 10.0) + "M";
         }
-        if (n >= 100000) {
-            return (Math.round(n / 1000)) + "k";
+        if (n >= 10000) {
+            var kVal:Float = n / 1000.0;
+            var r10:Float = Math.round(kVal * 10.0) / 10.0;
+            if (r10 == Math.round(kVal)) {
+                return Std.string(Math.round(kVal)) + "k";
+            }
+            return r10 + "k";
         }
         return Std.string(n);
     }
@@ -590,7 +627,6 @@ class TargetUnitFrame {
             hasDragged = false;
             startDownX = e.stageX;
             startDownY = e.stageY;
-            _widget.cacheAsBitmap = true;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
             theStage.setChildIndex(_widget, theStage.numChildren - 1);
@@ -623,7 +659,6 @@ class TargetUnitFrame {
         theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
             if (isDragging) {
                 isDragging = false;
-                _widget.cacheAsBitmap = true;
                 if (hasDragged) {
                     ApiConfig.setInt("api_frame_target_x", Math.round(_widget.x));
                     ApiConfig.setInt("api_frame_target_y", Math.round(_widget.y));
@@ -645,10 +680,26 @@ class TargetUnitFrame {
         if (_widget == null) return;
         var savedX = ApiConfig.getInt("api_frame_target_x", -1);
         var savedY = ApiConfig.getInt("api_frame_target_y", -1);
-        _widget.x = (savedX >= 0) ? savedX : 370;
-        _widget.y = (savedY >= 0) ? savedY : 380;
-        var t = (Api.player != null) ? Api.player.target : null;
-        _widget.visible = (isWidgetEnabled() && t != null && t.isAlive);
+        if (savedX == 370 && savedY == 380) {
+            savedX = -1;
+            savedY = -1;
+            ApiConfig.setInt("api_frame_target_x", Std.int(DEFAULT_X));
+            ApiConfig.setInt("api_frame_target_y", Std.int(DEFAULT_Y));
+        }
+        var curX:Float = (savedX >= 0) ? savedX : DEFAULT_X;
+        var curY:Float = (savedY >= 0) ? savedY : DEFAULT_Y;
+        if (_widget.stage != null) {
+            var sw:Float = _widget.stage.stageWidth > 0 ? _widget.stage.stageWidth : 960;
+            var sh:Float = _widget.stage.stageHeight > 0 ? _widget.stage.stageHeight : 550;
+            if (curX > sw - FRAME_W - ApiStyle.SCREEN_MARGIN) curX = sw - FRAME_W - ApiStyle.SCREEN_MARGIN;
+            if (curY > sh - FRAME_H - ApiStyle.SCREEN_MARGIN) curY = sh - FRAME_H - ApiStyle.SCREEN_MARGIN;
+            if (curX < ApiStyle.SCREEN_MARGIN) curX = ApiStyle.SCREEN_MARGIN;
+            if (curY < ApiStyle.SCREEN_MARGIN) curY = ApiStyle.SCREEN_MARGIN;
+        }
+        _widget.x = curX;
+        _widget.y = curY;
+        var hasTarget:Bool = (Api.player != null && Api.player.hasTarget);
+        _widget.visible = (isWidgetEnabled() && hasTarget);
         UnitFramesManager.syncNativeHideUI();
     }
 
@@ -659,24 +710,24 @@ class TargetUnitFrame {
     public static function setWidgetEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_target_enabled", enabled);
         if (_widget != null) {
-            var t = (Api.player != null) ? Api.player.target : null;
-            _widget.visible = (enabled && t != null && t.isAlive);
+            var hasTarget:Bool = (Api.player != null && Api.player.hasTarget);
+            _widget.visible = (enabled && hasTarget);
         }
         UnitFramesManager.syncNativeHideUI();
     }
 
     public static function resetPosition():Void {
-        ApiConfig.setInt("api_frame_target_x", 370);
-        ApiConfig.setInt("api_frame_target_y", 380);
+        ApiConfig.setInt("api_frame_target_x", Std.int(DEFAULT_X));
+        ApiConfig.setInt("api_frame_target_y", Std.int(DEFAULT_Y));
         if (_widget != null) {
-            _widget.x = 370;
-            _widget.y = 380;
+            _widget.x = DEFAULT_X;
+            _widget.y = DEFAULT_Y;
         }
     }
 
     public static inline function getWidget():Sprite return _widget;
-    public static inline function getFrameX():Float return (_widget != null) ? _widget.x : 370;
-    public static inline function getFrameY():Float return (_widget != null) ? _widget.y : 380;
+    public static inline function getFrameX():Float return (_widget != null) ? _widget.x : DEFAULT_X;
+    public static inline function getFrameY():Float return (_widget != null) ? _widget.y : DEFAULT_Y;
     public static inline function isFrameVisible():Bool return (_widget != null && _widget.visible);
 }
 #else
@@ -686,8 +737,8 @@ class TargetUnitFrame {
     public static function setWidgetEnabled(enabled:Bool):Void {}
     public static function resetPosition():Void {}
     public static function reloadFromConfig():Void {}
-    public static inline function getFrameX():Float return 370;
-    public static inline function getFrameY():Float return 380;
+    public static inline function getFrameX():Float return 154.0;
+    public static inline function getFrameY():Float return 14.0;
     public static inline function isFrameVisible():Bool return false;
 }
 #end

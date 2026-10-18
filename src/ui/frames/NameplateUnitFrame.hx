@@ -229,26 +229,8 @@ class NameplateDisplay extends Sprite {
         if (isEnemy) {
             if (ent.race != "") rawSub = "< " + ent.race + " >";
         } else {
-            if (UnitFramesManager.isShowClassNames()) {
-                var pClass:String = "";
-                if (ent.raw != null) {
-                    if (ent.raw.objData != null && ent.raw.objData.strClassName != null) {
-                        pClass = Std.string(ent.raw.objData.strClassName);
-                    } else if (ent.raw.dataLeaf != null && ent.raw.dataLeaf.strClassName != null) {
-                        pClass = Std.string(ent.raw.dataLeaf.strClassName);
-                    }
-                }
-                if (pClass == "" && Api.game != null && Api.game.world != null && Api.game.world.uoTree != null) {
-                    try {
-                        var uLeaf:Dynamic = Reflect.field(Api.game.world.uoTree, ent.name.toLowerCase());
-                        if (uLeaf != null && uLeaf.strClassName != null) {
-                            pClass = Std.string(uLeaf.strClassName);
-                        }
-                    } catch (_:Dynamic) {}
-                }
-                if (pClass != "") {
-                    rawName = (ent.isAfk ? "<AFK> " : "") + pClass;
-                }
+            if (UnitFramesManager.isShowClassNames() && ent.className != "") {
+                rawName = (ent.isAfk ? "<AFK> " : "") + ent.className;
             }
             if (NameplateUnitFrame.isShowGuildNames() && ent.guild != "") rawSub = "< " + ent.guild + " >";
         }
