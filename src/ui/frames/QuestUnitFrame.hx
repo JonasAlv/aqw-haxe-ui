@@ -217,6 +217,9 @@ class QuestUnitFrame {
             _content.y = _scrollY;
         });
 
+        // 4. Setup Dragging
+        setupDragging(theStage);
+
         // 5. EnterFrame Loop (Throttled update ~400ms + visibility sync + active notification sweeper)
         _widget.addEventListener(Event.ENTER_FRAME, function(_:Event):Void {
             var inGame = ApiMenus.isInGame();
@@ -627,7 +630,11 @@ class QuestUnitFrame {
             startDownY = e.stageY;
             dragStartX = e.stageX - _widget.x;
             dragStartY = e.stageY - _widget.y;
-            theStage.setChildIndex(_widget, theStage.numChildren - 1);
+            try {
+                if (_widget.parent != null) {
+                    _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+                }
+            } catch (_:Dynamic) {}
         };
 
         _header.addEventListener(MouseEvent.MOUSE_DOWN, startDragHandler);

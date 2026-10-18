@@ -103,6 +103,17 @@ class AuraFramesManager {
         ApiConfig.setBool("api_auras_lag_killer", v);
     }
 
+    public static inline var COLOR_BORDER_BUFF:Int   = 0x3B82F6; // Vibrant blue for Buffs
+    public static inline var COLOR_BORDER_DEBUFF:Int = 0xEF4444; // Vibrant crimson red for Debuffs
+
+    public static inline function isColoredBordersEnabled():Bool {
+        return ApiConfig.getBool("api_auras_colored_borders", true);
+    }
+
+    public static function setColoredBordersEnabled(v:Bool):Void {
+        ApiConfig.setBool("api_auras_colored_borders", v);
+    }
+
     /**
      * Safely retrieves all child AuraCell instances from an AuraHUD container
      * without accessing the private 'order' or 'cells' members.
@@ -242,8 +253,9 @@ class AuraFramesManager {
      * - Suppresses laggy ActMaskReverse dynamic stencil masks and BitmapData.draw
      *   by neutralizing them in the child display hierarchy (avoiding private member access)
      * - Manages centered numeric cooldown countdown text field
+     * - Renders high-contrast colored borders: Red for Debuffs, Blue for Buffs
      */
-    private static function processCell(cell:Dynamic, nowMs:Float, cdEnabled:Bool, lagKiller:Bool):Void {
+    private static function processCell(cell:Dynamic, nowMs:Float, cdEnabled:Bool, lagKiller:Bool, isDebuff:Bool = false, bordersEnabled:Bool = true):Void {
         // A. Lag Killer: disable ActMaskReverse dynamic vector mask and software rasterization
         if (lagKiller && cell.numChildren != null && cell.numChildren > 0) {
             try {
@@ -266,7 +278,43 @@ class AuraFramesManager {
             } catch (_:Dynamic) {}
         }
 
-        // B. Cooldown Timer Text
+        // B. Colored Border (Red for Debuffs, Blue for Buffs)
+        var border:flash.display.Shape = null;
+        try {
+            var childObj:Dynamic = cell.getChildByName("__border");
+            if (childObj != null && Std.isOfType(childObj, flash.display.Shape)) {
+                border = cast childObj;
+            }
+        } catch (_:Dynamic) {}
+
+        if (border == null && bordersEnabled) {
+            border = new flash.display.Shape();
+            border.name = "__border";
+            try {
+                cell.addChild(border);
+            } catch (_:Dynamic) {}
+        }
+
+        if (border != null) {
+            if (!bordersEnabled) {
+                border.visible = false;
+            } else {
+                border.visible = true;
+                var borderColor:Int = isDebuff ? COLOR_BORDER_DEBUFF : COLOR_BORDER_BUFF;
+                var g = border.graphics;
+                g.clear();
+                g.lineStyle(1.8, borderColor, 0.95, true);
+                g.drawRoundRect(0.5, 0.5, 24.5, 22.5, 3.0, 3.0);
+
+                try {
+                    if (cell.numChildren != null && cell.getChildIndex(border) < cell.numChildren - 2) {
+                        cell.setChildIndex(border, cell.numChildren - 2);
+                    }
+                } catch (_:Dynamic) {}
+            }
+        }
+
+        // C. Cooldown Timer Text
         var cdTxt:TextField = null;
         try {
             var childObj:Dynamic = cell.getChildByName("__cdTxt");
@@ -346,7 +394,8 @@ class AuraFramesManager {
             var cdEnabled:Bool = isCdTimersEnabled();
             var lagKiller:Bool = isLagKillerEnabled();
             var filterMyOnly:Bool = isMyAurasOnly();
-            var myUids:Array<Dynamic> = filterMyOnly ? getMyUids() : null;
+            var bordersEnabled:Bool = isColoredBordersEnabled();
+            var myUids:Array<Dynamic> = (filterMyOnly || bordersEnabled) ? getMyUids() : null;
 
             // 1. Process Player Auras (pAurasUI)
             try {
@@ -358,9 +407,10 @@ class AuraFramesManager {
                         var visibleIdx:Int = 0;
                         for (cell in pCells) {
                             try {
-                                processCell(cell, nowMs, cdEnabled, lagKiller);
-
                                 var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                                var isDebuff:Bool = isPlayerAuraDebuff(auraName, myAvatar, myUids);
+                                processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
+
                                 var showCell:Bool = true;
                                 if (filterMyOnly) {
                                     showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
@@ -396,9 +446,10 @@ class AuraFramesManager {
                         var visibleIdx:Int = 0;
                         for (cell in tCells) {
                             try {
-                                processCell(cell, nowMs, cdEnabled, lagKiller);
-
                                 var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                                var isDebuff:Bool = isTargetAuraDebuff(auraName, targetObj, myUids);
+                                processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
+
                                 var showCell:Bool = true;
                                 if (filterMyOnly) {
                                     showCell = shouldShowTargetAura(auraName, targetObj, myUids);
@@ -576,6 +627,124 @@ class AuraFramesManager {
             return true;
         }
     }
+
+    private static var DEBUFF_KEYWORDS:Array<String> = [
+        "bleed", "burn", "corrupt", "decay", "poison", "toxin", "venom",
+        "stun", "petrif", "paralyz", "freeze", "frostbite", "silence",
+        "locked", "curse", "drain", "weaken", "vulnerab", "doom", "rot",
+        "wither", "slow", "chill", "exhaust", "fatigue", "blind", "wound",
+        "shackled", "dot"
+    ];
+
+    private static function isNameMatchingDebuff(nameLower:String):Bool {
+        for (kw in DEBUFF_KEYWORDS) {
+            if (nameLower.indexOf(kw) != -1) return true;
+        }
+        return false;
+    }
+
+    private static function isDescriptionDebuff(name:String):Null<Bool> {
+        try {
+            if (Api.game != null && Api.game.world != null && Api.game.world.auraDescs != null) {
+                var desc:Dynamic = untyped Api.game.world.auraDescs[name];
+                if (desc != null && desc != "") {
+                    var dStr:String = Std.string(desc).toLowerCase();
+                    if (dStr.indexOf("damage over time") != -1 || dStr.indexOf("deals damage") != -1 ||
+                        dStr.indexOf("decreases") != -1 || dStr.indexOf("reduces") != -1 ||
+                        dStr.indexOf("cannot") != -1 || dStr.indexOf("prevent") != -1 ||
+                        dStr.indexOf("takes more damage") != -1 || dStr.indexOf("damage taken increased") != -1) {
+                        return true;
+                    }
+                    if (dStr.indexOf("increases") != -1 || dStr.indexOf("heals") != -1 ||
+                        dStr.indexOf("restores") != -1 || dStr.indexOf("boosts") != -1 ||
+                        dStr.indexOf("grants") != -1 || dStr.indexOf("absorbs") != -1 ||
+                        dStr.indexOf("protects") != -1 || dStr.indexOf("damage reduced") != -1) {
+                        return false;
+                    }
+                }
+            }
+        } catch (_:Dynamic) {}
+        return null;
+    }
+
+    private static function isTargetAuraDebuff(auraName:String, targetObj:Dynamic, myUids:Array<Dynamic>):Bool {
+        if (auraName == "" || targetObj == null) return false;
+        try {
+            var searchName:String = auraName.toLowerCase();
+
+            if (isKnownMonsterMechanic(searchName)) return false;
+
+            var isMonsterTarget:Bool = false;
+            try {
+                if (targetObj.dataLeaf != null && (targetObj.dataLeaf.MonMapID != null || targetObj.dataLeaf.MonID != null)) {
+                    isMonsterTarget = true;
+                } else if (targetObj.objData != null && (targetObj.objData.MonMapID != null || targetObj.objData.MonID != null)) {
+                    isMonsterTarget = true;
+                }
+            } catch (_:Dynamic) {}
+
+            var lists:Array<Dynamic> = getEntityAurasLists(targetObj, isMonsterTarget);
+            for (arr in lists) {
+                var len:Int = 0;
+                try {
+                    if (arr != null && untyped arr.length != null) len = Std.int(untyped arr.length);
+                } catch (_:Dynamic) {}
+
+                for (i in 0...len) {
+                    var a:Dynamic = untyped arr[i];
+                    if (a == null || a.nam == null) continue;
+                    if (Std.string(a.nam).toLowerCase() == searchName) {
+                        var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                        var cid:Dynamic = a.casterId;
+                        if (isMonsterTarget && (ct == "p" || isMyId(cid, myUids))) {
+                            return true;
+                        }
+                        if (isMonsterTarget && (ct == "m" || a.passive == true)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            var descDebuff = isDescriptionDebuff(auraName);
+            if (descDebuff != null) return descDebuff;
+
+            if (isNameMatchingDebuff(searchName)) return true;
+
+            if (isMonsterTarget) return true;
+        } catch (_:Dynamic) {}
+        return false;
+    }
+
+    private static function isPlayerAuraDebuff(auraName:String, myAvatar:Dynamic, myUids:Array<Dynamic>):Bool {
+        if (auraName == "" || myAvatar == null) return false;
+        try {
+            var searchName:String = auraName.toLowerCase();
+
+            var descDebuff = isDescriptionDebuff(auraName);
+            if (descDebuff != null) return descDebuff;
+
+            if (isNameMatchingDebuff(searchName)) return true;
+
+            var lists:Array<Dynamic> = getEntityAurasLists(myAvatar, false);
+            for (arr in lists) {
+                var len:Int = 0;
+                try {
+                    if (arr != null && untyped arr.length != null) len = Std.int(untyped arr.length);
+                } catch (_:Dynamic) {}
+
+                for (i in 0...len) {
+                    var a:Dynamic = untyped arr[i];
+                    if (a == null || a.nam == null) continue;
+                    if (Std.string(a.nam).toLowerCase() == searchName) {
+                        var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
+                        if (ct == "m") return true;
+                    }
+                }
+            }
+        } catch (_:Dynamic) {}
+        return false;
+    }
 }
 #else
 class AuraFramesManager {
@@ -587,5 +756,7 @@ class AuraFramesManager {
     public static inline function setMyAurasOnly(v:Bool):Void {}
     public static inline function isLagKillerEnabled():Bool return false;
     public static inline function setLagKillerEnabled(v:Bool):Void {}
+    public static inline function isColoredBordersEnabled():Bool return false;
+    public static inline function setColoredBordersEnabled(v:Bool):Void {}
 }
 #end
