@@ -6,7 +6,6 @@ import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
-import flash.geom.Point;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -26,8 +25,8 @@ import ui.ApiStyle;
  */
 class NameplateDisplay extends Sprite {
     public static inline var BAR_W:Float            = 66.0;  // Health bar width
-    public static inline var BAR_H:Float            = 4.0;   // Health bar height
-    public static inline var BAR_Y:Float            = -6.0;  // Position relative to pname.y (sits above name)
+    public static inline var BAR_H:Float            = 6.0;   // Health bar height (increased from 4px for solid visibility)
+    public static inline var BAR_Y:Float            = -8.0;  // Position relative to pname.y (sits above name)
     public static inline var NAME_Y:Float           = -1.0;  // Name label top offset
     public static inline var NAME_H:Float           = 16.0;  // Name label height
     public static inline var SUB_Y:Float            = 13.0;  // Subtitle (guild / race) top offset
@@ -37,16 +36,16 @@ class NameplateDisplay extends Sprite {
     // Players (friendly / neutral)
     public static inline var COLOR_NAME_PLAYER:Int     = 0x66CCFF; // Sky cyan
     public static inline var COLOR_SUB_PLAYER:Int      = 0xFFFFFF; // Crisp white
-    public static inline var COLOR_BAR_BG_PLAYER:Int   = 0x0F1117; // Deep obsidian well
-    public static inline var COLOR_BORDER_PLAYER:Int   = 0x1E2230; // Subtle hairline border
+    public static inline var COLOR_BAR_BG_PLAYER:Int   = 0x0A0B10; // High-contrast solid dark charcoal well
+    public static inline var COLOR_BORDER_PLAYER:Int   = 0x000000; // Solid black border
     public static inline var COLOR_TARGET_PLAYER:Int   = 0x38BDF8; // Targeted player cyan highlight
 
     // Enemies (monsters / hostile PvP)
     public static inline var COLOR_NAME_ENEMY:Int      = 0xEF4444; // Vibrant red name
     public static inline var COLOR_SUB_ENEMY:Int       = 0xF87171; // Coral / salmon red race
     public static inline var COLOR_HP_ENEMY:Int        = 0xEF4444; // Vibrant red health fill
-    public static inline var COLOR_BAR_BG_ENEMY:Int    = 0x1A0505; // Dark maroon well
-    public static inline var COLOR_BORDER_ENEMY:Int    = 0x450A0A; // Deep red hairline border
+    public static inline var COLOR_BAR_BG_ENEMY:Int    = 0x0A0B10; // High-contrast solid dark charcoal well
+    public static inline var COLOR_BORDER_ENEMY:Int    = 0x000000; // Solid black border
     public static inline var COLOR_TARGET_ENEMY:Int    = 0xF87171; // Targeted enemy bright red highlight
 
     public var entity:EntityDTO = null;
@@ -75,7 +74,6 @@ class NameplateDisplay extends Sprite {
         mouseChildren = false;
         buttonMode = true;
         useHandCursor = true;
-        cacheAsBitmap = true;
 
         // 1. Health Bar Background & Outer Border
         _barBg = new Shape();
@@ -153,6 +151,19 @@ class NameplateDisplay extends Sprite {
         } catch (_:Dynamic) {}
     }
 
+    /** Parents this plate inside the unit clip, directly above the native `pname`, sharing its coordinate space. */
+    public function mountOnNative(mc:Dynamic, pn:Dynamic):Void {
+        if (mc == null || pn == null) return;
+        try {
+            if (this.parent != mc) {
+                var idx:Int = Std.int(mc.getChildIndex(pn)) + 1;
+                mc.addChildAt(this, idx);
+            }
+        } catch (_:Dynamic) {
+            try { if (this.parent != mc) mc.addChild(this); } catch (_:Dynamic) {}
+        }
+    }
+
     public function setBarVisible(show:Bool):Void {
         updateDisplay();
     }
@@ -174,9 +185,14 @@ class NameplateDisplay extends Sprite {
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && _lastSub != "");
 
+        _lastHp = -1;
         drawBarBg();
         drawTargetIndicators(_lastIsTarget);
-        if (_lastMaxHp > 0) {
+        if (entity != null && entity.maxHp > 0) {
+            _lastHp = entity.hp;
+            _lastMaxHp = entity.maxHp;
+            drawHealthBar(entity.hp, entity.maxHp);
+        } else if (_lastMaxHp > 0) {
             drawHealthBar(_lastHp, _lastMaxHp);
         }
     }
@@ -237,65 +253,46 @@ class NameplateDisplay extends Sprite {
             if (NameplateUnitFrame.isShowGuildNames() && ent.guild != "") rawSub = "< " + ent.guild + " >";
         }
 
-        var hasSub:Bool = (rawSub != "");
-
-        // 3. Position synchronization: dead-center horizontally, feet for enemy, overhead for player
+        // 3. Native anchor parity: sit exactly at the character's horizontal center,
+        // matching the game's dynamic vertical position (pname.y, computed by scale() from headPoint).
+        // Note: pname.x in Flash is -68.0 (an internal left-offset for a 136px box), whereas
+        // mcChar.x (0.0) is the true unit center. Since NameplateDisplay is already centered around 0,
+        // x must be mcChar.x (0.0).
+        var nativeNameVisible:Bool = true;
         try {
-            var charMC:Dynamic = com.aqwapi.utils.ApiUtils.getCharClip(mc);
-            var localTargetX:Float = (charMC != null && charMC.x != null) ? charMC.x : 0.0;
-            var localTargetY:Float = 0.0;
-            var pn:Dynamic = null;
-            try {
-                pn = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
-            } catch (_:Dynamic) {}
-
-            if (isEnemy) {
-                // Creature nameplates anchor at their feet (ground origin y = 0.0, or pn.y at feet)
-                if (pn != null && pn.y >= -20) {
-                    localTargetY = pn.y;
-                } else {
-                    localTargetY = 0.0;
-                }
-            } else {
-                // Player nameplates anchor above their head
-                if (pn != null && pn.y < -20) {
-                    localTargetY = pn.y;
-                } else if (charMC != null && charMC.height > 50) {
-                    localTargetY = -charMC.height - 10;
-                } else {
-                    localTargetY = -105.0;
-                }
-            }
-
-            // Empty space adjustment for overhead nameplates:
-            // When names and/or guild/subtitle are disabled from showing below the nameplate,
-            // the nameplate shifts down into the empty space closer to the character.
-            if (localTargetY < -20) {
-                if (!showNames) {
-                    localTargetY += 18.0; // Healthbar only: drop down into name + guild space
-                } else if (!hasSub) {
-                    localTargetY += 12.0; // Name only (no guild subtitle): drop down into guild space
-                }
-            }
-
-            var globalPt:Point = null;
-            try {
-                globalPt = mc.localToGlobal(new Point(localTargetX, localTargetY));
-            } catch (_:Dynamic) {
-                globalPt = null;
-            }
-
-            if (globalPt != null && this.parent != null) {
-                var localPt:Point = null;
+            var pn:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
+            if (pn != null) {
+                mountOnNative(mc, pn);
+                var targetX:Float = 0.0;
                 try {
-                    localPt = this.parent.globalToLocal(globalPt);
-                } catch (_:Dynamic) {
-                    localPt = null;
+                    if (mc.mcChar != null && mc.mcChar.x != null) targetX = mc.mcChar.x;
+                } catch (_:Dynamic) {}
+                if (x != targetX) x = targetX;
+
+                // Anchor monster nameplates fixed at their feet (ground level)
+                // so large/scaled enemies don't push them hundreds of pixels into the sky!
+                // Player nameplates sit overhead at pn.y.
+                if (isEnemy) {
+                    var feetY:Float = 12.0;
+                    try {
+                        if (mc.shadow != null && mc.shadow.height != null && mc.shadow.height > 0) {
+                            feetY = Math.max(12.0, (mc.shadow.height / 2.0) + 4.0);
+                        }
+                    } catch (_:Dynamic) {}
+                    if (y != feetY) y = feetY;
+                } else {
+                    if (y != pn.y) y = pn.y;
                 }
-                if (localPt != null) {
-                    if (x != localPt.x) x = localPt.x;
-                    if (y != localPt.y) y = localPt.y;
-                }
+
+                // Counteract any non-uniform or inverted scaling from parent clip
+                try {
+                    var sX:Float = (mc.scaleX != null && mc.scaleX != 0.0) ? (1.0 / mc.scaleX) : 1.0;
+                    var sY:Float = (mc.scaleY != null && mc.scaleY != 0.0) ? (1.0 / mc.scaleY) : 1.0;
+                    if (scaleX != sX) scaleX = sX;
+                    if (scaleY != sY) scaleY = sY;
+                } catch (_:Dynamic) {}
+
+                nativeNameVisible = (pn.visible != false);
             }
         } catch (_:Dynamic) {}
 
@@ -311,6 +308,7 @@ class NameplateDisplay extends Sprite {
             _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
+        showNames = showNames && nativeNameVisible;
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && rawSub != "");
 
@@ -325,7 +323,14 @@ class NameplateDisplay extends Sprite {
         }
 
         // 4. Target Chevrons via API
+        var pTarget:EntityDTO = (Api.player != null && Api.player.hasTarget) ? Api.player.target : null;
         var isTarget:Bool = ent.isCurrentTarget;
+        if (!isTarget && pTarget != null) {
+            var tRaw = pTarget.raw;
+            if (tRaw == ent.raw || (ent.pMC != null && (tRaw == ent.pMC || tRaw.pMC == ent.pMC))) {
+                isTarget = true;
+            }
+        }
         if (isTarget != _lastIsTarget) {
             _lastIsTarget = isTarget;
             drawTargetIndicators(isTarget);
@@ -342,6 +347,15 @@ class NameplateDisplay extends Sprite {
         }
         visible = true;
 
+        // Ensure targeted entity's live HP/MaxHP strictly syncs with Api.player.target (matches TargetUnitFrame)
+        if (isTarget && pTarget != null) {
+            if (pTarget.hp >= 0) ent.hp = pTarget.hp;
+            if (pTarget.maxHp > 0) ent.maxHp = pTarget.maxHp;
+        } else if (ent.isMyAvatar && Api.player != null) {
+            ent.hp = Api.player.hp;
+            ent.maxHp = Api.player.maxHp;
+        }
+
         if (showBar && (ent.hp != _lastHp || ent.maxHp != _lastMaxHp)) {
             _lastHp = ent.hp;
             _lastMaxHp = ent.maxHp;
@@ -356,13 +370,14 @@ class NameplateDisplay extends Sprite {
         var g = _barBg.graphics;
         g.clear();
 
-        // Transparent hit area for easy click-to-target even on thin 4px bar
+        // Transparent hit area for easy click-to-target even on thin bar
         g.beginFill(0x000000, 0.0);
         g.drawRect(-BAR_W / 2 - 4, barY - 6, BAR_W + 8, BAR_H + 12);
         g.endFill();
 
-        g.beginFill(isEnemy ? COLOR_BAR_BG_ENEMY : COLOR_BAR_BG_PLAYER, 0.85);
-        g.lineStyle(1.0, isEnemy ? COLOR_BORDER_ENEMY : COLOR_BORDER_PLAYER, 0.85);
+        // High-contrast solid dark background well + solid black border
+        g.beginFill(isEnemy ? COLOR_BAR_BG_ENEMY : COLOR_BAR_BG_PLAYER, 1.0);
+        g.lineStyle(1.0, isEnemy ? COLOR_BORDER_ENEMY : COLOR_BORDER_PLAYER, 1.0);
         g.drawRoundRect(-BAR_W / 2, barY, BAR_W, BAR_H, 2, 2);
         g.endFill();
     }
@@ -430,7 +445,7 @@ class NameplateDisplay extends Sprite {
         var g = _barFill.graphics;
         g.clear();
         if (hp > 0 && maxHp > 0) {
-            var ratio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
+            var ratio:Float = Math.max(0.0, Math.min(1.0, (hp : Float) / (maxHp : Float)));
             var fillW:Float = Math.round((BAR_W - 2.0) * ratio);
             if (fillW > 0) {
                 var color:Int = isEnemy ? COLOR_HP_ENEMY : PlayerUnitFrame.getHealthColor(ratio);
@@ -473,8 +488,6 @@ class NameplateUnitFrame {
     private static var _pocket:Dynamic = null;
     private static var _overlay:Dynamic = null;
     private static var _theStage:Dynamic = null;
-    private static var _enemyContainer:Sprite = null;
-    private static var _playerContainer:Sprite = null;
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -506,10 +519,6 @@ class NameplateUnitFrame {
                 }
             });
         }
-
-        if (isWidgetEnabled() && Api.visual != null) {
-            Api.visual.suppressTargetGlow = true;
-        }
     }
 
     public static inline function isWidgetEnabled():Bool {
@@ -518,9 +527,6 @@ class NameplateUnitFrame {
 
     public static inline function setWidgetEnabled(enabled:Bool):Void {
         ApiConfig.setBool("api_frame_nameplates_enabled", enabled);
-        if (Api.visual != null) {
-            Api.visual.suppressTargetGlow = enabled;
-        }
         if (!enabled) {
             disableAllPlates();
         }
@@ -592,47 +598,8 @@ class NameplateUnitFrame {
         }
     }
 
-    private static function ensureContainers():Bool {
-        var g:Dynamic = Api.game;
-        var parentContainer:Dynamic = null;
-        if (g != null && g.world != null) {
-            parentContainer = g.world;
-        } else if (g != null && g.stage != null) {
-            parentContainer = g.stage;
-        } else if (_theStage != null) {
-            parentContainer = _theStage;
-        }
-        if (parentContainer == null) return false;
-
-        if (_enemyContainer == null) {
-            _enemyContainer = new Sprite();
-            _enemyContainer.name = "__enemyNameplatesLayer";
-            _enemyContainer.mouseEnabled = false;
-        }
-        if (_playerContainer == null) {
-            _playerContainer = new Sprite();
-            _playerContainer.name = "__playerNameplatesLayer";
-            _playerContainer.mouseEnabled = false;
-        }
-
-        if (_enemyContainer.parent != parentContainer) {
-            try { parentContainer.addChild(_enemyContainer); } catch (_:Dynamic) {}
-        }
-        if (_playerContainer.parent != parentContainer) {
-            try { parentContainer.addChild(_playerContainer); } catch (_:Dynamic) {}
-        }
-
-        // Layer depth priority:
-        // models (world.CHARS) < _enemyContainer < _playerContainer
-        try {
-            var num:Int = parentContainer.numChildren;
-            if (num >= 2) {
-                parentContainer.setChildIndex(_enemyContainer, num - 2);
-                parentContainer.setChildIndex(_playerContainer, num - 1);
-            }
-        } catch (_:Dynamic) {}
-
-        return (_enemyContainer.parent != null && _playerContainer.parent != null);
+    private static inline function isTypeReplaced(isEnemy:Bool):Bool {
+        return isEnemy ? (isEnemiesEnabled() || isEnemyNamesEnabled()) : (isPlayersEnabled() || isPlayerNamesEnabled());
     }
 
     private static function onEnterFrame(e:Event):Void {
@@ -641,14 +608,12 @@ class NameplateUnitFrame {
             return;
         }
 
-        if (!ensureContainers()) return;
-
-        // 1. Prune detached, dead, or off-stage plates
+        // 1. Prune detached, dead, off-stage, or no-longer-replaced plates (restoring the native one)
         var i:Int = _activePlates.length - 1;
         while (i >= 0) {
             var p = _activePlates[i];
             var dead:Bool = false;
-            if (p.entity == null || !p.entity.hasGraphic || p.entity.pMC == null) {
+            if (p.entity == null || !p.entity.hasGraphic || p.entity.pMC == null || !isTypeReplaced(p.isEnemy)) {
                 dead = true;
             } else {
                 try {
@@ -666,12 +631,13 @@ class NameplateUnitFrame {
             i--;
         }
 
-        // 2. Query entities on screen directly from the API!
+        // 2. Query entities on screen directly from the API
         var entities:Array<EntityDTO> = (Api.map != null) ? Api.map.getEntitiesOnScreen() : [];
 
         for (ent in entities) {
             if (ent == null || !ent.hasGraphic || ent.pMC == null) continue;
             var isEnemy:Bool = ent.isMonster || ent.isHostilePvP;
+            if (!isTypeReplaced(isEnemy)) continue;
             attachOrUpdate(ent, isEnemy);
         }
     }
@@ -680,10 +646,9 @@ class NameplateUnitFrame {
         var mc:Dynamic = ent.pMC;
         if (mc == null) return;
 
-        // Suppress native vector pname and hpBar via API
+        // Suppress native pname / hpBar (alpha only; the game keeps owning position and visibility)
         ent.hideNativeName();
 
-        // Retrieve existing plate from _activePlates
         var plate:NameplateDisplay = null;
         for (p in _activePlates) {
             if (p.rawUnit == ent.raw || p.targetMC == mc) {
@@ -692,15 +657,11 @@ class NameplateUnitFrame {
             }
         }
 
-        var targetContainer:Sprite = isEnemy ? _enemyContainer : _playerContainer;
-        if (targetContainer == null) return;
-
         if (plate == null) {
             plate = new NameplateDisplay(isEnemy);
             plate.entity = ent;
             plate.targetMC = mc;
             plate.rawUnit = ent.raw;
-            targetContainer.addChild(plate);
             _activePlates.push(plate);
         } else {
             plate.entity = ent;
@@ -708,15 +669,11 @@ class NameplateUnitFrame {
             if (ent.raw != null) plate.rawUnit = ent.raw;
             if (plate.isEnemy != isEnemy) {
                 plate.isEnemy = isEnemy;
-                if (plate.parent != null) plate.parent.removeChild(plate);
-                targetContainer.addChild(plate);
                 plate.updateDisplay();
-            } else if (plate.parent != targetContainer) {
-                targetContainer.addChild(plate);
             }
         }
 
-        // Update plate contents using clean EntityDTO
+        // Mounts on the native pname and syncs contents from the EntityDTO
         plate.update(ent);
     }
 
@@ -726,42 +683,6 @@ class NameplateUnitFrame {
             p.destroy();
         }
         _activePlates = [];
-        if (_enemyContainer != null) {
-            while (_enemyContainer.numChildren > 0) {
-                try { _enemyContainer.removeChildAt(0); } catch (_:Dynamic) { break; }
-            }
-        }
-        if (_playerContainer != null) {
-            while (_playerContainer.numChildren > 0) {
-                try { _playerContainer.removeChildAt(0); } catch (_:Dynamic) { break; }
-            }
-        }
-    }
-
-    private static function pruneEnemyPlates():Void {
-        var i:Int = _activePlates.length - 1;
-        while (i >= 0) {
-            var p = _activePlates[i];
-            if (p.isEnemy) {
-                if (p.entity != null) p.entity.showNativeName();
-                p.destroy();
-                _activePlates.splice(i, 1);
-            }
-            i--;
-        }
-    }
-
-    private static function prunePlayerPlates():Void {
-        var i:Int = _activePlates.length - 1;
-        while (i >= 0) {
-            var p = _activePlates[i];
-            if (!p.isEnemy) {
-                if (p.entity != null) p.entity.showNativeName();
-                p.destroy();
-                _activePlates.splice(i, 1);
-            }
-            i--;
-        }
     }
 }
 #else

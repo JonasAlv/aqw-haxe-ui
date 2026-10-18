@@ -233,14 +233,20 @@ class BossMechanicsBar {
         });
     }
 
+    private static var _hookedSfc:Dynamic = null;
+
     /**
      * Intercepts SmartFox raw server packets at Priority 100 before native AQW parses them.
      */
     private static function hookNetwork():Void {
         try {
             var g:Dynamic = Api.game;
-            if (g != null && g.sfc != null) {
+            if (g != null && g.sfc != null && _hookedSfc != g.sfc) {
+                if (_hookedSfc != null) {
+                    try { _hookedSfc.removeEventListener("onExtensionResponse", onPacketReceived); } catch (_:Dynamic) {}
+                }
                 g.sfc.addEventListener("onExtensionResponse", onPacketReceived, false, 100, true);
+                _hookedSfc = g.sfc;
             }
         } catch (_:Dynamic) {}
     }
@@ -356,6 +362,7 @@ class BossMechanicsBar {
             return;
         }
 
+        hookNetwork();
         var now = Lib.getTimer();
 
         // 1. Check live Target Auras & Boss HP Breakpoints
