@@ -25,6 +25,8 @@ class AuraFramesManager {
     private static var _initialized:Bool = false;
     private static var _ticker:Sprite = null;
     private static var _lastTick:Float = 0.0;
+    private static var _lastTAurasUI:Dynamic = null;
+    private static var _lastPAurasUI:Dynamic = null;
     private static var CD_GLOW:Array<flash.filters.BitmapFilter> = [new flash.filters.GlowFilter(0x000000, 1.0, 3, 3, 4, 1)];
 
     private static inline var PITCH_X:Float = 32.0;
@@ -43,7 +45,8 @@ class AuraFramesManager {
         var attachTicker = function(stageObj:Dynamic):Void {
             if (stageObj == null || _ticker != null) return;
             _ticker = new Sprite();
-            _ticker.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+            _ticker.addEventListener(Event.ENTER_FRAME, onPreFrame, false, 100, true);
+            _ticker.addEventListener(Event.ENTER_FRAME, onPostFrame, false, -100, true);
             try {
                 stageObj.addChild(_ticker);
             } catch (_:Dynamic) {}
@@ -154,7 +157,19 @@ class AuraFramesManager {
         "defiance",
         "stone skin",
         "absorb",
-        "inner fire"
+        "inner fire",
+        "unstoppable",
+        "invulnerable",
+        "damage shield",
+        "radiance",
+        "overcharge",
+        "frenzy",
+        "berserk",
+        "charge",
+        "preparation",
+        "prepared",
+        "empowered",
+        "defense"
     ];
 
     private static function isKnownMonsterMechanic(searchName:String):Bool {
@@ -181,10 +196,20 @@ class AuraFramesManager {
                             if (av.dataLeaf.EntID != null) uids.push(av.dataLeaf.EntID);
                         }
                     }
+                    if (Reflect.isFunction(w.myLeaf)) {
+                        var ml:Dynamic = w.myLeaf();
+                        if (ml != null) {
+                            if (ml.entID != null) uids.push(ml.entID);
+                            if (ml.EntID != null) uids.push(ml.EntID);
+                        }
+                    }
                     if (Api.game.sfc != null && Api.game.sfc.myUserName != null && w.uoTree != null) {
                         var unm:String = Std.string(Api.game.sfc.myUserName).toLowerCase();
                         var ml:Dynamic = untyped w.uoTree[unm];
-                        if (ml != null && ml.entID != null) uids.push(ml.entID);
+                        if (ml != null) {
+                            if (ml.entID != null) uids.push(ml.entID);
+                            if (ml.EntID != null) uids.push(ml.EntID);
+                        }
                     }
                 }
             }
@@ -303,8 +328,36 @@ class AuraFramesManager {
                 var borderColor:Int = isDebuff ? COLOR_BORDER_DEBUFF : COLOR_BORDER_BUFF;
                 var g = border.graphics;
                 g.clear();
-                g.lineStyle(1.8, borderColor, 0.95, true);
-                g.drawRoundRect(0.5, 0.5, 24.5, 22.5, 3.0, 3.0);
+
+                // Calculate outer boundary enclosing the aura button frame:
+                // Base AQW aura cell button is ~27.0px x ~24.6px (including outer bevel).
+                // Positioning at (-1.0, -1.0) with (28.5, 26.0) ensures our border frames
+                // the entire button perimeter on the OUTSIDE, never covering the stack counter (tStk).
+                var bx:Float = -1.0;
+                var by:Float = -1.0;
+                var bw:Float = 28.5;
+                var bh:Float = 26.0;
+
+                try {
+                    var base:Dynamic = (cell.numChildren != null && cell.numChildren > 0) ? cell.getChildAt(0) : null;
+                    if (base != null) {
+                        var bounds:flash.geom.Rectangle = null;
+                        if (base.bg != null) {
+                            bounds = base.bg.getBounds(cell);
+                        } else {
+                            bounds = base.getBounds(cell);
+                        }
+                        if (bounds != null && bounds.width >= 20.0 && bounds.height >= 18.0) {
+                            bx = bounds.x - 1.0;
+                            by = bounds.y - 1.0;
+                            bw = bounds.width + 2.0;
+                            bh = bounds.height + 2.0;
+                        }
+                    }
+                } catch (_:Dynamic) {}
+
+                g.lineStyle(1.8, borderColor, 0.95, true, flash.display.LineScaleMode.NORMAL, flash.display.CapsStyle.ROUND, flash.display.JointStyle.ROUND);
+                g.drawRoundRect(bx, by, bw, bh, 3.5, 3.5);
 
                 try {
                     if (cell.numChildren != null && cell.getChildIndex(border) < cell.numChildren - 2) {
@@ -331,9 +384,9 @@ class AuraFramesManager {
             cdTxt.selectable = false;
             cdTxt.mouseEnabled = false;
             cdTxt.filters = CD_GLOW;
-            cdTxt.width = 26;
+            cdTxt.width = 28;
             cdTxt.height = 14;
-            cdTxt.x = 0;
+            cdTxt.x = -0.5;
             cdTxt.y = 4;
             try {
                 cell.addChild(cdTxt);
@@ -382,99 +435,315 @@ class AuraFramesManager {
         }
     }
 
-    private static function onEnterFrame(e:Event):Void {
+    private static function checkHookAuraHUDs():Void {
+        try {
+            if (Api.game == null) return;
+            var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
+            if (tUI != null && tUI != _lastTAurasUI) {
+                _lastTAurasUI = tUI;
+                try {
+                    tUI.addEventListener(Event.ENTER_FRAME, onTargetPreTick, false, 100, true);
+                    tUI.addEventListener(Event.ENTER_FRAME, onTargetPostTick, false, -100, true);
+                } catch (_:Dynamic) {}
+            }
+            var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
+            if (pUI != null && pUI != _lastPAurasUI) {
+                _lastPAurasUI = pUI;
+                try {
+                    pUI.addEventListener(Event.ENTER_FRAME, onPlayerPreTick, false, 100, true);
+                    pUI.addEventListener(Event.ENTER_FRAME, onPlayerPostTick, false, -100, true);
+                } catch (_:Dynamic) {}
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    /**
+     * Pre-Tick Target HUD Sanitizer:
+     * Purges third-party auras from target.dataLeaf.hudAuras BEFORE native AuraHUD.onTick runs,
+     * completely eliminating any 1-frame third-party visual flicker or layout displacement.
+     * Re-sequences valid auras so Debuffs always display first (seq = 0, 1, 2...) followed by Buffs (seq = 10000+).
+     */
+    private static function sanitizeTargetHudAuras(targetObj:Dynamic, myUids:Array<Dynamic>, filterMyOnly:Bool):Void {
+        if (targetObj == null) {
+            var tUI:Dynamic = (Api.game != null) ? Reflect.field(Api.game, "tAurasUI") : null;
+            if (tUI != null) {
+                tUI.visible = false;
+                var tCells:Array<Dynamic> = getCells(tUI);
+                for (cell in tCells) {
+                    cell.visible = false;
+                    cell.x = -9999;
+                    cell.y = -9999;
+                }
+            }
+            return;
+        }
+
+        if (targetObj.dataLeaf == null || targetObj.dataLeaf.hudAuras == null) return;
+        var hudAuras:Dynamic = targetObj.dataLeaf.hudAuras;
+        var fields:Array<String> = Reflect.fields(hudAuras);
+        if (fields == null || fields.length == 0) return;
+
+        var modified:Bool = false;
+        var validAuras:Array<{ name:String, seq:Int, isDebuff:Bool, entry:Dynamic }> = [];
+
+        for (k in fields) {
+            var entry:Dynamic = Reflect.field(hudAuras, k);
+            if (entry == null) continue;
+
+            if (filterMyOnly && !shouldShowTargetAura(k, targetObj, myUids)) {
+                // Third-party aura on target: wipe it out before AuraHUD.sync ever sees it!
+                untyped __delete__(hudAuras, k);
+                modified = true;
+            } else {
+                var origSeq:Int = (entry.seq != null) ? entry.seq : 0;
+                var isDebuff:Bool = isTargetAuraDebuff(k, targetObj, myUids);
+                validAuras.push({ name: k, seq: origSeq, isDebuff: isDebuff, entry: entry });
+            }
+        }
+
+        // Always sort Debuffs FIRST on target, preserving relative chronological order within groups
+        validAuras.sort(function(a, b) {
+            if (a.isDebuff != b.isDebuff) {
+                return a.isDebuff ? -1 : 1;
+            }
+            return a.seq - b.seq;
+        });
+
+        var debuffSeq:Int = 0;
+        var buffSeq:Int = 10000;
+        for (item in validAuras) {
+            var newSeq:Int = item.isDebuff ? (debuffSeq++) : (buffSeq++);
+            if (item.entry.seq != newSeq) {
+                item.entry.seq = newSeq;
+                modified = true;
+            }
+        }
+
+        if (modified) {
+            targetObj.dataLeaf.hudAurasV = Std.int(targetObj.dataLeaf.hudAurasV) + 1;
+        }
+    }
+
+    /**
+     * Pre-Tick Player HUD Sanitizer:
+     * Purges third-party external party buffs from myAvatar.dataLeaf.hudAuras when filterMyOnly is enabled.
+     */
+    private static function sanitizePlayerHudAuras(myAvatar:Dynamic, myUids:Array<Dynamic>, filterMyOnly:Bool):Void {
+        if (myAvatar == null || myAvatar.dataLeaf == null || myAvatar.dataLeaf.hudAuras == null) return;
+        var hudAuras:Dynamic = myAvatar.dataLeaf.hudAuras;
+        var fields:Array<String> = Reflect.fields(hudAuras);
+        if (fields == null || fields.length == 0) return;
+
+        var modified:Bool = false;
+        if (filterMyOnly) {
+            for (k in fields) {
+                var entry:Dynamic = Reflect.field(hudAuras, k);
+                if (entry == null) continue;
+
+                if (!shouldShowPlayerAura(k, myAvatar, myUids)) {
+                    // Third-party buff on player: delete immediately
+                    untyped __delete__(hudAuras, k);
+                    modified = true;
+                }
+            }
+        }
+
+        if (modified) {
+            myAvatar.dataLeaf.hudAurasV = Std.int(myAvatar.dataLeaf.hudAurasV) + 1;
+        }
+    }
+
+    private static function onPreFrame(e:Event):Void {
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
+            checkHookAuraHUDs();
+
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var myUids:Array<Dynamic> = (filterMyOnly || isColoredBordersEnabled()) ? getMyUids() : null;
+
+            var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+            sanitizeTargetHudAuras(targetObj, myUids, filterMyOnly);
+
+            var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
+            sanitizePlayerHudAuras(myAvatar, myUids, filterMyOnly);
+        } catch (_:Dynamic) {}
+    }
+
+    private static function onTargetPreTick(e:Event):Void {
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var myUids:Array<Dynamic> = (filterMyOnly || isColoredBordersEnabled()) ? getMyUids() : null;
+            var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+            sanitizeTargetHudAuras(targetObj, myUids, filterMyOnly);
+        } catch (_:Dynamic) {}
+    }
+
+    private static function onPlayerPreTick(e:Event):Void {
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var myUids:Array<Dynamic> = (filterMyOnly || isColoredBordersEnabled()) ? getMyUids() : null;
+            var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
+            sanitizePlayerHudAuras(myAvatar, myUids, filterMyOnly);
+        } catch (_:Dynamic) {}
+    }
+
+    private static function runTargetPostTickProcessing(nowMs:Float, cdEnabled:Bool, lagKiller:Bool, filterMyOnly:Bool, bordersEnabled:Bool, myUids:Array<Dynamic>):Void {
+        try {
+            if (Api.game == null) return;
+            var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
+            if (tUI == null) return;
+
+            var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+            if (targetObj == null) {
+                tUI.visible = false;
+                var tCells:Array<Dynamic> = getCells(tUI);
+                for (cell in tCells) {
+                    cell.visible = false;
+                    cell.x = -9999;
+                    cell.y = -9999;
+                }
+                return;
+            }
+
+            var tCells:Array<Dynamic> = getCells(tUI);
+            if (tCells.length == 0) {
+                tUI.visible = false;
+                return;
+            }
+
+            // Always enforce Debuffs FIRST on target frame
+            tCells.sort(function(a:Dynamic, b:Dynamic):Int {
+                var aName:String = (a.nam != null) ? Std.string(a.nam) : "";
+                var bName:String = (b.nam != null) ? Std.string(b.nam) : "";
+                var aDebuff:Bool = isTargetAuraDebuff(aName, targetObj, myUids);
+                var bDebuff:Bool = isTargetAuraDebuff(bName, targetObj, myUids);
+                if (aDebuff != bDebuff) return aDebuff ? -1 : 1;
+                var sa:Int = (a.seq != null) ? a.seq : 0;
+                var sb:Int = (b.seq != null) ? b.seq : 0;
+                return sa - sb;
+            });
+
+            var visibleIdx:Int = 0;
+            for (cell in tCells) {
+                try {
+                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                    var isDebuff:Bool = isTargetAuraDebuff(auraName, targetObj, myUids);
+                    processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
+
+                    var showCell:Bool = true;
+                    if (filterMyOnly) {
+                        showCell = shouldShowTargetAura(auraName, targetObj, myUids);
+                    }
+
+                    if (!showCell) {
+                        cell.visible = false;
+                        cell.x = -9999;
+                        cell.y = -9999;
+                    } else {
+                        cell.visible = true;
+                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                        visibleIdx++;
+                    }
+                } catch (_:Dynamic) {}
+            }
+
+            if (filterMyOnly) {
+                if (visibleIdx == 0 && tUI.visible == true) {
+                    tUI.visible = false;
+                } else if (visibleIdx > 0 && tUI.visible == false) {
+                    tUI.visible = true;
+                }
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    private static function runPlayerPostTickProcessing(nowMs:Float, cdEnabled:Bool, lagKiller:Bool, filterMyOnly:Bool, bordersEnabled:Bool, myUids:Array<Dynamic>):Void {
+        try {
+            if (Api.game == null) return;
+            var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
+            if (pUI == null) return;
+
+            var pCells:Array<Dynamic> = getCells(pUI);
+            if (pCells.length == 0) return;
+
+            var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
+            var visibleIdx:Int = 0;
+            for (cell in pCells) {
+                try {
+                    var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
+                    var isDebuff:Bool = isPlayerAuraDebuff(auraName, myAvatar, myUids);
+                    processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
+
+                    var showCell:Bool = true;
+                    if (filterMyOnly) {
+                        showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
+                    }
+
+                    if (!showCell) {
+                        cell.visible = false;
+                        cell.x = -9999;
+                        cell.y = -9999;
+                    } else {
+                        cell.visible = true;
+                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
+                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
+                        visibleIdx++;
+                    }
+                } catch (_:Dynamic) {}
+            }
+
+            if (filterMyOnly) {
+                if (visibleIdx == 0 && pUI.visible == true) {
+                    pUI.visible = false;
+                } else if (visibleIdx > 0 && pUI.visible == false) {
+                    pUI.visible = true;
+                }
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    private static function onPostFrame(e:Event):Void {
         try {
             if (!ApiMenus.isInGame() || Api.game == null) return;
 
             var nowMs:Float = Lib.getTimer();
-            // Throttle to ~20Hz (50ms interval) matching native 100ms AuraHUD tick
-            if (nowMs - _lastTick < 50.0) return;
-            _lastTick = nowMs;
-
             var cdEnabled:Bool = isCdTimersEnabled();
             var lagKiller:Bool = isLagKillerEnabled();
             var filterMyOnly:Bool = isMyAurasOnly();
             var bordersEnabled:Bool = isColoredBordersEnabled();
             var myUids:Array<Dynamic> = (filterMyOnly || bordersEnabled) ? getMyUids() : null;
 
-            // 1. Process Player Auras (pAurasUI)
-            try {
-                var pUI:Dynamic = Reflect.field(Api.game, "pAurasUI");
-                if (pUI != null) {
-                    var pCells:Array<Dynamic> = getCells(pUI);
-                    if (pCells.length > 0) {
-                        var myAvatar:Dynamic = (Api.game.world != null) ? Api.game.world.myAvatar : null;
-                        var visibleIdx:Int = 0;
-                        for (cell in pCells) {
-                            try {
-                                var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
-                                var isDebuff:Bool = isPlayerAuraDebuff(auraName, myAvatar, myUids);
-                                processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
+            runPlayerPostTickProcessing(nowMs, cdEnabled, lagKiller, filterMyOnly, bordersEnabled, myUids);
+            runTargetPostTickProcessing(nowMs, cdEnabled, lagKiller, filterMyOnly, bordersEnabled, myUids);
+        } catch (_:Dynamic) {}
+    }
 
-                                var showCell:Bool = true;
-                                if (filterMyOnly) {
-                                    showCell = shouldShowPlayerAura(auraName, myAvatar, myUids);
-                                }
+    private static function onTargetPostTick(e:Event):Void {
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
+            var nowMs:Float = Lib.getTimer();
+            var cdEnabled:Bool = isCdTimersEnabled();
+            var lagKiller:Bool = isLagKillerEnabled();
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var bordersEnabled:Bool = isColoredBordersEnabled();
+            var myUids:Array<Dynamic> = (filterMyOnly || bordersEnabled) ? getMyUids() : null;
+            runTargetPostTickProcessing(nowMs, cdEnabled, lagKiller, filterMyOnly, bordersEnabled, myUids);
+        } catch (_:Dynamic) {}
+    }
 
-                                if (!showCell) {
-                                    cell.visible = false;
-                                } else {
-                                    cell.visible = true;
-                                    if (filterMyOnly) {
-                                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
-                                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
-                                    }
-                                    visibleIdx++;
-                                }
-                            } catch (_:Dynamic) {}
-                        }
-
-                        if (filterMyOnly && visibleIdx == 0 && pUI.visible == true) {
-                            pUI.visible = false;
-                        }
-                    }
-                }
-            } catch (_:Dynamic) {}
-
-            // 2. Process Target Auras (tAurasUI) with Filtering
-            try {
-                var tUI:Dynamic = Reflect.field(Api.game, "tAurasUI");
-                if (tUI != null) {
-                    var tCells:Array<Dynamic> = getCells(tUI);
-                    if (tCells.length > 0) {
-                        var targetObj:Dynamic = (Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-                        var visibleIdx:Int = 0;
-                        for (cell in tCells) {
-                            try {
-                                var auraName:String = (cell.nam != null) ? Std.string(cell.nam) : "";
-                                var isDebuff:Bool = isTargetAuraDebuff(auraName, targetObj, myUids);
-                                processCell(cell, nowMs, cdEnabled, lagKiller, isDebuff, bordersEnabled);
-
-                                var showCell:Bool = true;
-                                if (filterMyOnly) {
-                                    showCell = shouldShowTargetAura(auraName, targetObj, myUids);
-                                }
-
-                                if (!showCell) {
-                                    cell.visible = false;
-                                } else {
-                                    cell.visible = true;
-                                    if (filterMyOnly) {
-                                        cell.x = (visibleIdx % PER_ROW) * PITCH_X;
-                                        cell.y = Std.int(visibleIdx / PER_ROW) * PITCH_Y;
-                                    }
-                                    visibleIdx++;
-                                }
-                            } catch (_:Dynamic) {}
-                        }
-
-                        // Hide the entire frame if all target debuffs belong to other players
-                        if (filterMyOnly && visibleIdx == 0 && tUI.visible == true) {
-                            tUI.visible = false;
-                        }
-                    }
-                }
-            } catch (_:Dynamic) {}
+    private static function onPlayerPostTick(e:Event):Void {
+        try {
+            if (!ApiMenus.isInGame() || Api.game == null) return;
+            var nowMs:Float = Lib.getTimer();
+            var cdEnabled:Bool = isCdTimersEnabled();
+            var lagKiller:Bool = isLagKillerEnabled();
+            var filterMyOnly:Bool = isMyAurasOnly();
+            var bordersEnabled:Bool = isColoredBordersEnabled();
+            var myUids:Array<Dynamic> = (filterMyOnly || bordersEnabled) ? getMyUids() : null;
+            runPlayerPostTickProcessing(nowMs, cdEnabled, lagKiller, filterMyOnly, bordersEnabled, myUids);
         } catch (_:Dynamic) {}
     }
 
@@ -557,17 +826,22 @@ class AuraFramesManager {
      * - Excludes: Other players' debuffs and buffs completely
      */
     private static function shouldShowTargetAura(auraName:String, targetObj:Dynamic, myUids:Array<Dynamic>):Bool {
-        if (auraName == "" || targetObj == null) return true;
+        if (auraName == "" || targetObj == null) return false;
         try {
             var searchName:String = auraName.toLowerCase();
 
             var isMonsterTarget:Bool = false;
             var targetMonMapId:Dynamic = null;
+            var targetEntId:Dynamic = null;
             try {
                 if (targetObj.dataLeaf != null) {
                     if (targetObj.dataLeaf.MonMapID != null || targetObj.dataLeaf.MonID != null) {
                         isMonsterTarget = true;
                         targetMonMapId = targetObj.dataLeaf.MonMapID;
+                    } else if (targetObj.dataLeaf.entID != null) {
+                        targetEntId = targetObj.dataLeaf.entID;
+                    } else if (targetObj.dataLeaf.EntID != null) {
+                        targetEntId = targetObj.dataLeaf.EntID;
                     }
                 }
                 if (!isMonsterTarget && targetObj.objData != null) {
@@ -576,12 +850,15 @@ class AuraFramesManager {
                         targetMonMapId = targetObj.objData.MonMapID;
                     }
                 }
+                if (targetEntId == null && targetObj.uid != null) {
+                    targetEntId = targetObj.uid;
+                }
             } catch (_:Dynamic) {}
 
             var lists:Array<Dynamic> = getEntityAurasLists(targetObj, isMonsterTarget);
 
             var foundMine:Bool = false;
-            var foundMonsterBuff:Bool = false;
+            var foundTargetSelf:Bool = false;
             var foundOtherPlayer:Bool = false;
 
             for (arr in lists) {
@@ -600,12 +877,17 @@ class AuraFramesManager {
                         var cid:Dynamic = a.casterId;
 
                         var isMine:Bool = isMyId(cid, myUids);
-                        var isMonster:Bool = (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId)));
+                        var isTargetOwn:Bool = false;
+                        if (isMonsterTarget) {
+                            isTargetOwn = (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId)));
+                        } else {
+                            isTargetOwn = (cid != null && targetEntId != null && Std.string(cid) == Std.string(targetEntId)) || a.passive == true;
+                        }
 
                         if (isMine) {
                             foundMine = true;
-                        } else if (isMonster && isMonsterTarget) {
-                            foundMonsterBuff = true;
+                        } else if (isTargetOwn) {
+                            foundTargetSelf = true;
                         } else if (ct == "p" || (cid != null && !isMyId(cid, myUids))) {
                             foundOtherPlayer = true;
                         }
@@ -614,7 +896,7 @@ class AuraFramesManager {
             }
 
             if (foundMine) return true;
-            if (isMonsterTarget && foundMonsterBuff) return true;
+            if (foundTargetSelf) return true;
             if (foundOtherPlayer) return false;
 
             if (isMonsterTarget) {
@@ -624,8 +906,28 @@ class AuraFramesManager {
 
             return false;
         } catch (_:Dynamic) {
+            return false;
+        }
+    }
+
+    private static var BUFF_KEYWORDS:Array<String> = [
+        "heal", "regen", "rejuvenat", "mend", "recovery", "restoration",
+        "blessing", "shield", "absorb", "barrier", "ward", "aegis", "protect",
+        "boost", "vigor", "might", "empower", "haste", "swift",
+        "clarity", "focus", "grace", "radiance", "resolve", "endurance", "fortitude"
+    ];
+
+    private static function isNameMatchingBuff(nameLower:String):Bool {
+        // Explicit HoT (Heal over Time) detection by name
+        if (nameLower == "hot" || nameLower.indexOf(" hot") != -1 || nameLower.indexOf("hot ") != -1 ||
+            nameLower.indexOf("(hot)") != -1 || nameLower.indexOf("[hot]") != -1 ||
+            nameLower.indexOf("heal over time") != -1 || nameLower.indexOf("healing over time") != -1) {
             return true;
         }
+        for (kw in BUFF_KEYWORDS) {
+            if (nameLower.indexOf(kw) != -1) return true;
+        }
+        return false;
     }
 
     private static var DEBUFF_KEYWORDS:Array<String> = [
@@ -649,16 +951,53 @@ class AuraFramesManager {
                 var desc:Dynamic = untyped Api.game.world.auraDescs[name];
                 if (desc != null && desc != "") {
                     var dStr:String = Std.string(desc).toLowerCase();
-                    if (dStr.indexOf("damage over time") != -1 || dStr.indexOf("deals damage") != -1 ||
-                        dStr.indexOf("decreases") != -1 || dStr.indexOf("reduces") != -1 ||
-                        dStr.indexOf("cannot") != -1 || dStr.indexOf("prevent") != -1 ||
-                        dStr.indexOf("takes more damage") != -1 || dStr.indexOf("damage taken increased") != -1) {
+
+                    // 1. Explicit HoT (Heal over Time) detection -> ALWAYS BUFF
+                    if (dStr.indexOf("heal over time") != -1 || dStr.indexOf("healing over time") != -1 ||
+                        dStr.indexOf("health over time") != -1 || dStr.indexOf("heals over time") != -1 ||
+                        dStr.indexOf("heals every") != -1 || dStr.indexOf("restores health every") != -1 ||
+                        dStr.indexOf("regenerates health") != -1 || dStr.indexOf("a hot") != -1 ||
+                        dStr.indexOf("(hot)") != -1 || dStr.indexOf(" hot ") != -1) {
+                        return false;
+                    }
+
+                    // 2. Defensive damage reduction: "damage taken reduced/decreased" -> BUFF
+                    if (dStr.indexOf("damage taken") != -1 && (dStr.indexOf("decreas") != -1 || dStr.indexOf("reduc") != -1 || dStr.indexOf("less") != -1)) {
+                        return false;
+                    }
+
+                    // 3. Vulnerability: "damage taken increased / takes more damage" -> DEBUFF
+                    if (dStr.indexOf("damage taken") != -1 && (dStr.indexOf("increas") != -1 || dStr.indexOf("more") != -1)) {
                         return true;
                     }
-                    if (dStr.indexOf("increases") != -1 || dStr.indexOf("heals") != -1 ||
-                        dStr.indexOf("restores") != -1 || dStr.indexOf("boosts") != -1 ||
-                        dStr.indexOf("grants") != -1 || dStr.indexOf("absorbs") != -1 ||
-                        dStr.indexOf("protects") != -1 || dStr.indexOf("damage reduced") != -1) {
+                    if (dStr.indexOf("takes more damage") != -1) {
+                        return true;
+                    }
+
+                    // 4. Harmful DoTs / Damage -> DEBUFF
+                    if (dStr.indexOf("damage over time") != -1 || dStr.indexOf("deals damage") != -1 || dStr.indexOf("damage every") != -1) {
+                        return true;
+                    }
+
+                    // 5. Crowd Control / Disables -> DEBUFF
+                    if (dStr.indexOf("cannot act") != -1 || dStr.indexOf("cannot move") != -1 ||
+                        dStr.indexOf("stun") != -1 || dStr.indexOf("petrif") != -1 ||
+                        dStr.indexOf("silenc") != -1 || dStr.indexOf("prevent") != -1) {
+                        return true;
+                    }
+
+                    // 6. Weakness / Stat reduction -> DEBUFF
+                    if (dStr.indexOf("decreases") != -1 || dStr.indexOf("reduces damage dealt") != -1 || dStr.indexOf("reduces outgoing") != -1) {
+                        return true;
+                    }
+
+                    // 7. Positive / Buff keywords (including heals, shields, buffs) -> BUFF
+                    if (dStr.indexOf("heal") != -1 || dStr.indexOf("regen") != -1 ||
+                        dStr.indexOf("rejuvenat") != -1 || dStr.indexOf("mend") != -1 ||
+                        dStr.indexOf("increases") != -1 || dStr.indexOf("restores") != -1 ||
+                        dStr.indexOf("boosts") != -1 || dStr.indexOf("grants") != -1 ||
+                        dStr.indexOf("absorbs") != -1 || dStr.indexOf("protects") != -1 ||
+                        dStr.indexOf("damage reduced") != -1) {
                         return false;
                     }
                 }
@@ -672,14 +1011,21 @@ class AuraFramesManager {
         try {
             var searchName:String = auraName.toLowerCase();
 
+            // Known monster mechanics (Reflect, Counter Attack, Focus, etc.) are buffs
             if (isKnownMonsterMechanic(searchName)) return false;
 
+            // Explicit HoT or Buff name detection -> Buff
+            if (isNameMatchingBuff(searchName)) return false;
+
             var isMonsterTarget:Bool = false;
+            var targetMonMapId:Dynamic = null;
             try {
                 if (targetObj.dataLeaf != null && (targetObj.dataLeaf.MonMapID != null || targetObj.dataLeaf.MonID != null)) {
                     isMonsterTarget = true;
+                    targetMonMapId = targetObj.dataLeaf.MonMapID;
                 } else if (targetObj.objData != null && (targetObj.objData.MonMapID != null || targetObj.objData.MonID != null)) {
                     isMonsterTarget = true;
+                    targetMonMapId = targetObj.objData.MonMapID;
                 }
             } catch (_:Dynamic) {}
 
@@ -694,13 +1040,32 @@ class AuraFramesManager {
                     var a:Dynamic = untyped arr[i];
                     if (a == null || a.nam == null) continue;
                     if (Std.string(a.nam).toLowerCase() == searchName) {
+                        // Check server aura category (HoT and heals are explicitly Buffs)
+                        if (a.cat != null) {
+                            var catStr:String = Std.string(a.cat).toLowerCase();
+                            if (catStr.indexOf("buff") != -1 || catStr.indexOf("hot") != -1 ||
+                                catStr.indexOf("heal") != -1 || catStr.indexOf("shield") != -1 ||
+                                catStr.indexOf("passive") != -1) {
+                                return false; // HoT is a BUFF -> Blue border
+                            }
+                            if (catStr.indexOf("debuff") != -1 || catStr.indexOf("dot") != -1 ||
+                                catStr.indexOf("stun") != -1 || catStr.indexOf("stone") != -1 ||
+                                catStr.indexOf("paralyze") != -1 || catStr.indexOf("disable") != -1 ||
+                                catStr.indexOf("curse") != -1 || catStr.indexOf("bleed") != -1 ||
+                                catStr.indexOf("poison") != -1) {
+                                return true; // DoT is a DEBUFF -> Red border
+                            }
+                        }
+
                         var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
                         var cid:Dynamic = a.casterId;
-                        if (isMonsterTarget && (ct == "p" || isMyId(cid, myUids))) {
-                            return true;
-                        }
-                        if (isMonsterTarget && (ct == "m" || a.passive == true)) {
-                            return false;
+                        if (isMonsterTarget) {
+                            if (ct == "p" || isMyId(cid, myUids)) {
+                                return true; // Player casts on monster -> Debuff
+                            }
+                            if (ct == "m" || a.passive == true || (targetMonMapId != null && Std.string(cid) == Std.string(targetMonMapId))) {
+                                return false; // Monster self-cast -> Buff
+                            }
                         }
                     }
                 }
@@ -721,10 +1086,8 @@ class AuraFramesManager {
         try {
             var searchName:String = auraName.toLowerCase();
 
-            var descDebuff = isDescriptionDebuff(auraName);
-            if (descDebuff != null) return descDebuff;
-
-            if (isNameMatchingDebuff(searchName)) return true;
+            // Explicit HoT or Buff name detection -> Buff
+            if (isNameMatchingBuff(searchName)) return false;
 
             var lists:Array<Dynamic> = getEntityAurasLists(myAvatar, false);
             for (arr in lists) {
@@ -737,11 +1100,34 @@ class AuraFramesManager {
                     var a:Dynamic = untyped arr[i];
                     if (a == null || a.nam == null) continue;
                     if (Std.string(a.nam).toLowerCase() == searchName) {
+                        // Check server aura category (HoT and heals are explicitly Buffs)
+                        if (a.cat != null) {
+                            var catStr:String = Std.string(a.cat).toLowerCase();
+                            if (catStr.indexOf("buff") != -1 || catStr.indexOf("hot") != -1 ||
+                                catStr.indexOf("heal") != -1 || catStr.indexOf("shield") != -1 ||
+                                catStr.indexOf("passive") != -1) {
+                                return false; // HoT is a BUFF -> Blue border
+                            }
+                            if (catStr.indexOf("debuff") != -1 || catStr.indexOf("dot") != -1 ||
+                                catStr.indexOf("stun") != -1 || catStr.indexOf("stone") != -1 ||
+                                catStr.indexOf("paralyze") != -1 || catStr.indexOf("disable") != -1 ||
+                                catStr.indexOf("curse") != -1 || catStr.indexOf("bleed") != -1 ||
+                                catStr.indexOf("poison") != -1) {
+                                return true; // DoT is a DEBUFF -> Red border
+                            }
+                        }
+
                         var ct:String = (a.casterType != null) ? Std.string(a.casterType) : "";
-                        if (ct == "m") return true;
+                        if (ct == "m") return true; // Monster attack on player -> Debuff
+                        if (a.potionType != null || a.passive == true) return false; // Potion/passive -> Buff
                     }
                 }
             }
+
+            var descDebuff = isDescriptionDebuff(auraName);
+            if (descDebuff != null) return descDebuff;
+
+            if (isNameMatchingDebuff(searchName)) return true;
         } catch (_:Dynamic) {}
         return false;
     }

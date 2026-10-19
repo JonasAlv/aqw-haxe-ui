@@ -67,6 +67,7 @@ class PartyUnitFrame {
 
     private static var _pocket:Dynamic                   = null;
     private static var _overlay:Dynamic                  = null;
+    private static var _theStage:Dynamic                 = null;
     private static var _widget:Sprite                    = null;
     private static var _tilesContainer:Sprite            = null;
     private static var _tiles:Array<PartyTile>           = [];
@@ -106,6 +107,10 @@ class PartyUnitFrame {
                 }
             } catch (_:Dynamic) {}
         }
+        if (theStage == null && Api.game != null && Api.game.stage != null) {
+            theStage = Api.game.stage;
+        }
+        _theStage = theStage;
 
         var attach = function(stageObj:Dynamic):Void {
             if (stageObj == null || _widget != null) return;
@@ -134,6 +139,7 @@ class PartyUnitFrame {
 
     private static function buildFrame(theStage:Dynamic):Void {
         if (_widget != null) return;
+        _theStage = theStage;
 
         _widget = new Sprite();
         _widget.name = "PartyUnitFrameWidget";
@@ -149,9 +155,20 @@ class PartyUnitFrame {
 
         if (theStage != null) {
             setupDragging(theStage);
+            var targetContainer:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui : theStage;
             try {
-                theStage.addChild(_widget);
-            } catch (_:Dynamic) {}
+                if (targetContainer == Api.game.ui && Api.game.ui.mcPartyFrame != null) {
+                    var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPartyFrame) + 1;
+                    Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                } else if (targetContainer == Api.game.ui && Api.game.ui.mcPortraitTarget != null) {
+                    var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPortraitTarget) + 1;
+                    Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                } else {
+                    targetContainer.addChild(_widget);
+                }
+            } catch (_:Dynamic) {
+                try { theStage.addChild(_widget); } catch (_:Dynamic) {}
+            }
         }
 
         startTickTimer();
@@ -203,6 +220,38 @@ class PartyUnitFrame {
                 if (_widget.visible) _widget.visible = false;
                 return;
             }
+
+            // Ensure widget is parented under Api.game.ui (above native mcPartyFrame)
+            // so cMenu and ToolTip can render cleanly above it
+            var targetContainer:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui : _theStage;
+            if (targetContainer != null && _widget.parent != targetContainer) {
+                try {
+                    if (_widget.parent != null) _widget.parent.removeChild(_widget);
+                    if (targetContainer == Api.game.ui && Api.game.ui.mcPartyFrame != null) {
+                        var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPartyFrame) + 1;
+                        Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                    } else if (targetContainer == Api.game.ui && Api.game.ui.mcPortraitTarget != null) {
+                        var idx:Int = Api.game.ui.getChildIndex(Api.game.ui.mcPortraitTarget) + 1;
+                        Api.game.ui.addChildAt(_widget, Math.min(idx, Api.game.ui.numChildren));
+                    } else {
+                        targetContainer.addChild(_widget);
+                    }
+                } catch (_:Dynamic) {
+                    try { if (_theStage != null) _theStage.addChild(_widget); } catch (_:Dynamic) {}
+                }
+            }
+
+            // Keep cMenu and ToolTip above party frames if cMenu is currently open
+            try {
+                var g:Dynamic = Api.game;
+                if (g != null && g.ui != null && g.ui.cMenu != null && g.ui.cMenu.parent == g.ui) {
+                    if (g.ui.cMenu.isOpen == true) {
+                        if (g.ui.getChildIndex(_widget) > g.ui.getChildIndex(g.ui.cMenu)) {
+                            g.ui.setChildIndex(g.ui.cMenu, g.ui.numChildren - 1);
+                        }
+                    }
+                }
+            } catch (_:Dynamic) {}
 
             // Fetch members to display
             var memberList:Array<PartyMemberDTO> = [];
@@ -263,6 +312,15 @@ class PartyUnitFrame {
         if (_widget.parent != null) {
             try {
                 _widget.parent.setChildIndex(_widget, _widget.parent.numChildren - 1);
+                var g:Dynamic = Api.game;
+                if (g != null && g.ui != null) {
+                    if (g.ui.cMenu != null && g.ui.cMenu.parent == g.ui) {
+                        g.ui.setChildIndex(g.ui.cMenu, g.ui.numChildren - 1);
+                    }
+                    if (g.ui.ToolTip != null && g.ui.ToolTip.parent == g.ui) {
+                        g.ui.setChildIndex(g.ui.ToolTip, g.ui.numChildren - 1);
+                    }
+                }
             } catch (_:Dynamic) {}
         }
     }
@@ -648,7 +706,31 @@ class PartyTile extends Sprite {
                 try {
                     var g:Dynamic = Api.game;
                     if (g != null && g.ui != null && g.ui.cMenu != null) {
-                        g.ui.cMenu.fOpenWith("party", { "strUsername": _currentMember.username });
+                        var uName:String = (_currentMember.username != null) ? _currentMember.username : "";
+                        var charId:Int = 0;
+                        try {
+                            if (g.world != null) {
+                                var av = g.world.getAvatarByUserName(uName.toLowerCase());
+                                if (av != null && av.objData != null && av.objData.CharID != null) {
+                                    charId = Std.int(av.objData.CharID);
+                                }
+                            }
+                        } catch (_:Dynamic) {}
+
+                        var params:Dynamic = {
+                            "ID": charId,
+                            "strUsername": uName
+                        };
+                        g.ui.cMenu.fOpenWith("party", params);
+
+                        try {
+                            if (g.ui.cMenu.parent != null) {
+                                g.ui.cMenu.parent.setChildIndex(g.ui.cMenu, g.ui.cMenu.parent.numChildren - 1);
+                            }
+                            if (g.ui.ToolTip != null && g.ui.ToolTip.parent == g.ui) {
+                                g.ui.setChildIndex(g.ui.ToolTip, g.ui.numChildren - 1);
+                            }
+                        } catch (_:Dynamic) {}
                     }
                 } catch (_:Dynamic) {}
             } else {
@@ -658,11 +740,36 @@ class PartyTile extends Sprite {
         });
 
         this.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+            e.stopPropagation();
             if (_currentMember == null) return;
             try {
                 var g:Dynamic = Api.game;
                 if (g != null && g.ui != null && g.ui.cMenu != null) {
-                    g.ui.cMenu.fOpenWith("party", { "strUsername": _currentMember.username });
+                    var uName:String = (_currentMember.username != null) ? _currentMember.username : "";
+                    var charId:Int = 0;
+                    try {
+                        if (g.world != null) {
+                            var av = g.world.getAvatarByUserName(uName.toLowerCase());
+                            if (av != null && av.objData != null && av.objData.CharID != null) {
+                                charId = Std.int(av.objData.CharID);
+                            }
+                        }
+                    } catch (_:Dynamic) {}
+
+                    var params:Dynamic = {
+                        "ID": charId,
+                        "strUsername": uName
+                    };
+                    g.ui.cMenu.fOpenWith("party", params);
+
+                    try {
+                        if (g.ui.cMenu.parent != null) {
+                            g.ui.cMenu.parent.setChildIndex(g.ui.cMenu, g.ui.cMenu.parent.numChildren - 1);
+                        }
+                        if (g.ui.ToolTip != null && g.ui.ToolTip.parent == g.ui) {
+                            g.ui.setChildIndex(g.ui.ToolTip, g.ui.numChildren - 1);
+                        }
+                    } catch (_:Dynamic) {}
                 }
             } catch (_:Dynamic) {}
         });
