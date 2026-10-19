@@ -220,47 +220,9 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        modal.addSectionHeader("Graphics & Lag Killer");
+        modal.addSectionHeader("Graphics & Performance");
 
-        // 12. Master Lag Killer
-        modal.addItemRow(
-            "Lag Killer (FPS Boost)",
-            "Master performance switch. Disables other player avatars, skill FX particles, and freezes monster loops while preserving 60 FPS combat.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.lagKiller : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.lagKiller = next;
-                ApiNotificationManager.notify("Lag Killer: " + (next ? "Enabled (High FPS)" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.lagKiller : false;
-            }
-        );
-
-        // 14. Spell Animations Mode
-        modal.addItemRow(
-            "Spell Animations",
-            "Choose which combat spell animations to display: All Spells, Self Spells Only, or Disabled.",
-            "button",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    var mode = Api.visual.cycleSkillAnimMode();
-                    var label = Api.visual.getSkillAnimModeLabel();
-                    ApiNotificationManager.notify("Spell Animations: " + label);
-                }
-            },
-            null,
-            function():String {
-                return (Api.visual != null) ? Api.visual.getSkillAnimModeLabel() : "All Spells";
-            }
-        );
-
-        // 15. Fast Spell FX (1x Low Quality)
+        // Fast Spell FX (1x Low Quality)
         modal.addItemRow(
             "Fast Spell FX (1x Low Quality)",
             "Lowers heavy 4x/3x filter convolution passes on spells to 1x low passes, preserving all original colors and glows without CPU lag.",
@@ -276,118 +238,6 @@ class SettingsTab implements IDashboardTab {
             },
             function():Bool {
                 return (Api.visual != null) ? Api.visual.optimizeSpellFX : true;
-            }
-        );
-
-        // 16. Friendly AoE: Caster Only
-        modal.addItemRow(
-            "Friendly AoE: Caster Only",
-            "Multi-target friendly buffs play only on whoever cast them (on yourself if you cast, or on party members if they cast), hiding duplicate effects on everyone else.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    var next = !Api.visual.friendlySelfOnlyFX;
-                    Api.visual.friendlySelfOnlyFX = next;
-                    ApiNotificationManager.notify("Friendly AoE: " + (next ? "Caster Only" : "All Allies"));
-                }
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.friendlySelfOnlyFX : false;
-            }
-        );
-
-        // 17. Hostile AoE: Primary Target Only
-        modal.addItemRow(
-            "Hostile AoE: Primary Target Only",
-            "Multi-target hostile attack animations only play on your primary target, hiding duplicate AoE explosions on secondary monsters.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    var next = !Api.visual.hostilePrimaryOnlyFX;
-                    Api.visual.hostilePrimaryOnlyFX = next;
-                    ApiNotificationManager.notify("Hostile AoE: " + (next ? "Primary Target Only" : "All Monsters"));
-                }
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.hostilePrimaryOnlyFX : false;
-            }
-        );
-
-        // 18. Disable Spell Filters (Minimal FX)
-        modal.addItemRow(
-            "Disable Spell Filters (Minimal FX)",
-            "Completely strips blur and glow filters from spells for maximum potato performance. Note: May turn glow-based effects black or naked.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    var next = !Api.visual.disableSpellFilters;
-                    Api.visual.disableSpellFilters = next;
-                    ApiNotificationManager.notify("Spell Filters: " + (next ? "Disabled (Minimal FX)" : "Active"));
-                }
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.disableSpellFilters : false;
-            }
-        );
-
-        // 19b. Instant Freeze Animations (Zero Delay)
-        modal.addItemRow(
-            "Instant Freeze Animations (Zero Delay)",
-            "Instantly halts all idle, walking, and combat animation loops for players, monsters, and weapons before they are ever rendered (zero delay on map join).",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.freezeAllAnimations : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.freezeAllAnimations = next;
-                ApiNotificationManager.notify("Instant Freeze Animations: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.freezeAllAnimations : false;
-            }
-        );
-
-        // 16. Clean Arena (Hide Map Art)
-        modal.addItemRow(
-            "Clean Arena (Hide Map)",
-            "Hides static background map artwork to maximize rendering speed in crowded rooms.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = (Api.visual != null) ? Api.visual.cleanArena : false;
-                var next = !cur;
-                if (Api.visual != null) Api.visual.cleanArena = next;
-                ApiNotificationManager.notify("Clean Arena: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.cleanArena : false;
-            }
-        );
-
-        // 17. Show Names When Hidden
-        modal.addItemRow(
-            "Show Names When Hidden",
-            "Keep username labels visible above players even when player character models are hidden.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                if (Api.visual != null) {
-                    Api.visual.showNames = !Api.visual.showNames;
-                    Api.visual.apply();
-                    ApiNotificationManager.notify("Player Names: " + (Api.visual.showNames ? "Visible" : "Hidden"));
-                }
-            },
-            function():Bool {
-                return (Api.visual != null) ? Api.visual.showNames : false;
             }
         );
 
