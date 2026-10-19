@@ -1,11 +1,14 @@
 package ui.frames;
 
 #if flash
+import flash.display.GradientType;
+import flash.display.Graphics;
 import flash.display.Shape;
 import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
+import flash.geom.Matrix;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -106,6 +109,37 @@ class PlayerUnitFrame {
         } else {
             return COLOR_HP_CRITICAL;
         }
+    }
+
+    public static function drawModernBar(g:Graphics, x:Float, y:Float, w:Float, h:Float, baseColor:Int, alpha:Float = 0.95):Void {
+        if (w <= 0 || h <= 0) return;
+        var r = (baseColor >> 16) & 0xFF;
+        var gCol = (baseColor >> 8) & 0xFF;
+        var b = baseColor & 0xFF;
+
+        // Top color: 18% brighter + subtle tint lift for sheen
+        var topR = Std.int(Math.min(255, r * 1.18 + 12));
+        var topG = Std.int(Math.min(255, gCol * 1.18 + 12));
+        var topB = Std.int(Math.min(255, b * 1.18 + 12));
+        var topColor = (topR << 16) | (topG << 8) | topB;
+
+        // Bottom color: 22% deeper rich shade
+        var botR = Std.int(r * 0.78);
+        var botG = Std.int(gCol * 0.78);
+        var botB = Std.int(b * 0.78);
+        var botColor = (botR << 16) | (botG << 8) | botB;
+
+        var mat:Matrix = new Matrix();
+        mat.createGradientBox(w, h, Math.PI / 2, x, y);
+        g.beginGradientFill(GradientType.LINEAR, [topColor, botColor], [alpha, alpha], [0, 255], mat);
+        g.drawRect(x, y, w, h);
+        g.endFill();
+
+        // 1px subtle glossy top highlight line across the bar width
+        g.lineStyle(1, 0xFFFFFF, 0.30);
+        g.moveTo(x, y + 0.5);
+        g.lineTo(x + w, y + 0.5);
+        g.lineStyle();
     }
 
     // =========================================================================
@@ -418,9 +452,7 @@ class PlayerUnitFrame {
             var g = _hpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(hpColor, 0.95);
-                g.drawRect(0, 0, fillW, HP_BAR_H);
-                g.endFill();
+                drawModernBar(g, 0, 0, fillW, HP_BAR_H, hpColor, 0.95);
             }
 
             var sg = _shieldBarFill.graphics;
@@ -428,9 +460,7 @@ class PlayerUnitFrame {
             if (shield > 0) {
                 var shieldRatio = Math.min(1.0, shield / maxHp);
                 var shieldW = Math.round(HP_BAR_W * shieldRatio);
-                sg.beginFill(COLOR_SHIELD, 0.45);
-                sg.drawRect(0, 0, shieldW, HP_BAR_H);
-                sg.endFill();
+                drawModernBar(sg, 0, 0, shieldW, HP_BAR_H, COLOR_SHIELD, 0.55);
             }
 
             var shieldText = (shield > 0) ? " +" + formatNumber(shield) : "";
@@ -451,9 +481,7 @@ class PlayerUnitFrame {
             var g = _mpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(COLOR_MP, 0.95);
-                g.drawRect(0, 0, fillW, MP_BAR_H);
-                g.endFill();
+                drawModernBar(g, 0, 0, fillW, MP_BAR_H, COLOR_MP, 0.95);
             }
 
             _mpTxt.text = (maxMp > 0 && mp >= 0) ? formatNumber(mp) : "";
@@ -468,9 +496,7 @@ class PlayerUnitFrame {
             var g = _spBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(COLOR_SP, 0.9);
-                g.drawRect(0, 0, fillW, SP_BAR_H);
-                g.endFill();
+                drawModernBar(g, 0, 0, fillW, SP_BAR_H, COLOR_SP, 0.95);
             }
         }
     }
@@ -524,7 +550,7 @@ class PlayerUnitFrame {
             } catch (_:Dynamic) {}
         });
 
-        _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+        var onSelfRightClick = function(e:MouseEvent):Void {
             e.stopPropagation();
             try {
                 var g:Dynamic = Api.game;
@@ -550,7 +576,9 @@ class PlayerUnitFrame {
                     } catch (_:Dynamic) {}
                 }
             } catch (_:Dynamic) {}
-        });
+        };
+        _bg.addEventListener(MouseEvent.RIGHT_CLICK, onSelfRightClick);
+        _widget.addEventListener(MouseEvent.RIGHT_CLICK, onSelfRightClick);
 
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
             if (isDragging) {

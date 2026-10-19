@@ -1,11 +1,15 @@
 package ui.frames;
 
 #if flash
+import flash.display.GradientType;
+import flash.display.Graphics;
 import flash.display.Shape;
 import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
+import flash.geom.Matrix;
+import flash.geom.Point;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -89,11 +93,12 @@ class TargetUnitFrame {
     public static inline var COLOR_MP:Int               = 0x2563EB; // Mana fill WoW blue
 
     // Typography & Targets
-    public static inline var COLOR_TEXT_PLAYER:Int      = 0x38BDF8; // Sky cyan/blue for other players
-    public static inline var COLOR_TEXT_ENEMY:Int       = 0xEF4444; // Vibrant red for enemies / monsters
-    public static inline var COLOR_HP_ENEMY:Int         = 0xEF4444; // Vibrant red healthbar fill for enemies
-    public static inline var COLOR_TEXT_SUB:Int         = 0x94A3B8; // Slate muted text for class / type tag
-    public static inline var COLOR_TEXT_BAR:Int         = 0xFFFFFF; // Crisp white text for HP and MP values
+    public static inline var COLOR_TEXT_PLAYER:Int          = 0x38BDF8; // Sky cyan/blue for other players
+    public static inline var COLOR_TEXT_FRIENDLY_PLAYER:Int = 0xFBBF24; // Radiant Gold for friendly players (native AQW style)
+    public static inline var COLOR_TEXT_ENEMY:Int           = 0xEF4444; // Vibrant red for enemies / monsters
+    public static inline var COLOR_HP_ENEMY:Int             = 0xEF4444; // Vibrant red healthbar fill for enemies
+    public static inline var COLOR_TEXT_SUB:Int             = 0x94A3B8; // Slate muted text for class / type tag
+    public static inline var COLOR_TEXT_BAR:Int             = 0xFFFFFF; // Crisp white text for HP and MP values
 
     // =========================================================================
     // HEALTH COLOR INTERPOLATION (WoW ColorGradient)
@@ -116,6 +121,37 @@ class TargetUnitFrame {
         } else {
             return COLOR_HP_CRITICAL;
         }
+    }
+
+    public static function drawModernBar(g:Graphics, x:Float, y:Float, w:Float, h:Float, baseColor:Int, alpha:Float = 0.95):Void {
+        if (w <= 0 || h <= 0) return;
+        var r = (baseColor >> 16) & 0xFF;
+        var gCol = (baseColor >> 8) & 0xFF;
+        var b = baseColor & 0xFF;
+
+        // Top color: 18% brighter + subtle tint lift for sheen
+        var topR = Std.int(Math.min(255, r * 1.18 + 12));
+        var topG = Std.int(Math.min(255, gCol * 1.18 + 12));
+        var topB = Std.int(Math.min(255, b * 1.18 + 12));
+        var topColor = (topR << 16) | (topG << 8) | topB;
+
+        // Bottom color: 22% deeper rich shade
+        var botR = Std.int(r * 0.78);
+        var botG = Std.int(gCol * 0.78);
+        var botB = Std.int(b * 0.78);
+        var botColor = (botR << 16) | (botG << 8) | botB;
+
+        var mat:Matrix = new Matrix();
+        mat.createGradientBox(w, h, Math.PI / 2, x, y);
+        g.beginGradientFill(GradientType.LINEAR, [topColor, botColor], [alpha, alpha], [0, 255], mat);
+        g.drawRect(x, y, w, h);
+        g.endFill();
+
+        // 1px subtle glossy top highlight line across the bar width
+        g.lineStyle(1, 0xFFFFFF, 0.30);
+        g.moveTo(x, y + 0.5);
+        g.lineTo(x + w, y + 0.5);
+        g.lineStyle();
     }
 
     // =========================================================================
@@ -514,28 +550,23 @@ class TargetUnitFrame {
         var nameText = (lvl > 0 ? "[" + lvl + "] " : "") + nameStr;
         var targetChanged:Bool = (tId != _lastTargetId);
 
+        var hpRatio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
         var nameColor:Int;
-        var hpColor:Int;
-        var hpRatio = Math.max(0.0, Math.min(1.0, hp / maxHp));
+        var hpColor:Int = getHealthColor(hpRatio);
 
         if (isSelf) {
-            nameColor = COLOR_TEXT_PLAYER;
-            hpColor = getHealthColor(hpRatio);
+            nameColor = COLOR_TEXT_FRIENDLY_PLAYER;
         } else if (isPlayerTarget) {
             if (isHostile) {
                 nameColor = COLOR_TEXT_ENEMY;
-                hpColor = COLOR_HP_ENEMY;
             } else {
-                nameColor = COLOR_TEXT_PLAYER;
-                hpColor = getHealthColor(hpRatio);
+                nameColor = COLOR_TEXT_FRIENDLY_PLAYER;
             }
         } else {
             if (!isHostile) {
                 nameColor = COLOR_TEXT_FRIENDLY_NPC;
-                hpColor = getHealthColor(hpRatio);
             } else {
                 nameColor = t.isBoss ? COLOR_TEXT_BOSS : COLOR_TEXT_ENEMY;
-                hpColor = COLOR_HP_ENEMY;
             }
         }
 
@@ -565,9 +596,7 @@ class TargetUnitFrame {
             var g = _hpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(hpColor, 0.95);
-                g.drawRect(0, 0, fillW, hpBarH);
-                g.endFill();
+                drawModernBar(g, 0, 0, fillW, hpBarH, hpColor, 0.95);
             }
 
             var sg = _shieldBarFill.graphics;
@@ -575,9 +604,7 @@ class TargetUnitFrame {
             if (shield > 0) {
                 var shieldRatio = Math.min(1.0, shield / maxHp);
                 var shieldW = Math.round(HP_BAR_W * shieldRatio);
-                sg.beginFill(COLOR_SHIELD, 0.45);
-                sg.drawRect(0, 0, shieldW, hpBarH);
-                sg.endFill();
+                drawModernBar(sg, 0, 0, shieldW, hpBarH, COLOR_SHIELD, 0.55);
             }
 
             if (isDead) {
@@ -603,9 +630,7 @@ class TargetUnitFrame {
             var g = _mpBarFill.graphics;
             g.clear();
             if (fillW > 0) {
-                g.beginFill(COLOR_MP, 0.95);
-                g.drawRect(0, 0, fillW, MP_BAR_H);
-                g.endFill();
+                drawModernBar(g, 0, 0, fillW, MP_BAR_H, COLOR_MP, 0.95);
             }
 
             _mpTxt.text = (maxMp > 0 && mp >= 0) ? formatNumber(mp) : "";
@@ -661,7 +686,7 @@ class TargetUnitFrame {
             } catch (_:Dynamic) {}
         });
 
-        _bg.addEventListener(MouseEvent.RIGHT_CLICK, function(e:MouseEvent):Void {
+        var onTargetRightClick = function(e:MouseEvent):Void {
             e.stopPropagation();
             try {
                 var g:Dynamic = Api.game;
@@ -715,14 +740,22 @@ class TargetUnitFrame {
                     g.ui.cMenu.fOpenWith("mons", params);
                 }
 
-                // Bring cMenu to top of ui container so it renders in front of unit frames
+                // Bring cMenu to top of ui container and position near cursor
                 try {
                     if (g.ui.cMenu.parent != null) {
                         g.ui.cMenu.parent.setChildIndex(g.ui.cMenu, g.ui.cMenu.parent.numChildren - 1);
+                        if (theStage != null && g.ui != null) {
+                            var pt:Point = g.ui.globalToLocal(new Point(theStage.mouseX, theStage.mouseY));
+                            g.ui.cMenu.x = pt.x;
+                            g.ui.cMenu.y = pt.y;
+                        }
                     }
                 } catch (_:Dynamic) {}
             } catch (_:Dynamic) {}
-        });
+        };
+
+        _bg.addEventListener(MouseEvent.RIGHT_CLICK, onTargetRightClick);
+        _widget.addEventListener(MouseEvent.RIGHT_CLICK, onTargetRightClick);
 
         theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
             if (isDragging) {
