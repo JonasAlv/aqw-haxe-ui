@@ -75,7 +75,7 @@ class ScreenFilterManager {
     private static var _currentMode:String = MODE_NONE;
     private static var _currentIntensity:String = INTENSITY_MEDIUM;
     private static var _currentTarget:String = TARGET_WORLD;
-    private static var _vectorSmoothing:String = SMOOTHING_BEST;
+    private static var _vectorSmoothing:String = SMOOTHING_NATIVE;
     private static var _currentColorGrade:String = COLOR_NONE;
     private static var _currentVignette:String = VIGNETTE_NONE;
     private static var _currentGrain:String = GRAIN_NONE;
@@ -114,7 +114,7 @@ class ScreenFilterManager {
         }
         _currentIntensity = ApiConfig.getString("api_crt_filter_intensity", INTENSITY_MEDIUM);
         _currentTarget = ApiConfig.getString("api_crt_filter_target", TARGET_WORLD);
-        _vectorSmoothing = ApiConfig.getString("api_crt_vector_smoothing", SMOOTHING_BEST);
+        _vectorSmoothing = ApiConfig.getString("api_crt_vector_smoothing", SMOOTHING_NATIVE);
         _currentColorGrade = ApiConfig.getString("api_crt_color_grade", COLOR_NONE);
         _currentVignette = ApiConfig.getString("api_crt_vignette", VIGNETTE_NONE);
         _currentGrain = ApiConfig.getString("api_crt_grain", GRAIN_NONE);
@@ -136,15 +136,7 @@ class ScreenFilterManager {
     private static function onEnterFrame(e:Event):Void {
         if (!_initialized) return;
 
-        // 1. Maintain hardware multi-sample vector smoothing
-        if (_theStage != null && _vectorSmoothing != SMOOTHING_NATIVE) {
-            var targetQ = (_vectorSmoothing == SMOOTHING_BEST) ? StageQuality.BEST : StageQuality.HIGH;
-            if (_theStage.quality != targetQ) {
-                _theStage.quality = targetQ;
-            }
-        }
-
-        // 2. Maintain zero-cost GPU ColorTransform on world across room/map changes
+        // 1. Maintain zero-cost GPU ColorTransform on world across room/map changes
         if (_currentColorGrade != COLOR_NONE) {
             applyColorGrade();
         }
