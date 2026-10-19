@@ -99,7 +99,7 @@ class AuraFramesManager {
     }
 
     public static inline function isLagKillerEnabled():Bool {
-        return ApiConfig.getBool("api_auras_lag_killer", false);
+        return ApiConfig.getBool("api_auras_lag_killer", true);
     }
 
     public static function setLagKillerEnabled(v:Bool):Void {
@@ -282,7 +282,9 @@ class AuraFramesManager {
      */
     private static function processCell(cell:Dynamic, nowMs:Float, cdEnabled:Bool, lagKiller:Bool, isDebuff:Bool = false, bordersEnabled:Bool = true):Void {
         // A. Lag Killer: disable ActMaskReverse dynamic vector mask and software rasterization
-        if (lagKiller && cell.numChildren != null && cell.numChildren > 0) {
+        // Automatically suppresses the sweep mask when Lag Killer is enabled OR Cooldown Timers are enabled.
+        var suppressSweep:Bool = lagKiller || cdEnabled;
+        if (suppressSweep && cell.numChildren != null && cell.numChildren > 0) {
             try {
                 var base:Dynamic = cell.getChildAt(0);
                 if (base != null && base.numChildren != null) {
@@ -409,10 +411,11 @@ class AuraFramesManager {
                     str = Math.ceil(remSec / 60.0) + "m";
                 } else if (remSec >= 10.0) {
                     str = Math.ceil(remSec) + "s";
-                } else if (remSec >= 1.0) {
+                } else if (remSec >= 5.0) {
                     str = Math.ceil(remSec) + "s";
                 } else {
-                    str = (Math.round(remSec * 10) / 10.0) + "s";
+                    var tenths:Float = Math.round(remSec * 10.0) / 10.0;
+                    str = (tenths == Math.floor(tenths) ? tenths + ".0" : Std.string(tenths)) + "s";
                 }
 
                 if (cdTxt.text != str) {
