@@ -205,15 +205,15 @@ class DamageNumbers {
     private static inline var COLOR_CRIT:Int          = 0xFF9944; // Native AQW radiant orange (16750916)
     private static inline var COLOR_HEAL:Int          = 0x00FF8A; // Native AQW vibrant green (65450)
     private static inline var COLOR_DOT:Int           = 0xEE9900; // Native AQW DoT amber/orange (15636736)
-    private static inline var COLOR_AVOID_OUT:Int     = 0xEF4444; // Target avoided player's attack (Dodge/Miss/Parry/Block)
-    private static inline var COLOR_AVOID_IN:Int      = 0x38BDF8; // Player evaded incoming attack (Sky Cyan positive feedback)
+    private static inline var COLOR_AVOID:Int         = 0xEF4444; // Native AQW red (Dodge/Miss/Parry/Block)
+    private static inline var COLOR_AVOID_OUT:Int     = COLOR_AVOID;
+    private static inline var COLOR_AVOID_IN:Int      = COLOR_AVOID;
     private static inline var COLOR_INCOMING_HIT:Int  = 0xEF4444; // Incoming hit taken by player (Crimson Red)
     private static inline var COLOR_INCOMING_CRIT:Int = 0xFF2D55; // Incoming crit taken by player (Ruby Crimson)
     private static inline var COLOR_INCOMING_DOT:Int  = 0xFB7185; // Incoming DoT taken by player (Soft Crimson Rose)
     private static inline var COLOR_MUTED:Int         = 0x8E95AA; // Immune / Resist / 0 dmg (Clean slate gray)
-    private static inline var COLOR_AVOID:Int         = COLOR_AVOID_OUT;
-    private static inline var COLOR_DODGE:Int         = COLOR_AVOID_OUT;
-    private static inline var COLOR_MISS:Int          = COLOR_AVOID_OUT;
+    private static inline var COLOR_DODGE:Int         = COLOR_AVOID;
+    private static inline var COLOR_MISS:Int          = COLOR_AVOID;
     private static inline var COLOR_INCOMING:Int      = COLOR_INCOMING_HIT;
     private static inline var COLOR_XP:Int            = 0xC084FC; // Radiant purple/lavender
     private static inline var COLOR_GOLD:Int          = 0xFACC15; // Vibrant gold
@@ -671,10 +671,9 @@ class DamageNumbers {
             textColor = COLOR_HEAL; // Vibrant green (0x00FF8A)
             fontSize = isCrit ? 22 : 14;
         } else if (type == "miss" || type == "dodge" || type == "parry" || type == "block") {
-            // Avoidance text: capitalized with exclamation mark
+            // Avoidance text: capitalized with exclamation mark (native AQW red)
             textStr = type.charAt(0).toUpperCase() + type.substr(1) + "!";
-            // If player avoided enemy attack, Sky Cyan (positive evasion); if enemy avoided player, Red (missed hit)
-            textColor = isIncoming ? COLOR_AVOID_IN : COLOR_AVOID_OUT;
+            textColor = COLOR_AVOID;
             fontSize = 14;
         } else if (type == "immune") {
             textStr = "Immune!";
