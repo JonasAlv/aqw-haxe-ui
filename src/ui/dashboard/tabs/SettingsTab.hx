@@ -222,7 +222,7 @@ class SettingsTab implements IDashboardTab {
 
         modal.addSectionHeader("Graphics & Performance");
 
-        // Fast Spell FX (1x Low Quality)
+        // 1. Fast Spell FX (1x Low Quality)
         modal.addItemRow(
             "Fast Spell FX (1x Low Quality)",
             "Lowers heavy 4x/3x filter convolution passes on spells to 1x low passes, preserving all original colors and glows without CPU lag.",
@@ -241,15 +241,31 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // =========================================================================
-        // SCREEN & CRT FILTERS (RETRO RETRO-ARCADE MASKS)
-        // =========================================================================
-        modal.addSectionHeader("Screen & CRT Filters");
-
-        // 18. CRT Filter Mode
+        // 2. Vector Smoothing (MSAA Anti-Aliasing)
         modal.addItemRow(
-            "CRT Filter Preset",
-            "Applies hardware-tiled aperture grille or scanlines, converting low-quality vector edges into crisp retro arcade pixel art.",
+            "Vector Smoothing",
+            "Forces hardware multi-sample anti-aliasing (MSAA) for silky-smooth character outlines, armor, and weapon curves without jagged pixel edges.",
+            "action",
+            ScreenFilterManager.getVectorSmoothingLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleVectorSmoothing();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getVectorSmoothingLabel();
+            }
+        );
+
+        // =========================================================================
+        // SCREEN & VISUAL FILTERS (RETRO MASKS & ZERO-COST ENHANCEMENTS)
+        // =========================================================================
+        modal.addSectionHeader("Screen & Visual Filters");
+
+        // 3. Retro Screen Filter (Scanlines & Shadow Mask only)
+        modal.addItemRow(
+            "Retro Screen Filter",
+            "Hardware-tiled scanlines or arcade shadow mask dots to convert raw vector edges into crisp arcade pixel art.",
             "action",
             ScreenFilterManager.getModeLabel(),
             false,
@@ -262,10 +278,10 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 19. Filter Intensity
+        // 4. Retro Filter Intensity
         modal.addItemRow(
-            "Filter Intensity",
-            "Controls the depth and opacity of the phosphor grid and scanline gaps.",
+            "Retro Filter Intensity",
+            "Controls the depth and darkness of the scanlines and shadow mask gaps.",
             "action",
             ScreenFilterManager.getIntensityLabel(),
             false,
@@ -278,10 +294,58 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 20. Filter Target Layer
+        // 5. Color Grade & Vibrance
+        modal.addItemRow(
+            "Color Grade & Vibrance",
+            "Zero-cost GPU color grading to boost dynamic range, color saturation, and contrast across the game world.",
+            "action",
+            ScreenFilterManager.getColorGradeLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleColorGrade();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getColorGradeLabel();
+            }
+        );
+
+        // 6. Ambient Vignette
+        modal.addItemRow(
+            "Ambient Vignette",
+            "Cinematic radial edge darkening to create depth and focus lighting onto your character and combat action.",
+            "action",
+            ScreenFilterManager.getVignetteLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleVignette();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getVignetteLabel();
+            }
+        );
+
+        // 7. Cel Film Grain
+        modal.addItemRow(
+            "Cel Film Grain",
+            "Adds subtle hand-drawn anime cel texture over flat vector fills with zero performance overhead.",
+            "action",
+            ScreenFilterManager.getGrainLabel(),
+            false,
+            function():Void {
+                ScreenFilterManager.cycleGrain();
+            },
+            null,
+            function():String {
+                return ScreenFilterManager.getGrainLabel();
+            }
+        );
+
+        // 8. Filter Target Layer
         modal.addItemRow(
             "Filter Target Layer",
-            "Game World Only applies the filter over characters/maps while keeping custom UI crisp. Full Screen overlays everything.",
+            "Game World Only applies filters over maps and characters while keeping custom UI crisp. Full Screen overlays everything.",
             "action",
             ScreenFilterManager.getTargetLabel(),
             false,
