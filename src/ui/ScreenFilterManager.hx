@@ -9,7 +9,6 @@ import flash.display.Shape;
 import flash.display.SpreadMethod;
 import flash.display.Sprite;
 import flash.display.Stage;
-import flash.display.StageQuality;
 import flash.events.Event;
 import flash.geom.ColorTransform;
 import flash.geom.Matrix;
@@ -38,11 +37,6 @@ class ScreenFilterManager {
     // Target Layer
     public static inline var TARGET_WORLD:String     = "world";   // Over game world only (UI stays crystal clear)
     public static inline var TARGET_SCREEN:String    = "screen";  // Full screen overlay
-
-    // Vector Anti-Aliasing (Smoothing)
-    public static inline var SMOOTHING_NATIVE:String = "native";
-    public static inline var SMOOTHING_HIGH:String   = "high";
-    public static inline var SMOOTHING_BEST:String   = "best";
 
     // Color Grade & Vibrance
     public static inline var COLOR_NONE:String       = "none";
@@ -75,7 +69,6 @@ class ScreenFilterManager {
     private static var _currentMode:String = MODE_NONE;
     private static var _currentIntensity:String = INTENSITY_MEDIUM;
     private static var _currentTarget:String = TARGET_WORLD;
-    private static var _vectorSmoothing:String = SMOOTHING_NATIVE;
     private static var _currentColorGrade:String = COLOR_NONE;
     private static var _currentVignette:String = VIGNETTE_NONE;
     private static var _currentGrain:String = GRAIN_NONE;
@@ -114,13 +107,11 @@ class ScreenFilterManager {
         }
         _currentIntensity = ApiConfig.getString("api_crt_filter_intensity", INTENSITY_MEDIUM);
         _currentTarget = ApiConfig.getString("api_crt_filter_target", TARGET_WORLD);
-        _vectorSmoothing = ApiConfig.getString("api_crt_vector_smoothing", SMOOTHING_NATIVE);
         _currentColorGrade = ApiConfig.getString("api_crt_color_grade", COLOR_NONE);
         _currentVignette = ApiConfig.getString("api_crt_vignette", VIGNETTE_NONE);
         _currentGrain = ApiConfig.getString("api_crt_grain", GRAIN_NONE);
 
         applyFilterSettings();
-        applyVectorSmoothing();
         applyColorGrade();
 
         // Enter frame listener to maintain layer positioning and responsive resizing
@@ -202,17 +193,6 @@ class ScreenFilterManager {
 
         _lastW = 0;
         _lastH = 0;
-    }
-
-    private static function applyVectorSmoothing():Void {
-        if (_theStage == null) return;
-        switch (_vectorSmoothing) {
-            case SMOOTHING_BEST:
-                _theStage.quality = StageQuality.BEST;
-            case SMOOTHING_HIGH:
-                _theStage.quality = StageQuality.HIGH;
-            default:
-        }
     }
 
     private static function applyColorGrade():Void {
@@ -424,33 +404,7 @@ class ScreenFilterManager {
         };
     }
 
-    // --- 3. Vector Smoothing (MSAA) ---
-
-    public static function cycleVectorSmoothing():Void {
-        var next = switch (_vectorSmoothing) {
-            case SMOOTHING_NATIVE: SMOOTHING_HIGH;
-            case SMOOTHING_HIGH: SMOOTHING_BEST;
-            default: SMOOTHING_NATIVE;
-        };
-        setVectorSmoothing(next);
-        ApiNotificationManager.notify("Vector Smoothing: " + getVectorSmoothingLabel());
-    }
-
-    public static function setVectorSmoothing(mode:String):Void {
-        _vectorSmoothing = mode;
-        ApiConfig.setString("api_crt_vector_smoothing", mode);
-        applyVectorSmoothing();
-    }
-
-    public static function getVectorSmoothingLabel():String {
-        return switch (_vectorSmoothing) {
-            case SMOOTHING_HIGH: "High (Smooth MSAA)";
-            case SMOOTHING_BEST: "Ultra (Best MSAA)";
-            default: "Native (Standard)";
-        };
-    }
-
-    // --- 4. Color Grade & Vibrance ---
+    // --- 3. Color Grade & Vibrance ---
 
     public static function cycleColorGrade():Void {
         var next = switch (_currentColorGrade) {

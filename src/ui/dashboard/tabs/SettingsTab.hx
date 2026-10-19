@@ -222,7 +222,7 @@ class SettingsTab implements IDashboardTab {
 
         modal.addSectionHeader("Graphics & Performance");
 
-        // 1. Fast Spell FX (1x Low Quality)
+        // Fast Spell FX (1x Low Quality)
         modal.addItemRow(
             "Fast Spell FX (1x Low Quality)",
             "Lowers heavy 4x/3x filter convolution passes on spells to 1x low passes, preserving all original colors and glows without CPU lag.",
@@ -238,22 +238,6 @@ class SettingsTab implements IDashboardTab {
             },
             function():Bool {
                 return (Api.visual != null) ? Api.visual.optimizeSpellFX : true;
-            }
-        );
-
-        // 2. Vector Smoothing (MSAA Anti-Aliasing)
-        modal.addItemRow(
-            "Vector Smoothing",
-            "Forces hardware multi-sample anti-aliasing (MSAA) for silky-smooth character outlines, armor, and weapon curves without jagged pixel edges.",
-            "action",
-            ScreenFilterManager.getVectorSmoothingLabel(),
-            false,
-            function():Void {
-                ScreenFilterManager.cycleVectorSmoothing();
-            },
-            null,
-            function():String {
-                return ScreenFilterManager.getVectorSmoothingLabel();
             }
         );
 
