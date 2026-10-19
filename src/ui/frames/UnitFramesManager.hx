@@ -7,18 +7,18 @@ import com.aqwapi.events.ApiEvent;
 import com.aqwapi.utils.ApiConfig;
 
 /**
-     * UnitFramesManager:
-     * Coordinator for modern, portrait-less, compact unit frames (ElvUI / oUF style).
-     *
-     * Coordinates:
-     * - PlayerUnitFrame: [Level] Username - Class R<Rank>, HP + Shield, MP, SP stamina line.
-     * - TargetUnitFrame: [Level] TargetName - Race/Class, HP + Shield, MP, [x] cancel target.
-     *
-     * Auras (player & target buff/debuff icons) are no longer managed by us — the new game
-     * client keeps them visible when the UI is hidden and positions them automatically, so
-     * they follow the unit frames without any code of our own. syncNativeHideUI() is the only
-     * thing we still do for them: keep bHideUI = false so they keep processing.
-     */
+ * UnitFramesManager:
+ * Coordinator for native unit frames enhancements, party/raid grid, quest tracker,
+ * and nameplates.
+ *
+ * Enhancements:
+ * - NativeFramesEnhancer: Formatted HP / Max HP on left, % on right, dynamic health colors (green -> yellow -> red),
+ *   and right-click context menu directly on default AQW mcPortrait & mcPortraitTarget.
+ * - PartyUnitFrame: Compact Grid2-style party & raid frames.
+ * - QuestUnitFrame: Modern sleek docked quest tracker.
+ * - NameplateUnitFrame: Clean floating overhead plates.
+ * - BossMechanicsBar: BigWigs-style boss cast and cooldown timer bars.
+ */
 class UnitFramesManager {
     private static var _initialized:Bool = false;
 
@@ -26,14 +26,12 @@ class UnitFramesManager {
         if (_initialized) return;
         _initialized = true;
 
-        try { PlayerUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PlayerUnitFrame init error: " + e); }
-        try { TargetUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] TargetUnitFrame init error: " + e); }
+        try { NativeFramesEnhancer.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] NativeFramesEnhancer init error: " + e); }
         try { NameplateUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] NameplateUnitFrame init error: " + e); }
         try { AuraFramesManager.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] AuraFramesManager init error: " + e); }
         try { BossMechanicsBar.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] BossMechanicsBar init error: " + e); }
         try { PartyUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] PartyUnitFrame init error: " + e); }
         try { QuestUnitFrame.init(pocket, overlay); } catch (e:Dynamic) { trace("[UnitFramesManager] QuestUnitFrame init error: " + e); }
-        try { installPortraitHooks(); } catch (e:Dynamic) {}
         try { syncNativeHideUI(); } catch (e:Dynamic) {}
 
         if (Api.dispatcher != null) {
@@ -43,24 +41,50 @@ class UnitFramesManager {
         }
     }
 
-    public static inline function isPlayerFrameEnabled():Bool {
-        return PlayerUnitFrame.isWidgetEnabled();
+    // =========================================================================
+    // NATIVE FRAMES ENHANCER TOGGLES
+    // =========================================================================
+    public static inline function isNativeFramesEnhanced():Bool {
+        return NativeFramesEnhancer.isEnhanced();
     }
 
-    public static inline function setPlayerFrameEnabled(enabled:Bool):Void {
-        PlayerUnitFrame.setWidgetEnabled(enabled);
-        syncNativeHideUI();
+    public static inline function setNativeFramesEnhanced(enabled:Bool):Void {
+        NativeFramesEnhancer.setEnhanced(enabled);
     }
 
-    public static inline function isTargetFrameEnabled():Bool {
-        return TargetUnitFrame.isWidgetEnabled();
+    public static inline function isDynamicHealthColorEnabled():Bool {
+        return NativeFramesEnhancer.isDynamicColorEnabled();
     }
 
-    public static inline function setTargetFrameEnabled(enabled:Bool):Void {
-        TargetUnitFrame.setWidgetEnabled(enabled);
-        syncNativeHideUI();
+    public static inline function setDynamicHealthColorEnabled(enabled:Bool):Void {
+        NativeFramesEnhancer.setDynamicColorEnabled(enabled);
     }
 
+    public static inline function isShowHpPercentEnabled():Bool {
+        return NativeFramesEnhancer.isHpPercentEnabled();
+    }
+
+    public static inline function setShowHpPercentEnabled(enabled:Bool):Void {
+        NativeFramesEnhancer.setHpPercentEnabled(enabled);
+    }
+
+    public static inline function isRightClickMenuEnabled():Bool {
+        return NativeFramesEnhancer.isRightClickEnabled();
+    }
+
+    public static inline function setRightClickMenuEnabled(enabled:Bool):Void {
+        NativeFramesEnhancer.setRightClickEnabled(enabled);
+    }
+
+    // Legacy stubs (custom unit frames replaced by native frames enhancer)
+    public static inline function isPlayerFrameEnabled():Bool return false;
+    public static inline function setPlayerFrameEnabled(enabled:Bool):Void {}
+    public static inline function isTargetFrameEnabled():Bool return false;
+    public static inline function setTargetFrameEnabled(enabled:Bool):Void {}
+
+    // =========================================================================
+    // NAMEPLATES
+    // =========================================================================
     public static inline function isNameplatesEnabled():Bool {
         return NameplateUnitFrame.isWidgetEnabled();
     }
@@ -127,6 +151,9 @@ class UnitFramesManager {
         NameplateUnitFrame.setShowGuildNames(enabled);
     }
 
+    // =========================================================================
+    // BOSS MECHANICS BAR
+    // =========================================================================
     public static inline function isBossMechanicsBarEnabled():Bool {
         return BossMechanicsBar.isEnabled();
     }
@@ -147,6 +174,9 @@ class UnitFramesManager {
         BossMechanicsBar.testPreview();
     }
 
+    // =========================================================================
+    // PARTY / RAID FRAMES
+    // =========================================================================
     public static inline function isPartyFramesEnabled():Bool {
         return PartyUnitFrame.isEnabled();
     }
@@ -193,28 +223,15 @@ class UnitFramesManager {
         PartyUnitFrame.testPreview();
     }
 
-    /**
-     * Synchronizes native AQW portrait suppression with our custom unit frames.
-     * When any custom unit frame (Player or Target) is active:
-     * - Keeps bHideUI = false so default aura frames continue processing all packets and animations
-     * - Hides native mcPortrait, mcPortraitTarget, and areaList
-     * When all custom unit frames are disabled:
-     * - Restores native portraits and areaList
-     *
-     * NOTE: the new game client keeps auras visible when the UI is hidden, so we no longer
-     * re-parent pAurasUI / tAurasUI or toggle auraContainer visibility — only bHideUI and the
-     * portrait visibility are controlled here.
-     */
+    // =========================================================================
+    // NATIVE UI SYNC
+    // =========================================================================
     public static function syncNativeHideUI():Void {
         try {
             var g:Dynamic = com.aqwapi.Api.game;
             if (g == null || g.ui == null) return;
 
-            var playerFrameOn:Bool = isPlayerFrameEnabled();
-            var targetFrameOn:Bool = isTargetFrameEnabled();
-            var shouldHideAny:Bool = (playerFrameOn || targetFrameOn);
-
-            // Ensure bHideUI is false so native playerAuras and targetAuras continue running!
+            // Ensure bHideUI is false so native playerAuras, targetAuras, and portrait animations run smoothly
             if (g.litePreference != null && g.litePreference.data != null) {
                 if (g.litePreference.data.bHideUI == true) {
                     g.litePreference.data.bHideUI = false;
@@ -222,116 +239,34 @@ class UnitFramesManager {
                 }
             }
 
-            if (shouldHideAny) {
-                // NOTE: no longer re-parent pAurasUI / tAurasUI out of mcPortrait into g.ui.
-                // The new game client keeps auras visible when the UI is hidden, so our old
-                // re-parenting was redundant — and on the new client it can actually hide
-                // auras that the game expects to stay on screen. Leave them where the game
-                // placed them; only control bHideUI and the portrait visibility below.
-            }
-
-            // 1. Player portrait control
+            // 1. Player portrait: always fully visible and at native (0, 0)
             if (g.ui.mcPortrait != null) {
-                if (playerFrameOn) {
-                    g.ui.mcPortrait.visible = false;
-                    g.ui.mcPortrait.alpha = 0.0;
-                    g.ui.mcPortrait.y = -9999;
-                } else {
-                    g.ui.mcPortrait.alpha = 1.0;
-                    g.ui.mcPortrait.y = 0;
-                    g.ui.mcPortrait.visible = true;
-                    if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
-                        try { g.showPortrait(g.world.myAvatar); } catch (_:Dynamic) {}
-                    }
+                g.ui.mcPortrait.alpha = 1.0;
+                g.ui.mcPortrait.y = 0;
+                g.ui.mcPortrait.visible = true;
+                if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
+                    try { g.showPortrait(g.world.myAvatar); } catch (_:Dynamic) {}
                 }
             }
 
-            // 2. Target portrait control
+            // 2. Target portrait: visible whenever an avatar is targeted
             var hasTarget:Bool = (g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null);
             if (g.ui.mcPortraitTarget != null) {
-                if (targetFrameOn) {
-                    g.ui.mcPortraitTarget.visible = false;
-                    g.ui.mcPortraitTarget.alpha = 0.0;
-                    g.ui.mcPortraitTarget.y = -9999;
-                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
-                } else {
-                    g.ui.mcPortraitTarget.alpha = 1.0;
-                    g.ui.mcPortraitTarget.y = 0;
-                    g.ui.mcPortraitTarget.visible = hasTarget;
-                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
-                    if (hasTarget && Reflect.isFunction(g.showPortraitTarget)) {
-                        try { g.showPortraitTarget(g.world.myAvatar.target); } catch (_:Dynamic) {}
-                    }
+                g.ui.mcPortraitTarget.alpha = 1.0;
+                g.ui.mcPortraitTarget.y = 0;
+                g.ui.mcPortraitTarget.visible = hasTarget;
+                if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
+                if (hasTarget && Reflect.isFunction(g.showPortraitTarget)) {
+                    try { g.showPortraitTarget(g.world.myAvatar.target); } catch (_:Dynamic) {}
                 }
             }
-
-
 
             if (g.world != null && isNameplatesEnabled()) {
                 try { g.world.showHPBar = false; } catch (_:Dynamic) {}
             }
-            installPortraitHooks();
+
+            NativeFramesEnhancer.updateFrames();
         } catch (_:Dynamic) {}
-    }
-
-    private static var _hooksInstalled:Bool = false;
-    public static function installPortraitHooks():Void {
-        var g:Dynamic = com.aqwapi.Api.game;
-        if (g == null) return;
-        if (_hooksInstalled) return;
-        if (!Reflect.isFunction(g.showPortrait) && !Reflect.isFunction(g.showPortraitBox)) return;
-        _hooksInstalled = true;
-
-        if (Reflect.isFunction(g.showPortrait)) {
-            var origShow = g.showPortrait;
-            g.showPortrait = function(avt:Dynamic):Dynamic {
-                if (isPlayerFrameEnabled()) {
-                    if (g.ui != null && g.ui.mcPortrait != null) {
-                        g.ui.mcPortrait.visible = false;
-                        g.ui.mcPortrait.alpha = 0.0;
-                        g.ui.mcPortrait.y = -9999;
-                    }
-                    return null;
-                }
-                return origShow(avt);
-            };
-        }
-
-        if (Reflect.isFunction(g.showPortraitTarget)) {
-            var origShowTarget = g.showPortraitTarget;
-            g.showPortraitTarget = function(avt:Dynamic):Dynamic {
-                if (isTargetFrameEnabled()) {
-                    if (g.ui != null && g.ui.mcPortraitTarget != null) {
-                        g.ui.mcPortraitTarget.visible = false;
-                        g.ui.mcPortraitTarget.alpha = 0.0;
-                        g.ui.mcPortraitTarget.y = -9999;
-                        if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
-                    }
-                    return null;
-                }
-                return origShowTarget(avt);
-            };
-        }
-
-        if (Reflect.isFunction(g.showPortraitBox)) {
-            var origShowBox = g.showPortraitBox;
-            g.showPortraitBox = function(avt:Dynamic, mcBox:Dynamic):Dynamic {
-                if (mcBox == g.ui.mcPortrait && isPlayerFrameEnabled()) {
-                    mcBox.visible = false;
-                    mcBox.alpha = 0.0;
-                    mcBox.y = -9999;
-                    return null;
-                }
-                if (mcBox == g.ui.mcPortraitTarget && isTargetFrameEnabled()) {
-                    mcBox.visible = false;
-                    mcBox.alpha = 0.0;
-                    mcBox.y = -9999;
-                    if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = false;
-                    return null;
-                }
-                return origShowBox(avt, mcBox);
-            };
-        }
     }
 
     public static inline var AURA_ANCHOR_FRAMES:Int = 0;
@@ -364,8 +299,7 @@ class UnitFramesManager {
     }
 
     public static function reloadFromConfig():Void {
-        PlayerUnitFrame.reloadFromConfig();
-        TargetUnitFrame.reloadFromConfig();
+        NativeFramesEnhancer.reloadFromConfig();
         NameplateUnitFrame.reloadFromConfig();
         PartyUnitFrame.reloadFromConfig();
         QuestUnitFrame.reloadFromConfig();
@@ -373,8 +307,6 @@ class UnitFramesManager {
     }
 
     public static function resetAllPositions():Void {
-        PlayerUnitFrame.resetPosition();
-        TargetUnitFrame.resetPosition();
         PartyUnitFrame.resetPosition();
         QuestUnitFrame.resetPosition();
         ApiNotificationManager.notify("Unit frame positions reset!");
@@ -414,6 +346,14 @@ class UnitFramesManager {
 #else
 class UnitFramesManager {
     public static function init(pocket:Dynamic, overlay:Dynamic):Void {}
+    public static function isNativeFramesEnhanced():Bool return true;
+    public static function setNativeFramesEnhanced(enabled:Bool):Void {}
+    public static function isDynamicHealthColorEnabled():Bool return true;
+    public static function setDynamicHealthColorEnabled(enabled:Bool):Void {}
+    public static function isShowHpPercentEnabled():Bool return true;
+    public static function setShowHpPercentEnabled(enabled:Bool):Void {}
+    public static function isRightClickMenuEnabled():Bool return true;
+    public static function setRightClickMenuEnabled(enabled:Bool):Void {}
     public static function isPlayerFrameEnabled():Bool return false;
     public static function setPlayerFrameEnabled(enabled:Bool):Void {}
     public static function isTargetFrameEnabled():Bool return false;

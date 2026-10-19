@@ -430,7 +430,7 @@ class NameplateDisplay extends Sprite {
             var ratio:Float = Math.max(0.0, Math.min(1.0, (hp : Float) / (maxHp : Float)));
             var fillW:Float = Math.round((BAR_W - 2.0) * ratio);
             if (fillW > 0) {
-                var color:Int = isEnemy ? COLOR_HP_ENEMY : PlayerUnitFrame.getHealthColor(ratio);
+                var color:Int = isEnemy ? COLOR_HP_ENEMY : NativeFramesEnhancer.getHealthColor(ratio);
                 g.beginFill(color, 1.0);
                 g.drawRoundRect(-BAR_W / 2 + 1, barY + 1, fillW, BAR_H - 2, 1, 1);
                 g.endFill();

@@ -12,47 +12,83 @@ class UnitFramesTab implements IDashboardTab {
     public function new() {}
 
     public function render(modal:ApiDashboardModal):Void {
-        modal.addInfoBanner("Configure modern ElvUI-style unit frames and custom floating combat text. All frames are portrait-less, lightweight, and freely draggable on screen.");
+        modal.addInfoBanner("Configure native unit frames enhancements, party grid, quest tracker, and floating combat text. Default frames retain full native portrait medallions and animations.");
 
-        modal.addSectionHeader("Unit Frames (ElvUI Style)");
+        modal.addSectionHeader("Default Unit Frames Enhancements");
 
-        // 1. Player Unit Frame
+        // 1. Enhanced Default Frames
         modal.addItemRow(
-            "Player Unit Frame",
-            "Compact portrait-less frame with Level, Class, HP, Shield, MP, and SP stamina.",
+            "Enhanced Default Frames",
+            "Improves default player and target health bars with cleanly positioned HP/Max HP values and percentage numbers.",
             "toggle",
             "",
             false,
             function():Void {
-                var cur = UnitFramesManager.isPlayerFrameEnabled();
+                var cur = UnitFramesManager.isNativeFramesEnhanced();
                 var next = !cur;
-                UnitFramesManager.setPlayerFrameEnabled(next);
-                ApiNotificationManager.notify("Player Frame: " + (next ? "Enabled" : "Disabled"));
+                UnitFramesManager.setNativeFramesEnhanced(next);
+                ApiNotificationManager.notify("Enhanced Default Frames: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return UnitFramesManager.isPlayerFrameEnabled();
+                return UnitFramesManager.isNativeFramesEnhanced();
             }
         );
 
-        // 2. Target Unit Frame
+        // 2. Dynamic Health Bar Color
         modal.addItemRow(
-            "Target Unit Frame",
-            "Compact portrait-less frame with Level, Race, HP, Shield, MP, and cancel target [x].",
+            "Dynamic Health Bar Color",
+            "Health bar color smoothly shifts from vibrant green (>50%) to golden yellow (20-50%) and danger red (<20%) as HP lowers.",
             "toggle",
             "",
             false,
             function():Void {
-                var cur = UnitFramesManager.isTargetFrameEnabled();
+                var cur = UnitFramesManager.isDynamicHealthColorEnabled();
                 var next = !cur;
-                UnitFramesManager.setTargetFrameEnabled(next);
-                ApiNotificationManager.notify("Target Frame: " + (next ? "Enabled" : "Disabled"));
+                UnitFramesManager.setDynamicHealthColorEnabled(next);
+                ApiNotificationManager.notify("Dynamic Health Color: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return UnitFramesManager.isTargetFrameEnabled();
+                return UnitFramesManager.isDynamicHealthColorEnabled();
             }
         );
 
-        // 3. Show Class Names (All Frames)
+        // 3. Health Percentage (%)
+        modal.addItemRow(
+            "Health Percentage (%)",
+            "Displays live HP percentage (e.g. 100%, 45%) on the right side of the default health bar.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isShowHpPercentEnabled();
+                var next = !cur;
+                UnitFramesManager.setShowHpPercentEnabled(next);
+                ApiNotificationManager.notify("Health Percentage: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isShowHpPercentEnabled();
+            }
+        );
+
+        // 4. Right-Click Context Menu
+        modal.addItemRow(
+            "Right-Click Context Menu",
+            "Right-clicking the player or target portrait opens the options/interaction context menu at the cursor.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isRightClickMenuEnabled();
+                var next = !cur;
+                UnitFramesManager.setRightClickMenuEnabled(next);
+                ApiNotificationManager.notify("Right-Click Context Menu: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isRightClickMenuEnabled();
+            }
+        );
+
+        // 5. Show Class Names (All Frames)
         modal.addItemRow(
             "Show Class Names",
             "Replaces player usernames with class names across all frames and nameplates.",
@@ -67,18 +103,6 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return UnitFramesManager.isShowClassNames();
-            }
-        );
-
-        // Reset Unit Frames Position
-        modal.addItemRow(
-            "Reset Frame Positions",
-            "Reset player and target frames to default screen coordinates.",
-            "button",
-            "Reset",
-            false,
-            function():Void {
-                UnitFramesManager.resetAllPositions();
             }
         );
 
