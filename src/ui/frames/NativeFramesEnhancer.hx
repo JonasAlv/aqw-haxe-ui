@@ -23,9 +23,9 @@ import ui.ApiStyle;
  * NativeFramesEnhancer:
  * Directly enhances AQW's native player (mcPortrait) and target (mcPortraitTarget) frames.
  *
- * Features:
- * - Clean health text layout: formatted curHP / maxHP (e.g. 2,995 / 2,995 or 100M / 100M) on left, live % on right.
- * - Dynamic health bar color gradient: healthy green (>50%) -> low yellow (20-50%) -> danger red (<20%).
+ * Text-Only Enhancements:
+ * - Clean health text layout: formatted curHP / maxHP (e.g. 2,995 / 2,995 or 100M / 100M) on the left, live % on the right.
+ * - Zero graphics drawing or bar modifications: leaves native AQW health bar art and fills 100% untouched.
  * - Right-click context menu on player and target portraits (opens cMenu directly at mouse cursor).
  * - Full native fidelity: preserves native portrait medallion, art, animations, and native auras.
  */
@@ -33,10 +33,9 @@ class NativeFramesEnhancer {
     // Config keys
     public static inline var CONFIG_ENHANCED:String       = "api_native_frames_enhanced";
     public static inline var CONFIG_HP_PERCENT:String     = "api_native_frames_hp_pct";
-    public static inline var CONFIG_DYNAMIC_COLOR:String  = "api_native_frames_dynamic_color";
     public static inline var CONFIG_RIGHT_CLICK:String    = "api_native_frames_right_click";
 
-    // Health Colors (WoW Style Gradient)
+    // Health Colors (used by Nameplates and external frames)
     public static inline var COLOR_HP_HEALTHY:Int        = 0x22C55E; // Healthy vibrant green (> 50%)
     public static inline var COLOR_HP_LOW:Int            = 0xEAB308; // Getting low gold/yellow (20% - 50%)
     public static inline var COLOR_HP_CRITICAL:Int       = 0xEF4444; // Critical danger red (< 20%)
@@ -105,18 +104,16 @@ class NativeFramesEnhancer {
     }
 
     // =========================================================================
-    // HEALTH COLOR GRADIENT
+    // HEALTH COLOR GRADIENT (Utility for Nameplates & Party Frames)
     // =========================================================================
     public static function getHealthColor(ratio:Float):Int {
         if (ratio >= HP_THRESHOLD_HEALTHY) {
-            // Smooth gradient between Low (Yellow) at 0.50 and Healthy (Green) at 1.00
             var t:Float = (ratio - HP_THRESHOLD_HEALTHY) / (1.0 - HP_THRESHOLD_HEALTHY);
             var r = Std.int(0xEA + (0x22 - 0xEA) * t);
             var g = Std.int(0xB3 + (0xC5 - 0xB3) * t);
             var b = Std.int(0x08 + (0x5E - 0x08) * t);
             return (r << 16) | (g << 8) | b;
         } else if (ratio >= HP_THRESHOLD_CRITICAL) {
-            // Smooth gradient between Critical (Red) at 0.20 and Low (Yellow) at 0.50
             var t:Float = (ratio - HP_THRESHOLD_CRITICAL) / (HP_THRESHOLD_HEALTHY - HP_THRESHOLD_CRITICAL);
             var r = Std.int(0xEF + (0xEA - 0xEF) * t);
             var g = Std.int(0x44 + (0xB3 - 0x44) * t);
@@ -156,7 +153,7 @@ class NativeFramesEnhancer {
     }
 
     // =========================================================================
-    // PLAYER FRAME ENHANCEMENT
+    // PLAYER FRAME ENHANCEMENT (TEXT ONLY)
     // =========================================================================
     private static function updatePlayerFrame(g:Dynamic):Void {
         if (g == null || g.ui == null || g.ui.mcPortrait == null) return;
@@ -168,6 +165,11 @@ class NativeFramesEnhancer {
 
         var strIntHP:TextField = cast hpClip.strIntHP;
         if (strIntHP == null) return;
+
+        // Ensure native bar fill graphics are untouched (no color transform)
+        if (hpClip.intHPbar != null && hpClip.intHPbar.transform != null) {
+            hpClip.intHPbar.transform.colorTransform = new ColorTransform();
+        }
 
         if (!isEnhanced()) {
             restoreNativeFrame(hpClip, strIntHP);
@@ -198,7 +200,6 @@ class NativeFramesEnhancer {
         if (maxHp <= 0) maxHp = 1;
 
         var showPct:Bool = isHpPercentEnabled();
-        var dynamicCol:Bool = isDynamicColorEnabled();
 
         // Ensure percent text field exists on hpClip
         var pctTxt:TextField = cast hpClip.getChildByName("strIntHPPct");
@@ -211,7 +212,7 @@ class NativeFramesEnhancer {
             hpClip.addChild(pctTxt);
         }
 
-        // Setup layouts & formats
+        // Setup layouts & formats (Text only)
         var rightReserve:Float = showPct ? 34.0 : 0.0;
         strIntHP.autoSize = TextFieldAutoSize.NONE;
         strIntHP.selectable = false;
@@ -262,22 +263,10 @@ class NativeFramesEnhancer {
                 pctTxt.text = pctStr;
             }
         }
-
-        // Dynamic Health Color
-        if (hpClip.intHPbar != null) {
-            if (dynamicCol) {
-                var hpColor:Int = getHealthColor(hpRatio);
-                var ct:ColorTransform = new ColorTransform();
-                ct.color = hpColor;
-                hpClip.intHPbar.transform.colorTransform = ct;
-            } else {
-                hpClip.intHPbar.transform.colorTransform = new ColorTransform();
-            }
-        }
     }
 
     // =========================================================================
-    // TARGET FRAME ENHANCEMENT
+    // TARGET FRAME ENHANCEMENT (TEXT ONLY)
     // =========================================================================
     private static function updateTargetFrame(g:Dynamic):Void {
         if (g == null || g.ui == null || g.ui.mcPortraitTarget == null) return;
@@ -292,6 +281,11 @@ class NativeFramesEnhancer {
 
         var strIntHP:TextField = cast hpClip.strIntHP;
         if (strIntHP == null) return;
+
+        // Ensure native bar fill graphics are untouched (no color transform)
+        if (hpClip.intHPbar != null && hpClip.intHPbar.transform != null) {
+            hpClip.intHPbar.transform.colorTransform = new ColorTransform();
+        }
 
         if (!isEnhanced()) {
             restoreNativeFrame(hpClip, strIntHP);
@@ -327,7 +321,6 @@ class NativeFramesEnhancer {
         if (maxHp <= 0) maxHp = 1;
 
         var showPct:Bool = isHpPercentEnabled();
-        var dynamicCol:Bool = isDynamicColorEnabled();
 
         // Ensure percent text field exists on target hpClip
         var pctTxt:TextField = cast hpClip.getChildByName("strIntHPPct");
@@ -340,7 +333,7 @@ class NativeFramesEnhancer {
             hpClip.addChild(pctTxt);
         }
 
-        // Setup layouts & formats
+        // Setup layouts & formats (Text only)
         var rightReserve:Float = showPct ? 34.0 : 0.0;
         strIntHP.autoSize = TextFieldAutoSize.NONE;
         strIntHP.selectable = false;
@@ -392,18 +385,6 @@ class NativeFramesEnhancer {
             }
         }
 
-        // Dynamic Health Color
-        if (hpClip.intHPbar != null) {
-            if (dynamicCol) {
-                var hpColor:Int = getHealthColor(hpRatio);
-                var ct:ColorTransform = new ColorTransform();
-                ct.color = hpColor;
-                hpClip.intHPbar.transform.colorTransform = ct;
-            } else {
-                hpClip.intHPbar.transform.colorTransform = new ColorTransform();
-            }
-        }
-
         // Show class names option
         if (UnitFramesManager.isShowClassNames()) {
             if (targetDTO != null && targetDTO.isPlayer && targetDTO.className != "") {
@@ -422,7 +403,7 @@ class NativeFramesEnhancer {
         if (pctTxt != null) {
             pctTxt.visible = false;
         }
-        if (hpClip.intHPbar != null) {
+        if (hpClip.intHPbar != null && hpClip.intHPbar.transform != null) {
             hpClip.intHPbar.transform.colorTransform = new ColorTransform();
         }
     }
@@ -519,15 +500,6 @@ class NativeFramesEnhancer {
         updateFrames();
     }
 
-    public static inline function isDynamicColorEnabled():Bool {
-        return ApiConfig.getBool(CONFIG_DYNAMIC_COLOR, true);
-    }
-
-    public static inline function setDynamicColorEnabled(enabled:Bool):Void {
-        ApiConfig.setBool(CONFIG_DYNAMIC_COLOR, enabled);
-        updateFrames();
-    }
-
     public static inline function isRightClickEnabled():Bool {
         return ApiConfig.getBool(CONFIG_RIGHT_CLICK, true);
     }
@@ -550,8 +522,6 @@ class NativeFramesEnhancer {
     public static function setEnhanced(enabled:Bool):Void {}
     public static function isHpPercentEnabled():Bool return true;
     public static function setHpPercentEnabled(enabled:Bool):Void {}
-    public static function isDynamicColorEnabled():Bool return true;
-    public static function setDynamicColorEnabled(enabled:Bool):Void {}
     public static function isRightClickEnabled():Bool return true;
     public static function setRightClickEnabled(enabled:Bool):Void {}
     public static function reloadFromConfig():Void {}

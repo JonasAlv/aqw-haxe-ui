@@ -52,14 +52,6 @@ class UnitFramesManager {
         NativeFramesEnhancer.setEnhanced(enabled);
     }
 
-    public static inline function isDynamicHealthColorEnabled():Bool {
-        return NativeFramesEnhancer.isDynamicColorEnabled();
-    }
-
-    public static inline function setDynamicHealthColorEnabled(enabled:Bool):Void {
-        NativeFramesEnhancer.setDynamicColorEnabled(enabled);
-    }
-
     public static inline function isShowHpPercentEnabled():Bool {
         return NativeFramesEnhancer.isHpPercentEnabled();
     }
@@ -348,8 +340,6 @@ class UnitFramesManager {
     public static function init(pocket:Dynamic, overlay:Dynamic):Void {}
     public static function isNativeFramesEnhanced():Bool return true;
     public static function setNativeFramesEnhanced(enabled:Bool):Void {}
-    public static function isDynamicHealthColorEnabled():Bool return true;
-    public static function setDynamicHealthColorEnabled(enabled:Bool):Void {}
     public static function isShowHpPercentEnabled():Bool return true;
     public static function setShowHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickMenuEnabled():Bool return true;

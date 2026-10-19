@@ -34,25 +34,8 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 2. Dynamic Health Bar Color
-        modal.addItemRow(
-            "Dynamic Health Bar Color",
-            "Health bar color smoothly shifts from vibrant green (>50%) to golden yellow (20-50%) and danger red (<20%) as HP lowers.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = UnitFramesManager.isDynamicHealthColorEnabled();
-                var next = !cur;
-                UnitFramesManager.setDynamicHealthColorEnabled(next);
-                ApiNotificationManager.notify("Dynamic Health Color: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return UnitFramesManager.isDynamicHealthColorEnabled();
-            }
-        );
 
-        // 3. Health Percentage (%)
+        // 2. Health Percentage (%)
         modal.addItemRow(
             "Health Percentage (%)",
             "Displays live HP percentage (e.g. 100%, 45%) on the right side of the default health bar.",
@@ -70,7 +53,7 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 4. Right-Click Context Menu
+        // 3. Right-Click Context Menu
         modal.addItemRow(
             "Right-Click Context Menu",
             "Right-clicking the player or target portrait opens the options/interaction context menu at the cursor.",
@@ -88,7 +71,7 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 5. Show Class Names (All Frames)
+        // 4. Show Class Names (All Frames)
         modal.addItemRow(
             "Show Class Names",
             "Replaces player usernames with class names across all frames and nameplates.",
