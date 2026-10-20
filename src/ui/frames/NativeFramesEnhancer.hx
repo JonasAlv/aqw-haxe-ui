@@ -658,9 +658,11 @@ class NativeFramesEnhancer {
 class NativeFrameDrag {
     private static inline var THRESHOLD_SQ:Float = 9.0; // 3px drag threshold
 
-    // Physical dimensions of target frame (mcPortraitTarget)
-    public static inline var FRAME_WIDTH:Float    = 182.0;
-    public static inline var FRAME_HEIGHT:Float   = 80.0;
+    // Visual frame physical offsets & dimensions relative to mcPortraitTarget origin
+    public static inline var FRAME_OFFSET_X:Float = 14.0;
+    public static inline var FRAME_OFFSET_Y:Float = 12.0;
+    public static inline var FRAME_WIDTH:Float    = 188.0;
+    public static inline var FRAME_HEIGHT:Float   = 81.0;
 
     private var _target:Sprite;
     private var _key:String;
@@ -710,7 +712,7 @@ class NativeFrameDrag {
             _hitLayer.mouseEnabled = true;
             _hitLayer.buttonMode = false;
             _hitLayer.graphics.beginFill(0x000000, 0.01);
-            _hitLayer.graphics.drawRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+            _hitLayer.graphics.drawRect(FRAME_OFFSET_X, FRAME_OFFSET_Y, FRAME_WIDTH, FRAME_HEIGHT);
             _hitLayer.graphics.endFill();
             _hitLayer.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false);
             try {
@@ -835,8 +837,8 @@ class NativeFrameDrag {
             }
         }
 
-        var vx = _target.x;
-        var vy = _target.y;
+        var vx = _target.x + FRAME_OFFSET_X;
+        var vy = _target.y + FRAME_OFFSET_Y;
         var bw = FRAME_WIDTH;
         var bh = FRAME_HEIGHT;
 
@@ -911,10 +913,10 @@ class NativeFrameDrag {
         var maxBottom:Float = stageH - 50;
 
         // Exact clamping to screen boundaries
-        var minX = 0;
-        var minY = 0;
-        var maxX = Math.round(stageW - FRAME_WIDTH);
-        var maxY = Math.round(maxBottom - FRAME_HEIGHT);
+        var minX = Math.round(-FRAME_OFFSET_X);
+        var minY = Math.round(-FRAME_OFFSET_Y);
+        var maxX = Math.round(stageW - FRAME_OFFSET_X - FRAME_WIDTH);
+        var maxY = Math.round(maxBottom - FRAME_OFFSET_Y - FRAME_HEIGHT);
 
         if (newX < minX) newX = minX;
         if (newY < minY) newY = minY;
