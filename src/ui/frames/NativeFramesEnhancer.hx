@@ -296,18 +296,42 @@ class NativeFramesEnhancer {
             }
         }
 
-        // Show class names option for player frame
+        // Show class names option for player frame (flicker-free overlay)
         if (mcPortrait.strName != null) {
+            var strPlayerName:TextField = cast mcPortrait.strName;
             var myClass:String = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "";
             var myUser:String = (Api.player != null && Api.player.username != null && Api.player.username != "") ? Api.player.username : ((g.world != null && g.world.myAvatar != null && g.world.myAvatar.objData != null) ? g.world.myAvatar.objData.strUsername : "");
 
             if (UnitFramesManager.isShowClassNames() && myClass != "") {
-                if (mcPortrait.strName.text != myClass) {
-                    mcPortrait.strName.text = myClass;
+                strPlayerName.visible = false;
+                var txtEnhancedName:TextField = cast mcPortrait.getChildByName("_txtEnhancedName");
+                if (txtEnhancedName == null) {
+                    txtEnhancedName = new TextField();
+                    txtEnhancedName.name = "_txtEnhancedName";
+                    txtEnhancedName.selectable = false;
+                    txtEnhancedName.mouseEnabled = false;
+                    txtEnhancedName.autoSize = TextFieldAutoSize.NONE;
+                    txtEnhancedName.x = strPlayerName.x;
+                    txtEnhancedName.y = strPlayerName.y;
+                    txtEnhancedName.width = strPlayerName.width > 0 ? strPlayerName.width : 140.0;
+                    txtEnhancedName.height = strPlayerName.height > 0 ? strPlayerName.height : 20.0;
+
+                    var tf = strPlayerName.defaultTextFormat;
+                    txtEnhancedName.defaultTextFormat = tf;
+                    txtEnhancedName.setTextFormat(tf);
+                    txtEnhancedName.filters = strPlayerName.filters;
+                    mcPortrait.addChild(txtEnhancedName);
                 }
-            } else if (myUser != "") {
-                if (mcPortrait.strName.text != myUser && mcPortrait.strName.text == myClass) {
-                    mcPortrait.strName.text = myUser;
+                txtEnhancedName.visible = true;
+                if (txtEnhancedName.text != myClass) {
+                    txtEnhancedName.text = myClass;
+                }
+            } else {
+                var oldTxt = mcPortrait.getChildByName("_txtEnhancedName");
+                if (oldTxt != null) oldTxt.visible = false;
+                strPlayerName.visible = true;
+                if (myUser != "" && strPlayerName.text == myClass) {
+                    strPlayerName.text = myUser;
                 }
             }
         }
@@ -447,18 +471,43 @@ class NativeFramesEnhancer {
             }
         }
 
-        // Show class names option for target frame
-        if (mcPortraitTarget.strName != null && targetDTO != null && targetDTO.isPlayer) {
-            var tClass:String = targetDTO.className != null ? targetDTO.className : "";
-            var tUser:String = targetDTO.name != null ? targetDTO.name : "";
+        // Show class names option for target frame (flicker-free overlay)
+        if (mcPortraitTarget.strName != null) {
+            var strTargetName:TextField = cast mcPortraitTarget.strName;
+            var isPlayer = (targetDTO != null && targetDTO.isPlayer);
+            var tClass:String = (isPlayer && targetDTO.className != null) ? targetDTO.className : "";
+            var tUser:String = (isPlayer && targetDTO.name != null) ? targetDTO.name : "";
 
-            if (UnitFramesManager.isShowClassNames() && tClass != "") {
-                if (mcPortraitTarget.strName.text != tClass) {
-                    mcPortraitTarget.strName.text = tClass;
+            if (isPlayer && UnitFramesManager.isShowClassNames() && tClass != "") {
+                strTargetName.visible = false;
+                var txtEnhancedTName:TextField = cast mcPortraitTarget.getChildByName("_txtEnhancedName");
+                if (txtEnhancedTName == null) {
+                    txtEnhancedTName = new TextField();
+                    txtEnhancedTName.name = "_txtEnhancedName";
+                    txtEnhancedTName.selectable = false;
+                    txtEnhancedTName.mouseEnabled = false;
+                    txtEnhancedTName.autoSize = TextFieldAutoSize.NONE;
+                    txtEnhancedTName.x = strTargetName.x;
+                    txtEnhancedTName.y = strTargetName.y;
+                    txtEnhancedTName.width = strTargetName.width > 0 ? strTargetName.width : 140.0;
+                    txtEnhancedTName.height = strTargetName.height > 0 ? strTargetName.height : 20.0;
+
+                    var tf = strTargetName.defaultTextFormat;
+                    txtEnhancedTName.defaultTextFormat = tf;
+                    txtEnhancedTName.setTextFormat(tf);
+                    txtEnhancedTName.filters = strTargetName.filters;
+                    mcPortraitTarget.addChild(txtEnhancedTName);
                 }
-            } else if (tUser != "") {
-                if (mcPortraitTarget.strName.text != tUser && mcPortraitTarget.strName.text == tClass) {
-                    mcPortraitTarget.strName.text = tUser;
+                txtEnhancedTName.visible = true;
+                if (txtEnhancedTName.text != tClass) {
+                    txtEnhancedTName.text = tClass;
+                }
+            } else {
+                var oldTTxt = mcPortraitTarget.getChildByName("_txtEnhancedName");
+                if (oldTTxt != null) oldTTxt.visible = false;
+                strTargetName.visible = true;
+                if (tUser != "" && strTargetName.text == tClass) {
+                    strTargetName.text = tUser;
                 }
             }
         }
