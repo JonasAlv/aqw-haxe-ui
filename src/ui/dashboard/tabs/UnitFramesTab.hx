@@ -107,10 +107,10 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 6. Movable Default Frames
+        // 6. Movable Target Frame
         modal.addItemRow(
-            "Movable Default Frames",
-            "Allows clicking and dragging player and target frames freely anywhere on screen (hover reveals frame tag).",
+            "Movable Target Frame",
+            "Allows clicking and dragging the target frame freely anywhere on screen (hover reveals border outline).",
             "toggle",
             "",
             false,
@@ -118,23 +118,23 @@ class UnitFramesTab implements IDashboardTab {
                 var cur = UnitFramesManager.isMovableFramesEnabled();
                 var next = !cur;
                 UnitFramesManager.setMovableFramesEnabled(next);
-                ApiNotificationManager.notify("Movable Default Frames: " + (next ? "Enabled" : "Disabled"));
+                ApiNotificationManager.notify("Movable Target Frame: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
                 return UnitFramesManager.isMovableFramesEnabled();
             }
         );
 
-        // 7. Reset Frame Positions
+        // 7. Reset Target Frame Position
         modal.addItemRow(
-            "Reset Frame Positions",
-            "Restores player and target unitframes back to their original default positions.",
+            "Reset Target Frame Position",
+            "Restores target unitframe back to its original default position.",
             "button",
             "Reset",
             false,
             function():Void {
                 UnitFramesManager.resetNativeFramePositions();
-                ApiNotificationManager.notify("Frame positions reset to default.");
+                ApiNotificationManager.notify("Target frame position reset to default.");
             }
         );
 

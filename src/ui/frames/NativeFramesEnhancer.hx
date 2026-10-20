@@ -54,7 +54,6 @@ class NativeFramesEnhancer {
     private static var _playerBarWidth:Float = 0;
     private static var _targetBarWidth:Float = 0;
 
-    private static var _playerDrag:NativeFrameDrag = null;
     private static var _targetDrag:NativeFrameDrag = null;
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
@@ -107,14 +106,21 @@ class NativeFramesEnhancer {
             _theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
         }
 
-        // Initialize frame draggers for player and target unitframes
-        if (g.ui.mcPortrait != null && _playerDrag == null) {
-            _playerDrag = new NativeFrameDrag(cast g.ui.mcPortrait, "api_pos_player_frame", "posPlayerFrame", "PLAYER");
-        } else if (_playerDrag != null) {
-            _playerDrag.ensureAttached();
+        // Player frame stays locked to native authoring position (0, 0) to avoid fighting AQW engine satellites
+        if (g.ui.mcPortrait != null) {
+            if (ApiConfig.has("api_pos_player_frame_x") || ApiConfig.has("api_pos_player_frame_y")) {
+                ApiConfig.delete("api_pos_player_frame_x");
+                ApiConfig.delete("api_pos_player_frame_y");
+                try {
+                    g.ui.mcPortrait.x = 0;
+                    g.ui.mcPortrait.y = 0;
+                } catch (_:Dynamic) {}
+            }
         }
+
+        // Target unitframe is movable
         if (g.ui.mcPortraitTarget != null && _targetDrag == null) {
-            _targetDrag = new NativeFrameDrag(cast g.ui.mcPortraitTarget, "api_pos_target_frame", "posTargetFrame", "TARGET");
+            _targetDrag = new NativeFrameDrag(cast g.ui.mcPortraitTarget, "api_pos_target_frame", "posTargetFrame");
         } else if (_targetDrag != null) {
             _targetDrag.ensureAttached();
         }
@@ -301,9 +307,6 @@ class NativeFramesEnhancer {
             }
         }
 
-        if (_playerDrag != null) {
-            _playerDrag.syncSatellites();
-        }
     }
 
     // =========================================================================
@@ -581,7 +584,14 @@ class NativeFramesEnhancer {
     }
 
     public static function resetFramePositions():Void {
-        if (_playerDrag != null) _playerDrag.resetPosition();
+        ApiConfig.delete("api_pos_player_frame_x");
+        ApiConfig.delete("api_pos_player_frame_y");
+        try {
+            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPortrait != null) {
+                Api.game.ui.mcPortrait.x = 0;
+                Api.game.ui.mcPortrait.y = 0;
+            }
+        } catch (_:Dynamic) {}
         if (_targetDrag != null) _targetDrag.resetPosition();
     }
 
@@ -838,40 +848,27 @@ class NativeFramesEnhancer {
 
 /**
  * NativeFrameDrag:
- * Draggable frame controller for default AQW player (mcPortrait) and target (mcPortraitTarget) frames.
- * Recreates the exact native feel of party and aura frames (HudDrag):
- * - Mouse drag anywhere on frame
- * - Screen boundary clamping
- * - Hover backdrop with "PLAYER" / "TARGET" caption tag
- * - Suppressed click on release so dragging doesn't open menu / cancel target
+ * Draggable frame controller for default AQW target frame (mcPortraitTarget).
+ * - Mouse drag anywhere on target frame
+ * - Screen boundary clamping strictly to physical borders (no off-screen hiding)
+ * - Clean outline border highlight when hovering/dragging (no black background pad)
+ * - Suppressed click on release so dragging doesn't untarget
+ * - Close button (btnTargetPortraitClose) anchored 1:1 with frame
  * - Persistent saved coordinates synced with config
  */
 class NativeFrameDrag {
     private static inline var THRESHOLD_SQ:Float = 16.0;
-    private static inline var CAP_H:Float = 14.0;
-    private static inline var PAD:Float = 5.0;
 
     private var _target:Sprite;
     private var _key:String;
     private var _litePrefKey:String;
-    private var _caption:String;
-    private var _defaultX:Float = 0;
-    private var _defaultY:Float = 0;
+    private var _defaultX:Float = 235.0;
+    private var _defaultY:Float = 2.0;
     private var _defaultRecorded:Bool = false;
 
-    private var _isTarget:Bool = false;
-
-    // Satellites offsets relative to frame
+    // Close button offset relative to target frame top-right
     private var _closeOffsetX:Float = 178.7;
     private var _closeOffsetY:Float = 10.0;
-
-    private var _questOffsetX:Float = -33.0;
-    private var _questOffsetY:Float = 53.0;
-    private var _questRecorded:Bool = false;
-
-    private var _monsterOffsetX:Float = 3.0;
-    private var _monsterOffsetY:Float = -17.0;
-    private var _monsterRecorded:Bool = false;
 
     private var _stage:Stage = null;
     private var _isDragging:Bool = false;
@@ -885,14 +882,11 @@ class NativeFrameDrag {
 
     private var _backdrop:Sprite = null;
     private var _bgShape:Shape = null;
-    private var _capTxt:TextField = null;
 
-    public function new(target:Sprite, key:String, litePrefKey:String, caption:String) {
+    public function new(target:Sprite, key:String, litePrefKey:String) {
         _target = target;
         _key = key;
         _litePrefKey = litePrefKey;
-        _caption = caption;
-        _isTarget = (_caption == "TARGET");
 
         _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false, 0, true);
         _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false, 0, true);
@@ -924,84 +918,11 @@ class NativeFrameDrag {
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return;
 
-        var isCustomMoved:Bool = (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) || _isDragging || _hasDragged;
-
-        if (_isTarget) {
-            var closeBtn:Dynamic = g.ui.btnTargetPortraitClose;
-            if (closeBtn != null) {
-                // Target close button: fixed relative to target frame top-right (178.7, 10.0)
-                // At default authoring (235.0, 2.0) this lands at (413.7, 12.0) which is native
-                closeBtn.x = _target.x + _closeOffsetX;
-                closeBtn.y = _target.y + _closeOffsetY;
-            }
-        } else {
-            var iconQuest:Dynamic = g.ui.iconQuest;
-            if (iconQuest != null) {
-                if (!isCustomMoved) {
-                    // When at native unmoved position, do NOT move iconQuest, but record its native relative offset
-                    if (iconQuest.x != 0 && Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
-                        _questOffsetX = iconQuest.x - _target.x;
-                        _questOffsetY = iconQuest.y - _target.y;
-                        _questRecorded = true;
-                    }
-                } else {
-                    // When moved, fix iconQuest to player frame with the exact offset, clamped to screen bounds
-                    var qx:Float = _target.x + _questOffsetX;
-                    var qy:Float = _target.y + _questOffsetY;
-                    if (qx < 0) qx = 0;
-                    if (qy < 0) qy = 0;
-                    iconQuest.x = qx;
-                    iconQuest.y = qy;
-                    try {
-                        if (g.mailHub != null) {
-                            g.mailHub.placeHud();
-                            var hudBtn:Dynamic = Reflect.field(g.mailHub, "hudBtn");
-                            if (hudBtn != null) {
-                                var b:Rectangle = iconQuest.getBounds(g.ui);
-                                if (b != null && b.width > 8) {
-                                    var sz:Float = Math.min(b.width, b.height);
-                                    var cx:Float = b.x + b.width / 2 - 13;
-                                    var cy:Float = b.y + b.height / 2 - 25;
-                                    var hx:Float = Math.round(cx - sz / 2);
-                                    var hy:Float = Math.round(cy - sz / 2);
-                                    if (hx < 0) hx = 0;
-                                    if (hy < 0) hy = 0;
-                                    hudBtn.x = hx;
-                                    hudBtn.y = hy;
-                                }
-                            }
-                        }
-                    } catch (_:Dynamic) {}
-                }
-            }
-
-            var monsterIcon:Dynamic = g.ui.monsterIcon;
-            if (monsterIcon != null) {
-                if (!isCustomMoved) {
-                    if (monsterIcon.x != 0 && Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
-                        _monsterOffsetX = monsterIcon.x - _target.x;
-                        _monsterOffsetY = monsterIcon.y - _target.y;
-                        _monsterRecorded = true;
-                    }
-                } else {
-                    monsterIcon.x = _target.x + _monsterOffsetX;
-                    monsterIcon.y = _target.y + _monsterOffsetY;
-                    var btnMonster:Dynamic = Reflect.field(g.ui, "btnMonster");
-                    if (btnMonster != null && btnMonster != monsterIcon) {
-                        btnMonster.x = _target.x + _monsterOffsetX;
-                        btnMonster.y = _target.y + _monsterOffsetY;
-                    }
-                }
-            }
+        var closeBtn:Dynamic = g.ui.btnTargetPortraitClose;
+        if (closeBtn != null) {
+            closeBtn.x = _target.x + _closeOffsetX;
+            closeBtn.y = _target.y + _closeOffsetY;
         }
-    }
-
-    public inline function getVisualOffsetX():Float {
-        return 0.0;
-    }
-
-    public inline function getVisualOffsetY():Float {
-        return 0.0;
     }
 
     public inline function getVisualWidth():Float {
@@ -1009,7 +930,7 @@ class NativeFrameDrag {
     }
 
     public inline function getVisualHeight():Float {
-        return _isTarget ? 98.0 : 88.0;
+        return 98.0;
     }
 
     private function onClickCapture(e:MouseEvent):Void {
@@ -1042,16 +963,6 @@ class NativeFrameDrag {
 
             _bgShape = new Shape();
             _backdrop.addChild(_bgShape);
-
-            _capTxt = new TextField();
-            var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 9, 0xEEEEF2, true);
-            _capTxt.defaultTextFormat = fmt;
-            _capTxt.autoSize = TextFieldAutoSize.LEFT;
-            _capTxt.selectable = false;
-            _capTxt.mouseEnabled = false;
-            _capTxt.filters = ApiStyle.getTextOutlineFilter();
-            _capTxt.text = _caption;
-            _backdrop.addChild(_capTxt);
         }
 
         var parent = _target.parent;
@@ -1060,24 +971,16 @@ class NativeFrameDrag {
             parent.addChildAt(_backdrop, idx);
         }
 
-        var vx = _target.x + getVisualOffsetX();
-        var vy = _target.y + getVisualOffsetY();
+        var vx = _target.x;
+        var vy = _target.y;
         var bw = getVisualWidth();
         var bh = getVisualHeight();
 
-        var bx = Math.max(0, vx - PAD);
-        var by = Math.max(0, vy - PAD - CAP_H);
-        var rw = bw + PAD * 2;
-        var rh = bh + PAD * 2 + CAP_H;
-
+        // Exact physical boundaries - zero black pad, crisp 1.5px border highlight
         _bgShape.graphics.clear();
-        _bgShape.graphics.beginFill(0x000000, 0.45);
-        _bgShape.graphics.lineStyle(1, 0x475569, 0.85);
-        _bgShape.graphics.drawRoundRect(bx, by, rw, rh, 6, 6);
-        _bgShape.graphics.endFill();
+        _bgShape.graphics.lineStyle(1.5, 0x38BDF8, 0.85);
+        _bgShape.graphics.drawRoundRect(vx, vy, bw, bh, 6, 6);
 
-        _capTxt.x = bx + 6;
-        _capTxt.y = by + 1;
         _backdrop.visible = true;
     }
 
@@ -1137,15 +1040,13 @@ class NativeFrameDrag {
         var stageH:Float = _stage.stageHeight > 0 ? _stage.stageHeight : 550;
         var maxBottom:Float = stageH - 50;
 
-        var offX = getVisualOffsetX();
-        var offY = getVisualOffsetY();
-        var vw = getVisualWidth();
-        var vh = getVisualHeight();
+        var bw = getVisualWidth();
+        var bh = getVisualHeight();
 
         var minX = 0;
         var minY = 0;
-        var maxX = Math.round(stageW - vw);
-        var maxY = Math.round(maxBottom - vh);
+        var maxX = Math.round(stageW - bw);
+        var maxY = Math.round(maxBottom - bh);
 
         if (newX < minX) newX = minX;
         if (newY < minY) newY = minY;
@@ -1230,31 +1131,10 @@ class NativeFrameDrag {
         _target.x = _defaultX;
         _target.y = _defaultY;
 
-        if (_isTarget) {
-            var closeBtn:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.btnTargetPortraitClose : null;
-            if (closeBtn != null) {
-                closeBtn.x = _target.x + _closeOffsetX;
-                closeBtn.y = _target.y + _closeOffsetY;
-            }
-        } else {
-            var iconQuest:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.iconQuest : null;
-            if (iconQuest != null) {
-                iconQuest.x = _target.x + _questOffsetX;
-                iconQuest.y = _target.y + _questOffsetY;
-                try {
-                    if (Api.game != null && Api.game.mailHub != null) Api.game.mailHub.placeHud();
-                } catch (_:Dynamic) {}
-            }
-            var monsterIcon:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.monsterIcon : null;
-            if (monsterIcon != null) {
-                monsterIcon.x = _target.x + _monsterOffsetX;
-                monsterIcon.y = _target.y + _monsterOffsetY;
-                var btnMonster:Dynamic = (Api.game != null && Api.game.ui != null) ? Reflect.field(Api.game.ui, "btnMonster") : null;
-                if (btnMonster != null && btnMonster != monsterIcon) {
-                    btnMonster.x = _target.x + _monsterOffsetX;
-                    btnMonster.y = _target.y + _monsterOffsetY;
-                }
-            }
+        var closeBtn:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.btnTargetPortraitClose : null;
+        if (closeBtn != null) {
+            closeBtn.x = _target.x + _closeOffsetX;
+            closeBtn.y = _target.y + _closeOffsetY;
         }
         hideBackdrop();
     }

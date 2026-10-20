@@ -254,9 +254,8 @@ class UnitFramesManager {
             // 1. Player portrait: always fully visible
             if (g.ui.mcPortrait != null) {
                 g.ui.mcPortrait.alpha = 1.0;
-                if (!NativeFramesEnhancer.isMovableFramesEnabled() && !ApiConfig.has("api_pos_player_frame_x")) {
-                    g.ui.mcPortrait.y = 0;
-                }
+                g.ui.mcPortrait.x = 0;
+                g.ui.mcPortrait.y = 0;
                 g.ui.mcPortrait.visible = true;
                 if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
                     try { g.showPortrait(g.world.myAvatar); } catch (_:Dynamic) {}
