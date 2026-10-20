@@ -4,6 +4,7 @@ package ui.frames;
 import flash.Lib;
 import flash.display.DisplayObject;
 import flash.display.MovieClip;
+import flash.display.Shape;
 import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
@@ -34,6 +35,8 @@ class NativeFramesEnhancer {
     public static inline var CONFIG_ENHANCED:String       = "api_native_frames_enhanced";
     public static inline var CONFIG_HP_PERCENT:String     = "api_native_frames_hp_pct";
     public static inline var CONFIG_RIGHT_CLICK:String    = "api_native_frames_right_click";
+    public static inline var CONFIG_TOT:String            = "api_native_frames_tot";
+    public static inline var CONFIG_MOVABLE:String        = "api_native_frames_movable";
 
     // Health Colors (used by Nameplates and external frames)
     public static inline var COLOR_HP_HEALTHY:Int        = 0x22C55E; // Healthy vibrant green (> 50%)
@@ -47,6 +50,9 @@ class NativeFramesEnhancer {
 
     private static var _playerBarWidth:Float = 0;
     private static var _targetBarWidth:Float = 0;
+
+    private static var _playerDrag:NativeFrameDrag = null;
+    private static var _targetDrag:NativeFrameDrag = null;
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -96,6 +102,14 @@ class NativeFramesEnhancer {
         if (_theStage == null && g.stage != null) {
             _theStage = g.stage;
             _theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+        }
+
+        // Initialize frame draggers for player and target unitframes
+        if (g.ui.mcPortrait != null && _playerDrag == null) {
+            _playerDrag = new NativeFrameDrag(cast g.ui.mcPortrait, "api_pos_player_frame", "posPlayerFrame", "PLAYER");
+        }
+        if (g.ui.mcPortraitTarget != null && _targetDrag == null) {
+            _targetDrag = new NativeFrameDrag(cast g.ui.mcPortraitTarget, "api_pos_target_frame", "posTargetFrame", "TARGET");
         }
 
         setupRightClickMenu(g);
@@ -263,6 +277,22 @@ class NativeFramesEnhancer {
                 pctTxt.text = pctStr;
             }
         }
+
+        // Show class names option for player frame
+        if (mcPortrait.strName != null) {
+            var myClass:String = (Api.player != null && Api.player.className != null && Api.player.className != "") ? Api.player.className : "";
+            var myUser:String = (Api.player != null && Api.player.username != null && Api.player.username != "") ? Api.player.username : ((g.world != null && g.world.myAvatar != null && g.world.myAvatar.objData != null) ? g.world.myAvatar.objData.strUsername : "");
+
+            if (UnitFramesManager.isShowClassNames() && myClass != "") {
+                if (mcPortrait.strName.text != myClass) {
+                    mcPortrait.strName.text = myClass;
+                }
+            } else if (myUser != "") {
+                if (mcPortrait.strName.text != myUser && mcPortrait.strName.text == myClass) {
+                    mcPortrait.strName.text = myUser;
+                }
+            }
+        }
     }
 
     // =========================================================================
@@ -385,14 +415,24 @@ class NativeFramesEnhancer {
             }
         }
 
-        // Show class names option
-        if (UnitFramesManager.isShowClassNames()) {
-            if (targetDTO != null && targetDTO.isPlayer && targetDTO.className != "") {
-                if (mcPortraitTarget.strName != null && mcPortraitTarget.strName.text != targetDTO.className) {
-                    mcPortraitTarget.strName.text = targetDTO.className;
+        // Show class names option for target frame
+        if (mcPortraitTarget.strName != null && targetDTO != null && targetDTO.isPlayer) {
+            var tClass:String = targetDTO.className != null ? targetDTO.className : "";
+            var tUser:String = targetDTO.name != null ? targetDTO.name : "";
+
+            if (UnitFramesManager.isShowClassNames() && tClass != "") {
+                if (mcPortraitTarget.strName.text != tClass) {
+                    mcPortraitTarget.strName.text = tClass;
+                }
+            } else if (tUser != "") {
+                if (mcPortraitTarget.strName.text != tUser && mcPortraitTarget.strName.text == tClass) {
+                    mcPortraitTarget.strName.text = tUser;
                 }
             }
         }
+
+        // Target of Target (replaces native Options button)
+        updateTargetOfTarget(mcPortraitTarget, targetAvt);
     }
 
     // =========================================================================
@@ -508,8 +548,485 @@ class NativeFramesEnhancer {
         ApiConfig.setBool(CONFIG_RIGHT_CLICK, enabled);
     }
 
+    public static inline function isTargetOfTargetEnabled():Bool {
+        return ApiConfig.getBool(CONFIG_TOT, true);
+    }
+
+    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {
+        ApiConfig.setBool(CONFIG_TOT, enabled);
+        updateFrames();
+    }
+
+    public static inline function isMovableFramesEnabled():Bool {
+        return ApiConfig.getBool(CONFIG_MOVABLE, true);
+    }
+
+    public static inline function setMovableFramesEnabled(enabled:Bool):Void {
+        ApiConfig.setBool(CONFIG_MOVABLE, enabled);
+    }
+
+    public static function resetFramePositions():Void {
+        if (_playerDrag != null) _playerDrag.resetPosition();
+        if (_targetDrag != null) _targetDrag.resetPosition();
+    }
+
     public static function reloadFromConfig():Void {
         updateFrames();
+    }
+
+    // =========================================================================
+    // TARGET OF TARGET (REPLACES NATIVE OPTIONS BUTTON)
+    // =========================================================================
+    private static function updateTargetOfTarget(mcPortraitTarget:Dynamic, targetAvt:Dynamic):Void {
+        var btnOption:Dynamic = Reflect.field(mcPortraitTarget, "btnOption");
+        var totEnabled = isTargetOfTargetEnabled();
+
+        if (!totEnabled) {
+            if (btnOption != null) btnOption.visible = true;
+            var oldPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
+            if (oldPlate != null) oldPlate.visible = false;
+            return;
+        }
+
+        if (btnOption != null) {
+            btnOption.visible = false;
+        }
+
+        var totPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
+        var txtToT:TextField = null;
+
+        var bX:Float = (btnOption != null) ? btnOption.x : 68.0;
+        var bY:Float = (btnOption != null) ? btnOption.y : 63.0;
+        var bW:Float = (btnOption != null && btnOption.width > 40) ? btnOption.width : 98.0;
+        var bH:Float = (btnOption != null && btnOption.height > 10) ? btnOption.height : 18.0;
+
+        if (totPlate == null) {
+            totPlate = new Sprite();
+            totPlate.name = "mcTargetOfTarget";
+            totPlate.buttonMode = true;
+            totPlate.useHandCursor = true;
+            totPlate.x = bX;
+            totPlate.y = bY;
+
+            txtToT = new TextField();
+            txtToT.name = "txtToT";
+            var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 9.5, 0xEEEEF2, true);
+            fmt.align = TextFormatAlign.CENTER;
+            txtToT.defaultTextFormat = fmt;
+            txtToT.selectable = false;
+            txtToT.mouseEnabled = false;
+            txtToT.autoSize = TextFieldAutoSize.NONE;
+            txtToT.filters = ApiStyle.getTextOutlineFilter();
+            totPlate.addChild(txtToT);
+
+            totPlate.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                var curTgt:Dynamic = (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+                var curTot = getTargetOfTarget(curTgt);
+                if (curTot != null && Api.game != null && Api.game.world != null) {
+                    try {
+                        Api.game.world.setTarget(curTot);
+                    } catch (_:Dynamic) {}
+                }
+            });
+
+            totPlate.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+                Reflect.setField(totPlate, "_isHover", true);
+            });
+            totPlate.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
+                Reflect.setField(totPlate, "_isHover", false);
+            });
+
+            mcPortraitTarget.addChild(totPlate);
+        } else {
+            txtToT = cast totPlate.getChildByName("txtToT");
+            totPlate.x = bX;
+            totPlate.y = bY;
+            totPlate.visible = true;
+        }
+
+        var isHover:Bool = Reflect.field(totPlate, "_isHover") == true;
+        var totInfo = getTargetOfTargetInfo(targetAvt);
+
+        // Render trapezoid background matching native frame
+        drawToTPlate(totPlate, bW, bH, isHover, totInfo.isSelf, totInfo.isNone);
+
+        if (txtToT != null) {
+            txtToT.x = 2;
+            txtToT.y = 1;
+            txtToT.width = bW - 4;
+            txtToT.height = bH;
+            if (txtToT.text != totInfo.name) {
+                txtToT.text = totInfo.name;
+            }
+
+            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : (isHover ? 0xFFFFFF : 0xEEEEF2));
+            txtToT.textColor = textColor;
+        }
+    }
+
+    private static function drawToTPlate(plate:Sprite, w:Float, h:Float, isHover:Bool, isSelf:Bool, isNone:Bool):Void {
+        plate.graphics.clear();
+        var bg = isSelf ? 0x2A1515 : (isHover ? 0x1A1C24 : 0x0B0C10);
+        var border = isSelf ? 0xEF4444 : (isHover ? 0x8E95AA : 0x333644);
+
+        plate.graphics.beginFill(bg, 0.95);
+        plate.graphics.lineStyle(1.5, border, 1);
+        plate.graphics.moveTo(0, 0);
+        plate.graphics.lineTo(w, 0);
+        plate.graphics.lineTo(w - 4, h);
+        plate.graphics.lineTo(4, h);
+        plate.graphics.lineTo(0, 0);
+        plate.graphics.endFill();
+    }
+
+    public static function getTargetOfTarget(targetAvt:Dynamic):Dynamic {
+        if (targetAvt == null) return null;
+        var g:Dynamic = Api.game;
+
+        // 1. Direct target property
+        try {
+            if (Reflect.hasField(targetAvt, "target") && targetAvt.target != null) {
+                return targetAvt.target;
+            }
+        } catch (_:Dynamic) {}
+
+        // 2. dataLeaf.targets or targets map
+        try {
+            var targetsObj:Dynamic = null;
+            if (targetAvt.dataLeaf != null && targetAvt.dataLeaf.targets != null) {
+                targetsObj = targetAvt.dataLeaf.targets;
+            } else if (Reflect.hasField(targetAvt, "targets") && targetAvt.targets != null) {
+                targetsObj = targetAvt.targets;
+            }
+
+            if (targetsObj != null && g != null && g.world != null) {
+                for (key in Reflect.fields(targetsObj)) {
+                    if (g.world.myAvatar != null && g.world.myAvatar.objData != null) {
+                        var myUid = Std.string(g.world.myAvatar.objData.uid);
+                        var myCharId = Std.string(g.world.myAvatar.objData.CharID);
+                        if (key == myUid || key == myCharId) {
+                            return g.world.myAvatar;
+                        }
+                    }
+                    try {
+                        var numKey = Std.parseInt(key);
+                        if (numKey != null) {
+                            var avt = g.world.getAvatarByUserID(numKey);
+                            if (avt != null) return avt;
+                            var mon = g.world.getMonster(numKey);
+                            if (mon != null) return mon;
+                        }
+                    } catch (_:Dynamic) {}
+                }
+            }
+        } catch (_:Dynamic) {}
+
+        return null;
+    }
+
+    public static function getTargetOfTargetInfo(targetAvt:Dynamic):{ name:String, isSelf:Bool, isNone:Bool, entity:Dynamic } {
+        var tot = getTargetOfTarget(targetAvt);
+        if (tot == null) {
+            return { name: "No Target", isSelf: false, isNone: true, entity: null };
+        }
+
+        var g:Dynamic = Api.game;
+        var isSelf:Bool = (g != null && g.world != null && g.world.myAvatar != null && tot == g.world.myAvatar);
+
+        var nameStr:String = "";
+        try {
+            if (tot.objData != null) {
+                if (tot.objData.strUsername != null && tot.objData.strUsername != "") {
+                    nameStr = tot.objData.strUsername;
+                } else if (tot.objData.strMonName != null && tot.objData.strMonName != "") {
+                    nameStr = tot.objData.strMonName;
+                }
+            }
+            if (nameStr == "" && tot.pAV != null && tot.pAV.objData != null) {
+                if (tot.pAV.objData.strUsername != null) nameStr = tot.pAV.objData.strUsername;
+                else if (tot.pAV.objData.strMonName != null) nameStr = tot.pAV.objData.strMonName;
+            }
+        } catch (_:Dynamic) {}
+
+        if (nameStr == "") nameStr = "Target";
+
+        return {
+            name: isSelf ? "► YOU ◄" : nameStr,
+            isSelf: isSelf,
+            isNone: false,
+            entity: tot
+        };
+    }
+}
+
+/**
+ * NativeFrameDrag:
+ * Draggable frame controller for default AQW player (mcPortrait) and target (mcPortraitTarget) frames.
+ * Recreates the exact native feel of party and aura frames (HudDrag):
+ * - Mouse drag anywhere on frame
+ * - Screen boundary clamping
+ * - Hover backdrop with "PLAYER" / "TARGET" caption tag
+ * - Suppressed click on release so dragging doesn't open menu / cancel target
+ * - Persistent saved coordinates synced with config
+ */
+class NativeFrameDrag {
+    private static inline var THRESHOLD_SQ:Float = 16.0;
+    private static inline var CAP_H:Float = 14.0;
+    private static inline var PAD:Float = 5.0;
+
+    private var _target:Sprite;
+    private var _key:String;
+    private var _litePrefKey:String;
+    private var _caption:String;
+    private var _defaultX:Float = 0;
+    private var _defaultY:Float = 0;
+    private var _defaultRecorded:Bool = false;
+
+    private var _stage:Stage = null;
+    private var _isDragging:Bool = false;
+    private var _hasDragged:Bool = false;
+    private var _startX:Float = 0;
+    private var _startY:Float = 0;
+    private var _origX:Float = 0;
+    private var _origY:Float = 0;
+    private var _kidsWas:Bool = true;
+    private var _kidsOff:Bool = false;
+
+    private var _backdrop:Sprite = null;
+    private var _bgShape:Shape = null;
+    private var _capTxt:TextField = null;
+
+    public function new(target:Sprite, key:String, litePrefKey:String, caption:String) {
+        _target = target;
+        _key = key;
+        _litePrefKey = litePrefKey;
+        _caption = caption;
+
+        _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false, 0, true);
+        _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false, 0, true);
+        _target.addEventListener(MouseEvent.ROLL_OUT, onRollOut, false, 0, true);
+        _target.addEventListener(MouseEvent.CLICK, onClickCapture, true, 0, true);
+
+        ensureAttached();
+    }
+
+    public function ensureAttached():Void {
+        if (_target == null) return;
+        if (!_defaultRecorded && _target.x != 0 && _target.y != 0) {
+            _defaultX = _target.x;
+            _defaultY = _target.y;
+            _defaultRecorded = true;
+            restorePosition();
+        } else if (!_defaultRecorded && _target.parent != null) {
+            _defaultX = _target.x;
+            _defaultY = _target.y;
+            _defaultRecorded = true;
+            restorePosition();
+        }
+    }
+
+    private function onClickCapture(e:MouseEvent):Void {
+        if (_hasDragged) {
+            e.stopImmediatePropagation();
+        }
+    }
+
+    private function onRollOver(e:MouseEvent):Void {
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
+        drawBackdrop();
+    }
+
+    private function onRollOut(e:MouseEvent):Void {
+        if (!_isDragging) {
+            hideBackdrop();
+        }
+    }
+
+    private function drawBackdrop():Void {
+        if (_target == null || _target.parent == null || !_target.visible) {
+            hideBackdrop();
+            return;
+        }
+
+        if (_backdrop == null) {
+            _backdrop = new Sprite();
+            _backdrop.mouseChildren = false;
+            _backdrop.mouseEnabled = false;
+
+            _bgShape = new Shape();
+            _backdrop.addChild(_bgShape);
+
+            _capTxt = new TextField();
+            var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 9, 0xEEEEF2, true);
+            _capTxt.defaultTextFormat = fmt;
+            _capTxt.autoSize = TextFieldAutoSize.LEFT;
+            _capTxt.selectable = false;
+            _capTxt.mouseEnabled = false;
+            _capTxt.filters = ApiStyle.getTextOutlineFilter();
+            _capTxt.text = _caption;
+            _backdrop.addChild(_capTxt);
+        }
+
+        var parent = _target.parent;
+        if (_backdrop.parent != parent) {
+            var idx = parent.getChildIndex(_target);
+            parent.addChildAt(_backdrop, idx);
+        }
+
+        var b = _target.getBounds(parent);
+        _bgShape.graphics.clear();
+        _bgShape.graphics.beginFill(0x000000, 0.45);
+        _bgShape.graphics.lineStyle(1, 0x475569, 0.85);
+        _bgShape.graphics.drawRoundRect(b.x - PAD, b.y - PAD - CAP_H, b.width + PAD * 2, b.height + PAD * 2 + CAP_H, 8, 8);
+        _bgShape.graphics.endFill();
+
+        _capTxt.x = b.x - PAD + 5;
+        _capTxt.y = b.y - PAD - CAP_H + 1;
+        _backdrop.visible = true;
+    }
+
+    private function hideBackdrop():Void {
+        if (_backdrop != null) {
+            if (_bgShape != null) _bgShape.graphics.clear();
+            if (_backdrop.parent != null) {
+                _backdrop.parent.removeChild(_backdrop);
+            }
+            _backdrop.visible = false;
+        }
+    }
+
+    private function onDown(e:MouseEvent):Void {
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
+        if (_target == null || _target.stage == null) return;
+
+        _stage = _target.stage;
+        _isDragging = false;
+        _hasDragged = false;
+        _startX = e.stageX;
+        _startY = e.stageY;
+        _origX = _target.x;
+        _origY = _target.y;
+
+        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, true);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, true);
+    }
+
+    private function onMove(e:MouseEvent):Void {
+        if (_target == null || _stage == null) {
+            stopPress();
+            return;
+        }
+
+        var dx = e.stageX - _startX;
+        var dy = e.stageY - _startY;
+
+        if (!_isDragging) {
+            if (dx * dx + dy * dy < THRESHOLD_SQ) return;
+            _isDragging = true;
+            _kidsWas = _target.mouseChildren;
+            _kidsOff = true;
+            _target.mouseChildren = false;
+
+            try {
+                if (Api.game != null && Api.game.ui != null && Api.game.ui.ToolTip != null) {
+                    Api.game.ui.ToolTip.close();
+                }
+            } catch (_:Dynamic) {}
+        }
+
+        var newX = Math.round(_origX + dx);
+        var newY = Math.round(_origY + dy);
+
+        var stageW:Float = _stage.stageWidth > 0 ? _stage.stageWidth : 960;
+        var stageH:Float = _stage.stageHeight > 0 ? _stage.stageHeight : 550;
+        var maxBottom:Float = stageH - 50;
+
+        var w = Math.max(160, _target.width);
+        var h = Math.max(60, _target.height);
+
+        if (newX < 0) newX = 0;
+        if (newY < 0) newY = 0;
+        if (newX + w > stageW) newX = Std.int(stageW - w);
+        if (newY + h > maxBottom) newY = Std.int(maxBottom - h);
+
+        _target.x = newX;
+        _target.y = newY;
+
+        drawBackdrop();
+        e.updateAfterEvent();
+    }
+
+    private function onUp(e:MouseEvent):Void {
+        stopPress();
+        if (_isDragging) {
+            _isDragging = false;
+            _hasDragged = true;
+            savePosition();
+            haxe.Timer.delay(function() {
+                _hasDragged = false;
+            }, 100);
+        }
+        hideBackdrop();
+    }
+
+    private function stopPress():Void {
+        if (_kidsOff) {
+            _kidsOff = false;
+            if (_target != null) _target.mouseChildren = _kidsWas;
+        }
+        if (_stage != null) {
+            _stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMove);
+            _stage.removeEventListener(MouseEvent.MOUSE_UP, onUp);
+            _stage = null;
+        }
+    }
+
+    public function savePosition():Void {
+        if (_target == null) return;
+        ApiConfig.setFloat(_key + "_x", _target.x);
+        ApiConfig.setFloat(_key + "_y", _target.y);
+        try {
+            if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
+                Reflect.setField(Api.game.litePreference.data, _litePrefKey, { x: _target.x, y: _target.y });
+                Api.game.litePreference.flush();
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    public function restorePosition():Void {
+        if (_target == null) return;
+        if (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) {
+            _target.x = ApiConfig.getFloat(_key + "_x", _defaultX);
+            _target.y = ApiConfig.getFloat(_key + "_y", _defaultY);
+        } else {
+            try {
+                if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
+                    var lp:Dynamic = Reflect.field(Api.game.litePreference.data, _litePrefKey);
+                    if (lp != null && lp.x != null && lp.y != null) {
+                        _target.x = Std.int(lp.x);
+                        _target.y = Std.int(lp.y);
+                    }
+                }
+            } catch (_:Dynamic) {}
+        }
+    }
+
+    public function resetPosition():Void {
+        if (_target == null) return;
+        ApiConfig.delete(_key + "_x");
+        ApiConfig.delete(_key + "_y");
+        try {
+            if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
+                Reflect.deleteField(Api.game.litePreference.data, _litePrefKey);
+                Api.game.litePreference.flush();
+            }
+        } catch (_:Dynamic) {}
+
+        _target.x = _defaultX;
+        _target.y = _defaultY;
+        hideBackdrop();
     }
 }
 #else
@@ -524,6 +1041,11 @@ class NativeFramesEnhancer {
     public static function setHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickEnabled():Bool return true;
     public static function setRightClickEnabled(enabled:Bool):Void {}
+    public static function isTargetOfTargetEnabled():Bool return true;
+    public static function setTargetOfTargetEnabled(enabled:Bool):Void {}
+    public static function isMovableFramesEnabled():Bool return true;
+    public static function setMovableFramesEnabled(enabled:Bool):Void {}
+    public static function resetFramePositions():Void {}
     public static function reloadFromConfig():Void {}
 }
 #end

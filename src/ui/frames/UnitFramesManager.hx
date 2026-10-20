@@ -68,6 +68,26 @@ class UnitFramesManager {
         NativeFramesEnhancer.setRightClickEnabled(enabled);
     }
 
+    public static inline function isTargetOfTargetEnabled():Bool {
+        return NativeFramesEnhancer.isTargetOfTargetEnabled();
+    }
+
+    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {
+        NativeFramesEnhancer.setTargetOfTargetEnabled(enabled);
+    }
+
+    public static inline function isMovableFramesEnabled():Bool {
+        return NativeFramesEnhancer.isMovableFramesEnabled();
+    }
+
+    public static inline function setMovableFramesEnabled(enabled:Bool):Void {
+        NativeFramesEnhancer.setMovableFramesEnabled(enabled);
+    }
+
+    public static inline function resetNativeFramePositions():Void {
+        NativeFramesEnhancer.resetFramePositions();
+    }
+
     // Legacy stubs (custom unit frames replaced by native frames enhancer)
     public static inline function isPlayerFrameEnabled():Bool return false;
     public static inline function setPlayerFrameEnabled(enabled:Bool):Void {}
@@ -344,6 +364,11 @@ class UnitFramesManager {
     public static function setShowHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickMenuEnabled():Bool return true;
     public static function setRightClickMenuEnabled(enabled:Bool):Void {}
+    public static function isTargetOfTargetEnabled():Bool return true;
+    public static function setTargetOfTargetEnabled(enabled:Bool):Void {}
+    public static function isMovableFramesEnabled():Bool return true;
+    public static function setMovableFramesEnabled(enabled:Bool):Void {}
+    public static function resetNativeFramePositions():Void {}
     public static function isPlayerFrameEnabled():Bool return false;
     public static function setPlayerFrameEnabled(enabled:Bool):Void {}
     public static function isTargetFrameEnabled():Bool return false;

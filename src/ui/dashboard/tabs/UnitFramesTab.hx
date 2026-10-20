@@ -74,7 +74,7 @@ class UnitFramesTab implements IDashboardTab {
         // 4. Show Class Names (All Frames)
         modal.addItemRow(
             "Show Class Names",
-            "Replaces player usernames with class names across all frames and nameplates.",
+            "Replaces player usernames with class names across player, target, and party frames.",
             "toggle",
             "",
             false,
@@ -86,6 +86,55 @@ class UnitFramesTab implements IDashboardTab {
             },
             function():Bool {
                 return UnitFramesManager.isShowClassNames();
+            }
+        );
+
+        // 5. Target of Target (ToT)
+        modal.addItemRow(
+            "Target of Target (ToT)",
+            "Replaces the redundant Options button on the target frame with live target-of-target name. Click to switch target.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isTargetOfTargetEnabled();
+                var next = !cur;
+                UnitFramesManager.setTargetOfTargetEnabled(next);
+                ApiNotificationManager.notify("Target of Target: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isTargetOfTargetEnabled();
+            }
+        );
+
+        // 6. Movable Default Frames
+        modal.addItemRow(
+            "Movable Default Frames",
+            "Allows clicking and dragging player and target frames freely anywhere on screen (hover reveals frame tag).",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = UnitFramesManager.isMovableFramesEnabled();
+                var next = !cur;
+                UnitFramesManager.setMovableFramesEnabled(next);
+                ApiNotificationManager.notify("Movable Default Frames: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return UnitFramesManager.isMovableFramesEnabled();
+            }
+        );
+
+        // 7. Reset Frame Positions
+        modal.addItemRow(
+            "Reset Frame Positions",
+            "Restores player and target unitframes back to their original default positions.",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                UnitFramesManager.resetNativeFramePositions();
+                ApiNotificationManager.notify("Frame positions reset to default.");
             }
         );
 
