@@ -620,6 +620,12 @@ class NativeFramesEnhancer {
 class NativeFrameDrag {
     private static inline var THRESHOLD_SQ:Float = 16.0;
 
+    // Visual frame physical offsets & dimensions relative to mcPortraitTarget origin
+    public static inline var FRAME_OFFSET_X:Float = 75.0;
+    public static inline var FRAME_OFFSET_Y:Float = 10.0;
+    public static inline var FRAME_WIDTH:Float    = 176.0;
+    public static inline var FRAME_HEIGHT:Float   = 75.0;
+
     private var _target:Sprite;
     private var _key:String;
     private var _litePrefKey:String;
@@ -627,9 +633,9 @@ class NativeFrameDrag {
     private var _defaultY:Float = 2.0;
     private var _defaultRecorded:Bool = false;
 
-    // Close button offset relative to target frame top-right
-    private var _closeOffsetX:Float = 178.7;
-    private var _closeOffsetY:Float = 10.0;
+    // Close button offset relative to target frame origin
+    private var _closeOffsetX:Float = 238.0;
+    private var _closeOffsetY:Float = 16.0;
 
     private var _stage:Stage = null;
     private var _isDragging:Bool = false;
@@ -667,7 +673,7 @@ class NativeFrameDrag {
             _hitLayer.mouseEnabled = true;
             _hitLayer.buttonMode = false;
             _hitLayer.graphics.beginFill(0x000000, 0.001);
-            _hitLayer.graphics.drawRect(0, 0, getVisualWidth(), getVisualHeight());
+            _hitLayer.graphics.drawRect(FRAME_OFFSET_X, FRAME_OFFSET_Y, FRAME_WIDTH, FRAME_HEIGHT);
             _hitLayer.graphics.endFill();
             try {
                 _target.addChildAt(_hitLayer, 0);
@@ -728,11 +734,11 @@ class NativeFrameDrag {
     }
 
     public inline function getVisualWidth():Float {
-        return 252.0;
+        return FRAME_WIDTH;
     }
 
     public inline function getVisualHeight():Float {
-        return 78.0;
+        return FRAME_HEIGHT;
     }
 
     private function onClickCapture(e:MouseEvent):Void {
@@ -777,10 +783,10 @@ class NativeFrameDrag {
             }
         }
 
-        var vx = _target.x;
-        var vy = _target.y;
-        var bw = getVisualWidth();
-        var bh = getVisualHeight();
+        var vx = _target.x + FRAME_OFFSET_X;
+        var vy = _target.y + FRAME_OFFSET_Y;
+        var bw = FRAME_WIDTH;
+        var bh = FRAME_HEIGHT;
 
         // Exact physical boundaries - zero black pad, crisp 1.5px cyan outline
         _bgShape.graphics.clear();
@@ -843,13 +849,11 @@ class NativeFrameDrag {
         var stageH:Float = _stage.stageHeight > 0 ? _stage.stageHeight : 550;
         var maxBottom:Float = stageH - 50;
 
-        var bw = getVisualWidth();
-        var bh = getVisualHeight();
-
-        var minX = 0;
-        var minY = 0;
-        var maxX = Math.round(stageW - bw);
-        var maxY = Math.round(maxBottom - bh);
+        // Clamping strictly to visual frame boundaries
+        var minX = Math.round(-FRAME_OFFSET_X);
+        var minY = Math.round(-FRAME_OFFSET_Y);
+        var maxX = Math.round(stageW - FRAME_OFFSET_X - FRAME_WIDTH);
+        var maxY = Math.round(maxBottom - FRAME_OFFSET_Y - FRAME_HEIGHT);
 
         if (newX < minX) newX = minX;
         if (newY < minY) newY = minY;
