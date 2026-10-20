@@ -66,6 +66,7 @@ class NameplateDisplay extends Sprite {
     private var _lastMaxHp:Int = -1;
     private var _lastIsTarget:Bool = false;
     private var _lastShowNames:Bool = true;
+    private var _lastShowBar:Bool = false;
 
     public function new(isEnemy:Bool) {
         super();
@@ -169,7 +170,8 @@ class NameplateDisplay extends Sprite {
     }
 
     public function updateDisplay():Void {
-        var showBar:Bool = isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled();
+        var vActive:Bool = NameplateUnitFrame.isNativeHPBarActive();
+        var showBar:Bool = (isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled()) && vActive;
         var showNames:Bool = isEnemy ? NameplateUnitFrame.isEnemyNamesEnabled() : NameplateUnitFrame.isPlayerNamesEnabled();
 
         if (!showBar && !showNames) {
@@ -185,6 +187,7 @@ class NameplateDisplay extends Sprite {
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && _lastSub != "");
 
+        _lastShowBar = showBar;
         _lastHp = -1;
         drawBarBg();
         drawTargetIndicators(_lastIsTarget);
@@ -318,10 +321,20 @@ class NameplateDisplay extends Sprite {
             drawTargetIndicators(isTarget);
         }
 
-        // 5. Health Bar Fill & Visibility via API
-        var showBar:Bool = isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled();
+        // 5. Health Bar Fill & Visibility via API & 'V' toggle
+        var vActive:Bool = NameplateUnitFrame.isNativeHPBarActive();
+        var showBar:Bool = (isEnemy ? NameplateUnitFrame.isEnemiesEnabled() : NameplateUnitFrame.isPlayersEnabled()) && vActive;
         _barBg.visible = showBar;
         _barFill.visible = showBar;
+
+        if (showBar != _lastShowBar) {
+            _lastShowBar = showBar;
+            drawBarBg();
+            drawTargetIndicators(_lastIsTarget);
+            if (showBar && _lastMaxHp > 0) {
+                drawHealthBar(_lastHp, _lastMaxHp);
+            }
+        }
 
         if (!showBar && !showNames) {
             visible = false;
@@ -503,6 +516,11 @@ class NameplateUnitFrame {
         }
     }
 
+    public static inline function isNativeHPBarActive():Bool {
+        var g:Dynamic = Api.game;
+        return (g != null && g.world != null && g.world.showHPBar == true);
+    }
+
     public static inline function isWidgetEnabled():Bool {
         return ApiConfig.getBool("api_frame_nameplates_enabled", false);
     }
@@ -628,8 +646,31 @@ class NameplateUnitFrame {
         var mc:Dynamic = ent.pMC;
         if (mc == null) return;
 
-        // Suppress native pname / hpBar (alpha only; the game keeps owning position and visibility)
-        ent.hideNativeName();
+        // Suppress native pname / hpBar according to active settings (alpha only; the game keeps owning position and visibility)
+        try {
+            var pn:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
+            if (pn != null) {
+                var hidePn:Bool = isEnemy ? isEnemyNamesEnabled() : isPlayerNamesEnabled();
+                if (hidePn) {
+                    if (pn.alpha != 0.0) pn.alpha = 0.0;
+                } else {
+                    if (pn.alpha != 1.0) pn.alpha = 1.0;
+                }
+            }
+        } catch (_:Dynamic) {}
+
+        try {
+            var hb:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "hpBar");
+            if (hb != null) {
+                var customHPEnabled:Bool = isEnemy ? isEnemiesEnabled() : isPlayersEnabled();
+                if (customHPEnabled) {
+                    if (hb.alpha != 0.0) hb.alpha = 0.0;
+                    hb.visible = false;
+                } else {
+                    if (hb.alpha != 1.0) hb.alpha = 1.0;
+                }
+            }
+        } catch (_:Dynamic) {}
 
         var plate:NameplateDisplay = null;
         for (p in _activePlates) {
@@ -670,6 +711,7 @@ class NameplateUnitFrame {
 #else
 class NameplateUnitFrame {
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {}
+    public static inline function isNativeHPBarActive():Bool return false;
     public static inline function isWidgetEnabled():Bool return false;
     public static inline function setWidgetEnabled(enabled:Bool):Void {}
     public static inline function isEnemiesEnabled():Bool return false;

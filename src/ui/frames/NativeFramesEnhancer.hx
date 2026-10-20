@@ -945,9 +945,13 @@ class NativeFrameDrag {
                         _questRecorded = true;
                     }
                 } else {
-                    // When moved, fix iconQuest to player frame with the exact offset
-                    iconQuest.x = _target.x + _questOffsetX;
-                    iconQuest.y = _target.y + _questOffsetY;
+                    // When moved, fix iconQuest to player frame with the exact offset, clamped to screen bounds
+                    var qx:Float = _target.x + _questOffsetX;
+                    var qy:Float = _target.y + _questOffsetY;
+                    if (qx < 0) qx = 0;
+                    if (qy < 0) qy = 0;
+                    iconQuest.x = qx;
+                    iconQuest.y = qy;
                     try {
                         if (g.mailHub != null) {
                             g.mailHub.placeHud();
@@ -958,8 +962,12 @@ class NativeFrameDrag {
                                     var sz:Float = Math.min(b.width, b.height);
                                     var cx:Float = b.x + b.width / 2 - 13;
                                     var cy:Float = b.y + b.height / 2 - 25;
-                                    hudBtn.x = Math.round(cx - sz / 2);
-                                    hudBtn.y = Math.round(cy - sz / 2);
+                                    var hx:Float = Math.round(cx - sz / 2);
+                                    var hy:Float = Math.round(cy - sz / 2);
+                                    if (hx < 0) hx = 0;
+                                    if (hy < 0) hy = 0;
+                                    hudBtn.x = hx;
+                                    hudBtn.y = hy;
                                 }
                             }
                         }
@@ -989,7 +997,7 @@ class NativeFrameDrag {
     }
 
     public inline function getVisualOffsetX():Float {
-        return -44.0;
+        return 0.0;
     }
 
     public inline function getVisualOffsetY():Float {
@@ -1057,14 +1065,19 @@ class NativeFrameDrag {
         var bw = getVisualWidth();
         var bh = getVisualHeight();
 
+        var bx = Math.max(0, vx - PAD);
+        var by = Math.max(0, vy - PAD - CAP_H);
+        var rw = bw + PAD * 2;
+        var rh = bh + PAD * 2 + CAP_H;
+
         _bgShape.graphics.clear();
         _bgShape.graphics.beginFill(0x000000, 0.45);
         _bgShape.graphics.lineStyle(1, 0x475569, 0.85);
-        _bgShape.graphics.drawRoundRect(vx - PAD, vy - PAD - CAP_H, bw + PAD * 2, bh + PAD * 2 + CAP_H, 8, 8);
+        _bgShape.graphics.drawRoundRect(bx, by, rw, rh, 6, 6);
         _bgShape.graphics.endFill();
 
-        _capTxt.x = vx - PAD + 6;
-        _capTxt.y = vy - PAD - CAP_H + 1;
+        _capTxt.x = bx + 6;
+        _capTxt.y = by + 1;
         _backdrop.visible = true;
     }
 
@@ -1129,10 +1142,10 @@ class NativeFrameDrag {
         var vw = getVisualWidth();
         var vh = getVisualHeight();
 
-        var minX = Math.round(-offX);
-        var minY = Math.round(-offY);
-        var maxX = Math.round(stageW - vw - offX);
-        var maxY = Math.round(maxBottom - vh - offY);
+        var minX = 0;
+        var minY = 0;
+        var maxX = Math.round(stageW - vw);
+        var maxY = Math.round(maxBottom - vh);
 
         if (newX < minX) newX = minX;
         if (newY < minY) newY = minY;

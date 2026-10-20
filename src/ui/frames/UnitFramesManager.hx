@@ -277,10 +277,6 @@ class UnitFramesManager {
                 }
             }
 
-            if (g.world != null && isNameplatesEnabled()) {
-                try { g.world.showHPBar = false; } catch (_:Dynamic) {}
-            }
-
             NativeFramesEnhancer.updateFrames();
         } catch (_:Dynamic) {}
     }
