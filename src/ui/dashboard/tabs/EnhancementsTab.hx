@@ -119,7 +119,8 @@ class EnhancementsTab implements IDashboardTab {
     }
 
     private function addEnhancementLoadoutCard(modal:ApiDashboardModal):Void {
-        var rowW:Float = modal.contentWidth - 20;
+        modal.flushGrid();
+        var rowW:Float = modal.contentWidth - 14;
         var cardH:Float = 88;
         var card = new Sprite();
 

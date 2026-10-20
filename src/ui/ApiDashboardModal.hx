@@ -66,20 +66,21 @@ class ApiDashboardModal extends Sprite {
     }
 
     // Modal layout dimensions
-    private static inline var SIDEBAR_WIDTH:Float = 170;
+    private static inline var SIDEBAR_WIDTH:Float = 150;
 
     private var _stageW:Float = 960;
     private var _stageH:Float = 550;
-    private var _winW:Float = 780;
-    private var _winH:Float = 470;
-    private var _contentWidth:Float = 560;
-    private var _contentHeight:Float = 402;
+    private var _winW:Float = 960;
+    private var _winH:Float = 550;
+    private var _contentWidth:Float = 770;
+    private var _contentHeight:Float = 482;
 
     private var _overlay:Dynamic;
     private var _pocket:Dynamic;
     private var _backdrop:Sprite;
     private var _window:Sprite;
     private var _closeBtn:Sprite;
+    private var _escHintTxt:TextField;
 
     private var _currentTab:DashboardTab = TabScripts;
     private var _tabButtons:Map<DashboardTab, Sprite> = new Map<DashboardTab, Sprite>();
@@ -99,13 +100,27 @@ class ApiDashboardModal extends Sprite {
     private inline function get_contentContainer():Sprite return _contentContainer;
 
     public var totalContentHeight(get, set):Float;
-    private inline function get_totalContentHeight():Float return _totalContentHeight;
-    private inline function set_totalContentHeight(v:Float):Float return _totalContentHeight = v;
+    private inline function get_totalContentHeight():Float {
+        var h = (_gridCol > 0) ? (_gridRowY + _gridRowH + 6) : _totalContentHeight;
+        return h > 6 ? (h - 6) : h;
+    }
+    private inline function set_totalContentHeight(v:Float):Float {
+        _gridCol = 0;
+        _gridRowH = 0;
+        _pendingRowRenderBgs = [];
+        return _totalContentHeight = v;
+    }
 
     private var _contentViewport:Sprite;
     private var _contentMask:Shape;
     private var _contentContainer:Sprite;
     private var _totalContentHeight:Float = 0;
+
+    // Dynamic Multi-Column Grid Layout Tracking
+    private var _gridCol:Int = 0; // Current column index (0 to numCols - 1)
+    private var _gridRowY:Float = 0;
+    private var _gridRowH:Float = 0;
+    private var _pendingRowRenderBgs:Array<Float->Void> = [];
 
     // Scrolling state
     private var _scrollbarTrack:Shape;
@@ -138,10 +153,10 @@ class ApiDashboardModal extends Sprite {
         });
         addChild(_backdrop);
 
-        // 2. Main Centered Window
+        // 2. Main Fullscreen Window
         _window = new Sprite();
-        _window.x = Math.max(8, Math.round((_stageW - _winW) / 2));
-        _window.y = Math.max(8, Math.round((_stageH - _winH) / 2));
+        _window.x = 0;
+        _window.y = 0;
         addChild(_window);
 
         redrawWindowChrome();
@@ -168,29 +183,33 @@ class ApiDashboardModal extends Sprite {
         _stageW = (targetStage != null && targetStage.stageWidth > 0) ? targetStage.stageWidth : 960;
         _stageH = (targetStage != null && targetStage.stageHeight > 0) ? targetStage.stageHeight : 550;
 
-        // Centered modal window: comfortable margins so game is visible behind darkened backdrop
-        var targetW:Float = (_stageW >= 1200) ? 840 : 780;
-        var maxW:Float = Math.min(targetW, _stageW - 48);
-        _winW = Math.max(380, maxW);
+        // Fullscreen: window spans the full stage to maximize usable space
+        _winW = _stageW;
+        _winH = _stageH;
 
-        var targetH:Float = (_stageH >= 720) ? 540 : 470;
-        var maxH:Float = Math.min(targetH, _stageH - 40);
-        _winH = Math.max(260, maxH);
-
-        _contentWidth = Math.max(260, _winW - (SIDEBAR_WIDTH + 26) - 16);
+        _contentWidth = Math.max(260, _winW - (SIDEBAR_WIDTH + 24) - 16);
         _contentHeight = Math.max(180, _winH - 56 - 12);
     }
 
     private function redrawWindowChrome():Void {
         _backdrop.graphics.clear();
-        _backdrop.graphics.beginFill(ApiStyle.COLOR_BG_BACKDROP, ApiStyle.ALPHA_BACKDROP);
+        _backdrop.graphics.beginFill(ApiStyle.COLOR_BG_BACKDROP, 1.0);
         _backdrop.graphics.drawRect(0, 0, _stageW, _stageH);
         _backdrop.graphics.endFill();
 
         _window.graphics.clear();
-        _window.graphics.beginFill(ApiStyle.COLOR_BG_DASHBOARD, ApiStyle.ALPHA_DASHBOARD);
-        _window.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_PANEL);
-        _window.graphics.drawRoundRect(0, 0, _winW, _winH, 8, 8);
+        _window.graphics.beginFill(ApiStyle.COLOR_BG_DASHBOARD, 0.98);
+        _window.graphics.drawRect(0, 0, _winW, _winH);
+        _window.graphics.endFill();
+
+        // Top Header Bar Background Plate
+        _window.graphics.beginFill(ApiStyle.COLOR_BG_PANEL, 1.0);
+        _window.graphics.drawRect(0, 0, _winW, 48);
+        _window.graphics.endFill();
+
+        // Sidebar Background Plate
+        _window.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 0.6);
+        _window.graphics.drawRect(0, 48, SIDEBAR_WIDTH + 14, _winH - 48);
         _window.graphics.endFill();
 
         // Divider line below header
@@ -203,7 +222,10 @@ class ApiDashboardModal extends Sprite {
         _window.graphics.lineTo(SIDEBAR_WIDTH + 14, _winH);
 
         if (_closeBtn != null) {
-            _closeBtn.x = _winW - 32 - 14;
+            _closeBtn.x = _winW - 32 - 16;
+        }
+        if (_escHintTxt != null) {
+            _escHintTxt.x = _winW - 32 - 16 - 96;
         }
     }
 
@@ -226,8 +248,8 @@ class ApiDashboardModal extends Sprite {
 
     private function onStageResize(e:Event):Void {
         updateDimensions();
-        _window.x = Math.max(8, Math.round((_stageW - _winW) / 2));
-        _window.y = Math.max(8, Math.round((_stageH - _winH) / 2));
+        _window.x = 0;
+        _window.y = 0;
         redrawWindowChrome();
         if (_contentMask != null) {
             _contentMask.graphics.clear();
@@ -236,7 +258,7 @@ class ApiDashboardModal extends Sprite {
             _contentMask.graphics.endFill();
         }
         if (_scrollbarTrack != null) {
-            _scrollbarTrack.x = _contentViewport.x + _contentWidth - 8;
+            _scrollbarTrack.x = _contentViewport.x + _contentWidth - 6;
             _scrollbarThumb.x = _scrollbarTrack.x;
         }
         renderTabContent(_currentTab, true);
@@ -287,7 +309,7 @@ class ApiDashboardModal extends Sprite {
         var cbW:Float = 32;
         var cbH:Float = 28;
         _closeBtn.buttonMode = true;
-        _closeBtn.x = _winW - cbW - 14;
+        _closeBtn.x = _winW - cbW - 16;
         _closeBtn.y = 10;
 
         var renderCloseBtn = function(isHover:Bool):Void {
@@ -324,6 +346,20 @@ class ApiDashboardModal extends Sprite {
             close();
         });
         _window.addChild(_closeBtn);
+
+        // ESC hint label next to close button
+        _escHintTxt = new TextField();
+        var escFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_MUTED, false);
+        escFmt.align = TextFormatAlign.RIGHT;
+        _escHintTxt.defaultTextFormat = escFmt;
+        _escHintTxt.text = "Press ESC or";
+        _escHintTxt.width = 90;
+        _escHintTxt.height = 20;
+        _escHintTxt.x = _closeBtn.x - 96;
+        _escHintTxt.y = 15;
+        _escHintTxt.selectable = false;
+        _escHintTxt.mouseEnabled = false;
+        _window.addChild(_escHintTxt);
     }
 
     // =========================================================================
@@ -442,7 +478,7 @@ class ApiDashboardModal extends Sprite {
 
     private function setupContentViewport():Void {
         _contentViewport = new Sprite();
-        _contentViewport.x = SIDEBAR_WIDTH + 26;
+        _contentViewport.x = SIDEBAR_WIDTH + 24;
         _contentViewport.y = 56;
         _window.addChild(_contentViewport);
 
@@ -459,7 +495,7 @@ class ApiDashboardModal extends Sprite {
         _contentViewport.mask = _contentMask;
 
         _scrollbarTrack = new Shape();
-        _scrollbarTrack.x = _contentViewport.x + _contentWidth - 8;
+        _scrollbarTrack.x = _contentViewport.x + _contentWidth - 6;
         _scrollbarTrack.y = _contentViewport.y;
         _window.addChild(_scrollbarTrack);
 
@@ -558,6 +594,10 @@ class ApiDashboardModal extends Sprite {
         while (_contentContainer.numChildren > 0) {
             _contentContainer.removeChildAt(0);
         }
+        _gridCol = 0;
+        _gridRowY = 0;
+        _gridRowH = 0;
+        _pendingRowRenderBgs = [];
         _totalContentHeight = 0;
         if (!preserveScroll) {
             _contentContainer.y = 0;
@@ -565,12 +605,26 @@ class ApiDashboardModal extends Sprite {
         updateScrollbar();
     }
 
+    public function flushGrid():Void {
+        if (_gridCol > 0) {
+            for (renderBg in _pendingRowRenderBgs) {
+                renderBg(_gridRowH);
+            }
+            _totalContentHeight = _gridRowY + _gridRowH + 6;
+            _gridCol = 0;
+            _gridRowH = 0;
+            _pendingRowRenderBgs = [];
+        }
+    }
+
     private function getTotalContentHeight():Float {
-        return _totalContentHeight > 6 ? (_totalContentHeight - 6) : _totalContentHeight;
+        var h = (_gridCol > 0) ? (_gridRowY + _gridRowH + 6) : _totalContentHeight;
+        return h > 6 ? (h - 6) : h;
     }
 
     public function addSectionHeader(title:String):Void {
-        var rowW:Float = _contentWidth - 20;
+        flushGrid();
+        var rowW:Float = _contentWidth - 14;
         var header = new Sprite();
 
         var lbl = new TextField();
@@ -595,12 +649,13 @@ class ApiDashboardModal extends Sprite {
         header.y = _totalContentHeight + 4;
         _contentContainer.addChild(header);
 
-        _totalContentHeight += 22;
+        _totalContentHeight += 24;
         updateScrollbar();
     }
 
     public function addInfoBanner(text:String):Void {
-        var rowW:Float = _contentWidth - 20;
+        flushGrid();
+        var rowW:Float = _contentWidth - 14;
         var banner = new Sprite();
 
         var descTxt = new TextField();
@@ -608,7 +663,7 @@ class ApiDashboardModal extends Sprite {
         descTxt.defaultTextFormat = fmt;
         descTxt.text = text;
         descTxt.x = 10;
-        descTxt.y = 8;
+        descTxt.y = 7;
         descTxt.width = rowW - 20;
         descTxt.wordWrap = true;
         descTxt.multiline = true;
@@ -617,7 +672,7 @@ class ApiDashboardModal extends Sprite {
         descTxt.mouseEnabled = false;
         banner.addChild(descTxt);
 
-        var bannerH:Float = descTxt.height + 16;
+        var bannerH:Float = descTxt.height + 14;
         banner.graphics.beginFill(ApiStyle.COLOR_BG_CARD, 0.85);
         banner.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_CARD);
         banner.graphics.drawRoundRect(0, 0, rowW, bannerH, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
@@ -641,37 +696,41 @@ class ApiDashboardModal extends Sprite {
         getToggleState:Void->Bool = null,
         getButtonLabel:Void->String = null
     ):Void {
-        var rowW:Float = _contentWidth - 20;
-        var btnW:Float = 116;
-        var btnH:Float = 32;
-        var padX:Float = 14;
-        var gapBtn:Float = 14;
-        var textW:Float = rowW - padX - btnW - gapBtn - 8;
+        var totalW:Float = _contentWidth - 14;
+        var colGap:Float = 8;
+        var numCols:Int = Std.int(Math.max(1, Math.floor((totalW + colGap) / (340 + colGap))));
+        if (numCols > 4) numCols = 4;
+        var colW:Float = Math.floor((totalW - (numCols - 1) * colGap) / numCols);
+
+        var isToggle = (actionType == "toggle");
+        var btnW:Float = isToggle ? 56 : 74;
+        var btnH:Float = 24;
+        var padX:Float = 10;
+        var gapBtn:Float = 8;
+        var textW:Float = colW - padX - btnW - gapBtn - 4;
 
         var card = new Sprite();
 
         // Title
         var titleTxt = new TextField();
-        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 13, ApiStyle.COLOR_TEXT_TITLE, true);
+        var titleFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11.5, ApiStyle.COLOR_TEXT_TITLE, true);
         titleTxt.defaultTextFormat = titleFmt;
         titleTxt.text = title;
         titleTxt.x = padX;
-        titleTxt.y = 10;
+        titleTxt.y = 5;
         titleTxt.width = textW;
-        titleTxt.wordWrap = true;
-        titleTxt.multiline = true;
-        titleTxt.autoSize = TextFieldAutoSize.LEFT;
+        titleTxt.height = 16;
         titleTxt.selectable = false;
         titleTxt.mouseEnabled = false;
         card.addChild(titleTxt);
 
-        // Description (Word wrapped & autoSize so text scales dynamically without clipping!)
+        // Description (Compact 1-2 lines)
         var descTxt = new TextField();
-        var descFmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_SECONDARY, false);
+        var descFmt = new TextFormat(ApiStyle.FONT_FAMILY, 10, ApiStyle.COLOR_TEXT_SECONDARY, false);
         descTxt.defaultTextFormat = descFmt;
         descTxt.text = description;
         descTxt.x = padX;
-        descTxt.y = titleTxt.y + titleTxt.height + 3;
+        descTxt.y = 20;
         descTxt.width = textW;
         descTxt.wordWrap = true;
         descTxt.multiline = true;
@@ -680,52 +739,79 @@ class ApiDashboardModal extends Sprite {
         descTxt.mouseEnabled = false;
         card.addChild(descTxt);
 
-        // Dynamic height calculation based on actual content
-        var textBottom:Float = descTxt.y + descTxt.height + 10;
-        var minCardH:Float = btnH + 18; // 50px
+        // Dynamic compact height
+        var textBottom:Float = descTxt.y + descTxt.height + 5;
+        var minCardH:Float = 42;
         var cardH:Float = Math.max(minCardH, textBottom);
 
-        // Action button / toggle vertically centered within dynamic card height
-        var actionX:Float = rowW - padX - btnW;
-        var actionY:Float = (cardH - btnH) / 2;
+        // Action button / toggle vertically centered
+        var actionX:Float = colW - padX - btnW + 2;
+        var actionY:Float = Math.round((cardH - btnH) / 2);
 
-        if (actionType == "toggle") {
-            var toggleBtn = createToggleControl(btnW, btnH, getToggleState, onClick);
-            toggleBtn.x = actionX;
-            toggleBtn.y = actionY;
-            card.addChild(toggleBtn);
+        var actionSprite:Sprite = null;
+        if (isToggle) {
+            actionSprite = createToggleControl(btnW, btnH, getToggleState, onClick);
         } else {
-            var btn = createActionButton(actionLabel, btnW, btnH, isPrimary, onClick, getButtonLabel);
-            btn.x = actionX;
-            btn.y = actionY;
-            card.addChild(btn);
+            actionSprite = createActionButton(actionLabel, btnW, btnH, isPrimary, onClick, getButtonLabel);
         }
+        actionSprite.x = actionX;
+        actionSprite.y = actionY;
+        card.addChild(actionSprite);
 
-        // Draw card background with hover responsiveness
-        var renderCardBg = function(isHover:Bool):Void {
+        // Background renderer with hover responsiveness
+        var curRenderH:Float = cardH;
+        var renderCardBg = function(h:Float, isHover:Bool):Void {
+            curRenderH = h;
             card.graphics.clear();
             card.graphics.beginFill(isHover ? ApiStyle.COLOR_BG_CARD_HOVER : ApiStyle.COLOR_BG_CARD, 1);
             card.graphics.lineStyle(1, isHover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_CARD);
-            card.graphics.drawRoundRect(0, 0, rowW, cardH, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
+            card.graphics.drawRoundRect(0, 0, colW, h, ApiStyle.CORNER_RADIUS, ApiStyle.CORNER_RADIUS);
             card.graphics.endFill();
+
+            if (actionSprite != null) {
+                actionSprite.y = Math.round((h - btnH) / 2);
+            }
         };
-        renderCardBg(false);
+        renderCardBg(cardH, false);
 
         card.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            renderCardBg(true);
+            renderCardBg(curRenderH, true);
         });
         card.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            renderCardBg(false);
+            renderCardBg(curRenderH, false);
         });
 
-        // Snap vertically directly below previous card
         card.cacheAsBitmap = true;
-        card.x = 0;
-        card.y = _totalContentHeight;
+
+        if (_gridCol == 0) {
+            _gridRowY = _totalContentHeight;
+            _gridRowH = cardH;
+            _pendingRowRenderBgs = [];
+        } else {
+            if (cardH > _gridRowH) {
+                _gridRowH = cardH;
+            }
+        }
+
+        card.x = _gridCol * (colW + colGap);
+        card.y = _gridRowY;
         _contentContainer.addChild(card);
 
-        // Advance vertical anchor snapping to the next card with 6px gap
-        _totalContentHeight += cardH + 6;
+        _pendingRowRenderBgs.push(function(maxH:Float):Void {
+            renderCardBg(maxH, false);
+        });
+
+        _gridCol++;
+
+        if (_gridCol >= numCols) {
+            for (renderBg in _pendingRowRenderBgs) {
+                renderBg(_gridRowH);
+            }
+            _totalContentHeight = _gridRowY + _gridRowH + 6;
+            _gridCol = 0;
+            _gridRowH = 0;
+            _pendingRowRenderBgs = [];
+        }
 
         updateScrollbar();
     }
@@ -740,20 +826,25 @@ class ApiDashboardModal extends Sprite {
         var hoverBorder = isPrimary ? ApiStyle.COLOR_ACCENT_HOVER : ApiStyle.COLOR_BTN_BORDER_HOVER;
         var textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_PRIMARY;
 
-        btn.graphics.beginFill(bg, 1);
-        btn.graphics.lineStyle(1, border);
-        btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-        btn.graphics.endFill();
+        var drawBg = function(isHover:Bool):Void {
+            btn.graphics.clear();
+            btn.graphics.beginFill(isHover ? hoverBg : bg, 1);
+            btn.graphics.lineStyle(1, isHover ? hoverBorder : border);
+            btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
+            btn.graphics.endFill();
+        };
+        drawBg(false);
 
         var initialText = (getLabel != null) ? getLabel() : label;
         var txt = new TextField();
-        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 12, textColor, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, textColor, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
         txt.text = initialText;
-        txt.width = w;
-        txt.height = 20;
-        txt.y = (h - 20) / 2;
+        txt.width = w - 4;
+        txt.height = 18;
+        txt.x = 2;
+        txt.y = Math.round((h - 18) / 2);
         txt.selectable = false;
         txt.mouseEnabled = false;
         btn.addChild(txt);
@@ -766,20 +857,12 @@ class ApiDashboardModal extends Sprite {
         };
 
         btn.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            btn.graphics.clear();
-            btn.graphics.beginFill(hoverBg, 1);
-            btn.graphics.lineStyle(1, hoverBorder);
-            btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-            btn.graphics.endFill();
+            drawBg(true);
             txt.textColor = isPrimary ? ApiStyle.COLOR_TEXT_ON_ACCENT : ApiStyle.COLOR_TEXT_TITLE;
         });
 
         btn.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            btn.graphics.clear();
-            btn.graphics.beginFill(bg, 1);
-            btn.graphics.lineStyle(1, border);
-            btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
-            btn.graphics.endFill();
+            drawBg(false);
             txt.textColor = textColor;
         });
 
@@ -803,31 +886,49 @@ class ApiDashboardModal extends Sprite {
         btn.buttonMode = true;
 
         var txt = new TextField();
-        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 11, ApiStyle.COLOR_TEXT_TITLE, true);
+        var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 10.5, ApiStyle.COLOR_TEXT_TITLE, true);
         fmt.align = TextFormatAlign.CENTER;
         txt.defaultTextFormat = fmt;
-        txt.width = w;
-        txt.height = 20;
-        txt.y = (h - 20) / 2;
+        txt.width = w - 12;
+        txt.height = 18;
+        txt.x = 10;
+        txt.y = Math.round((h - 18) / 2);
         txt.selectable = false;
         txt.mouseEnabled = false;
         btn.addChild(txt);
 
+        var lastState:Null<Bool> = null;
+
         var updateVisual = function():Void {
             var active = (getState != null) ? getState() : false;
+            if (lastState == active) return;
+            lastState = active;
+
             btn.graphics.clear();
             if (active) {
-                btn.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 1);
+                btn.graphics.beginFill(0x133829, 1); // Dark emerald plate
                 btn.graphics.lineStyle(1, ApiStyle.COLOR_STATUS_ACTIVE);
-                btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
+                btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
                 btn.graphics.endFill();
+
+                // Small radiant green dot
+                btn.graphics.beginFill(ApiStyle.COLOR_STATUS_ACTIVE, 1);
+                btn.graphics.drawCircle(8, h / 2, 2.5);
+                btn.graphics.endFill();
+
                 txt.textColor = ApiStyle.COLOR_STATUS_ACTIVE;
                 txt.text = "ON";
             } else {
-                btn.graphics.beginFill(ApiStyle.COLOR_BG_SURFACE, 1);
+                btn.graphics.beginFill(ApiStyle.COLOR_BG_PANEL, 1);
                 btn.graphics.lineStyle(1, ApiStyle.COLOR_BORDER_DEFAULT);
-                btn.graphics.drawRoundRect(0, 0, w, h, 5, 5);
+                btn.graphics.drawRoundRect(0, 0, w, h, 4, 4);
                 btn.graphics.endFill();
+
+                // Small muted gray dot
+                btn.graphics.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.6);
+                btn.graphics.drawCircle(8, h / 2, 2);
+                btn.graphics.endFill();
+
                 txt.textColor = ApiStyle.COLOR_TEXT_MUTED;
                 txt.text = "OFF";
             }
@@ -836,6 +937,7 @@ class ApiDashboardModal extends Sprite {
         btn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             if (_isDraggingScroll || _hasDraggedScroll) return;
             if (onToggle != null) onToggle();
+            lastState = null;
             updateVisual();
         });
 
@@ -859,6 +961,7 @@ class ApiDashboardModal extends Sprite {
         if (handler != null) {
             handler.render(this);
         }
+        flushGrid();
 
         if (preserveScroll) {
             var totalH = getTotalContentHeight();
