@@ -860,17 +860,17 @@ class NativeFrameDrag {
 
     private var _isTarget:Bool = false;
 
-    // Satellites offsets relative to frame
-    private var _closeOffsetX:Float = 178.7;
-    private var _closeOffsetY:Float = 10.0;
+    // Native satellite positions (captured from Flash when frame is at native default)
+    private var _nativeCloseX:Float = 0;
+    private var _nativeCloseY:Float = 0;
     private var _closeRecorded:Bool = false;
 
-    private var _questOffsetX:Float = 14.25;
-    private var _questOffsetY:Float = 64.15;
+    private var _nativeQuestX:Float = 0;
+    private var _nativeQuestY:Float = 0;
     private var _questRecorded:Bool = false;
 
-    private var _monsterOffsetX:Float = 76.0;
-    private var _monsterOffsetY:Float = 23.7;
+    private var _nativeMonsterX:Float = 0;
+    private var _nativeMonsterY:Float = 0;
     private var _monsterRecorded:Bool = false;
 
     private var _stage:Stage = null;
@@ -924,57 +924,73 @@ class NativeFrameDrag {
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return;
 
+        var isCustomMoved:Bool = (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) || _isDragging || _hasDragged;
+
         if (_isTarget) {
             var closeBtn:Dynamic = g.ui.btnTargetPortraitClose;
             if (closeBtn != null) {
+                // Record native authoring position when frame is at native default
                 if (!_closeRecorded && closeBtn.x != 0) {
-                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
-                        _closeOffsetX = closeBtn.x - _target.x;
-                        _closeOffsetY = closeBtn.y - _target.y;
+                    if (!_defaultRecorded || (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1)) {
+                        _nativeCloseX = closeBtn.x;
+                        _nativeCloseY = closeBtn.y;
                         _closeRecorded = true;
                     }
                 }
-                closeBtn.x = _target.x + _closeOffsetX;
-                closeBtn.y = _target.y + _closeOffsetY;
+                // Only reposition if the frame has actually been moved by the user!
+                if (isCustomMoved && _closeRecorded && _defaultRecorded) {
+                    var dx = _target.x - _defaultX;
+                    var dy = _target.y - _defaultY;
+                    closeBtn.x = _nativeCloseX + dx;
+                    closeBtn.y = _nativeCloseY + dy;
+                }
             }
         } else {
             var iconQuest:Dynamic = g.ui.iconQuest;
             if (iconQuest != null) {
+                // Record native authoring position when frame is at native default
                 if (!_questRecorded && iconQuest.x != 0) {
-                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
-                        _questOffsetX = iconQuest.x - _target.x;
-                        _questOffsetY = iconQuest.y - _target.y;
+                    if (!_defaultRecorded || (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1)) {
+                        _nativeQuestX = iconQuest.x;
+                        _nativeQuestY = iconQuest.y;
                         _questRecorded = true;
                     }
                 }
-                iconQuest.x = _target.x + _questOffsetX;
-                iconQuest.y = _target.y + _questOffsetY;
+                // Only reposition if the frame has actually been moved by the user!
+                if (isCustomMoved && _questRecorded && _defaultRecorded) {
+                    var dx = _target.x - _defaultX;
+                    var dy = _target.y - _defaultY;
+                    iconQuest.x = _nativeQuestX + dx;
+                    iconQuest.y = _nativeQuestY + dy;
+                    try {
+                        if (g.mailHub != null) {
+                            g.mailHub.placeHud();
+                        }
+                    } catch (_:Dynamic) {}
+                }
             }
 
             var monsterIcon:Dynamic = g.ui.monsterIcon;
             if (monsterIcon != null) {
                 if (!_monsterRecorded && monsterIcon.x != 0) {
-                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
-                        _monsterOffsetX = monsterIcon.x - _target.x;
-                        _monsterOffsetY = monsterIcon.y - _target.y;
+                    if (!_defaultRecorded || (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1)) {
+                        _nativeMonsterX = monsterIcon.x;
+                        _nativeMonsterY = monsterIcon.y;
                         _monsterRecorded = true;
                     }
                 }
-                monsterIcon.x = _target.x + _monsterOffsetX;
-                monsterIcon.y = _target.y + _monsterOffsetY;
-            }
-
-            var btnMonster:Dynamic = Reflect.field(g.ui, "btnMonster");
-            if (btnMonster != null && btnMonster != monsterIcon) {
-                btnMonster.x = _target.x + _monsterOffsetX;
-                btnMonster.y = _target.y + _monsterOffsetY;
-            }
-
-            try {
-                if (g.mailHub != null) {
-                    g.mailHub.placeHud();
+                if (isCustomMoved && _monsterRecorded && _defaultRecorded) {
+                    var dx = _target.x - _defaultX;
+                    var dy = _target.y - _defaultY;
+                    monsterIcon.x = _nativeMonsterX + dx;
+                    monsterIcon.y = _nativeMonsterY + dy;
+                    var btnMonster:Dynamic = Reflect.field(g.ui, "btnMonster");
+                    if (btnMonster != null && btnMonster != monsterIcon) {
+                        btnMonster.x = _nativeMonsterX + dx;
+                        btnMonster.y = _nativeMonsterY + dy;
+                    }
                 }
-            } catch (_:Dynamic) {}
+            }
         }
     }
 
@@ -1206,7 +1222,33 @@ class NativeFrameDrag {
 
         _target.x = _defaultX;
         _target.y = _defaultY;
-        syncSatellites();
+
+        if (_isTarget) {
+            var closeBtn:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.btnTargetPortraitClose : null;
+            if (closeBtn != null && _closeRecorded) {
+                closeBtn.x = _nativeCloseX;
+                closeBtn.y = _nativeCloseY;
+            }
+        } else {
+            var iconQuest:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.iconQuest : null;
+            if (iconQuest != null && _questRecorded) {
+                iconQuest.x = _nativeQuestX;
+                iconQuest.y = _nativeQuestY;
+                try {
+                    if (Api.game != null && Api.game.mailHub != null) Api.game.mailHub.placeHud();
+                } catch (_:Dynamic) {}
+            }
+            var monsterIcon:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.monsterIcon : null;
+            if (monsterIcon != null && _monsterRecorded) {
+                monsterIcon.x = _nativeMonsterX;
+                monsterIcon.y = _nativeMonsterY;
+                var btnMonster:Dynamic = (Api.game != null && Api.game.ui != null) ? Reflect.field(Api.game.ui, "btnMonster") : null;
+                if (btnMonster != null && btnMonster != monsterIcon) {
+                    btnMonster.x = _nativeMonsterX;
+                    btnMonster.y = _nativeMonsterY;
+                }
+            }
+        }
         hideBackdrop();
     }
 }
