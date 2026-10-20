@@ -3,8 +3,10 @@ package ui.frames;
 #if flash
 import flash.Lib;
 import flash.display.DisplayObject;
+import flash.display.DisplayObjectContainer;
 import flash.display.MovieClip;
 import flash.display.Shape;
+import flash.display.SimpleButton;
 import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
@@ -107,9 +109,13 @@ class NativeFramesEnhancer {
         // Initialize frame draggers for player and target unitframes
         if (g.ui.mcPortrait != null && _playerDrag == null) {
             _playerDrag = new NativeFrameDrag(cast g.ui.mcPortrait, "api_pos_player_frame", "posPlayerFrame", "PLAYER");
+        } else if (_playerDrag != null) {
+            _playerDrag.ensureAttached();
         }
         if (g.ui.mcPortraitTarget != null && _targetDrag == null) {
             _targetDrag = new NativeFrameDrag(cast g.ui.mcPortraitTarget, "api_pos_target_frame", "posTargetFrame", "TARGET");
+        } else if (_targetDrag != null) {
+            _targetDrag.ensureAttached();
         }
 
         setupRightClickMenu(g);
@@ -293,6 +299,10 @@ class NativeFramesEnhancer {
                 }
             }
         }
+
+        if (_playerDrag != null) {
+            _playerDrag.syncSatellites();
+        }
     }
 
     // =========================================================================
@@ -433,6 +443,10 @@ class NativeFramesEnhancer {
 
         // Target of Target (replaces native Options button)
         updateTargetOfTarget(mcPortraitTarget, targetAvt);
+
+        if (_targetDrag != null) {
+            _targetDrag.syncSatellites();
+        }
     }
 
     // =========================================================================
@@ -575,22 +589,35 @@ class NativeFramesEnhancer {
     }
 
     // =========================================================================
-    // TARGET OF TARGET (REPLACES NATIVE OPTIONS BUTTON)
+    // TARGET OF TARGET (TEXT-ONLY REPLACEMENT OF NATIVE OPTIONS BUTTON)
     // =========================================================================
     private static function updateTargetOfTarget(mcPortraitTarget:Dynamic, targetAvt:Dynamic):Void {
         var btnOption:Dynamic = Reflect.field(mcPortraitTarget, "btnOption");
         var totEnabled = isTargetOfTargetEnabled();
 
         if (!totEnabled) {
-            if (btnOption != null) btnOption.visible = true;
+            if (btnOption != null) {
+                btnOption.visible = true;
+                setButtonTextVisible(btnOption, true);
+            }
             var oldPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
             if (oldPlate != null) oldPlate.visible = false;
             return;
         }
 
         if (btnOption != null) {
-            btnOption.visible = false;
+            btnOption.visible = true;
+            if (!Reflect.hasField(btnOption, "_hasToTHook")) {
+                Reflect.setField(btnOption, "_hasToTHook", true);
+                btnOption.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    onToTClick();
+                });
+            }
         }
+
+        var textHidden = setButtonTextVisible(btnOption, false);
 
         var totPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
         var txtToT:TextField = null;
@@ -622,20 +649,7 @@ class NativeFramesEnhancer {
             totPlate.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                var curTgt:Dynamic = (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-                var curTot = getTargetOfTarget(curTgt);
-                if (curTot != null && Api.game != null && Api.game.world != null) {
-                    try {
-                        Api.game.world.setTarget(curTot);
-                    } catch (_:Dynamic) {}
-                }
-            });
-
-            totPlate.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-                Reflect.setField(totPlate, "_isHover", true);
-            });
-            totPlate.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-                Reflect.setField(totPlate, "_isHover", false);
+                onToTClick();
             });
 
             mcPortraitTarget.addChild(totPlate);
@@ -646,11 +660,16 @@ class NativeFramesEnhancer {
             totPlate.visible = true;
         }
 
-        var isHover:Bool = Reflect.field(totPlate, "_isHover") == true;
-        var totInfo = getTargetOfTargetInfo(targetAvt);
+        // Zero artificial borders: leaves native AQW button plate art completely intact
+        totPlate.graphics.clear();
+        if (!textHidden) {
+            // Only draw a flat borderless dark patch if the native "Options" text could not be hidden from button states
+            totPlate.graphics.beginFill(0x15161B, 0.95);
+            totPlate.graphics.drawRoundRect(2, 2, bW - 4, bH - 4, 3, 3);
+            totPlate.graphics.endFill();
+        }
 
-        // Render trapezoid background matching native frame
-        drawToTPlate(totPlate, bW, bH, isHover, totInfo.isSelf, totInfo.isNone);
+        var totInfo = getTargetOfTargetInfo(targetAvt);
 
         if (txtToT != null) {
             txtToT.x = 2;
@@ -661,24 +680,41 @@ class NativeFramesEnhancer {
                 txtToT.text = totInfo.name;
             }
 
-            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : (isHover ? 0xFFFFFF : 0xEEEEF2));
+            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : 0xEEEEF2);
             txtToT.textColor = textColor;
         }
     }
 
-    private static function drawToTPlate(plate:Sprite, w:Float, h:Float, isHover:Bool, isSelf:Bool, isNone:Bool):Void {
-        plate.graphics.clear();
-        var bg = isSelf ? 0x2A1515 : (isHover ? 0x1A1C24 : 0x0B0C10);
-        var border = isSelf ? 0xEF4444 : (isHover ? 0x8E95AA : 0x333644);
+    private static function onToTClick():Void {
+        var curTgt:Dynamic = (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
+        var curTot = getTargetOfTarget(curTgt);
+        if (curTot != null && Api.game != null && Api.game.world != null) {
+            try {
+                Api.game.world.setTarget(curTot);
+            } catch (_:Dynamic) {}
+        }
+    }
 
-        plate.graphics.beginFill(bg, 0.95);
-        plate.graphics.lineStyle(1.5, border, 1);
-        plate.graphics.moveTo(0, 0);
-        plate.graphics.lineTo(w, 0);
-        plate.graphics.lineTo(w - 4, h);
-        plate.graphics.lineTo(4, h);
-        plate.graphics.lineTo(0, 0);
-        plate.graphics.endFill();
+    private static function setButtonTextVisible(btn:Dynamic, visible:Bool):Bool {
+        if (btn == null) return false;
+        var modified = false;
+        try {
+            var states:Array<Dynamic> = [btn.upState, btn.overState, btn.downState];
+            for (st in states) {
+                if (st != null && Std.isOfType(st, DisplayObjectContainer)) {
+                    var doc:DisplayObjectContainer = cast st;
+                    for (i in 0...doc.numChildren) {
+                        var ch = doc.getChildAt(i);
+                        if (ch != null && (Std.isOfType(ch, TextField) || i >= 1)) {
+                            ch.visible = visible;
+                            ch.alpha = visible ? 1.0 : 0.0;
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        } catch (_:Dynamic) {}
+        return modified;
     }
 
     public static function getTargetOfTarget(targetAvt:Dynamic):Dynamic {
@@ -784,6 +820,21 @@ class NativeFrameDrag {
     private var _defaultY:Float = 0;
     private var _defaultRecorded:Bool = false;
 
+    private var _isTarget:Bool = false;
+
+    // Satellites offsets relative to frame
+    private var _closeOffsetX:Float = 178.7;
+    private var _closeOffsetY:Float = 10.0;
+    private var _closeRecorded:Bool = false;
+
+    private var _questOffsetX:Float = 14.25;
+    private var _questOffsetY:Float = 64.15;
+    private var _questRecorded:Bool = false;
+
+    private var _monsterOffsetX:Float = 76.0;
+    private var _monsterOffsetY:Float = 23.7;
+    private var _monsterRecorded:Bool = false;
+
     private var _stage:Stage = null;
     private var _isDragging:Bool = false;
     private var _hasDragged:Bool = false;
@@ -803,6 +854,7 @@ class NativeFrameDrag {
         _key = key;
         _litePrefKey = litePrefKey;
         _caption = caption;
+        _isTarget = (_caption == "TARGET");
 
         _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false, 0, true);
         _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false, 0, true);
@@ -824,6 +876,67 @@ class NativeFrameDrag {
             _defaultY = _target.y;
             _defaultRecorded = true;
             restorePosition();
+        } else if (_defaultRecorded) {
+            syncSatellites();
+        }
+    }
+
+    public function syncSatellites():Void {
+        if (_target == null) return;
+        var g:Dynamic = Api.game;
+        if (g == null || g.ui == null) return;
+
+        if (_isTarget) {
+            var closeBtn:Dynamic = g.ui.btnTargetPortraitClose;
+            if (closeBtn != null) {
+                if (!_closeRecorded && closeBtn.x != 0) {
+                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
+                        _closeOffsetX = closeBtn.x - _target.x;
+                        _closeOffsetY = closeBtn.y - _target.y;
+                        _closeRecorded = true;
+                    }
+                }
+                closeBtn.x = _target.x + _closeOffsetX;
+                closeBtn.y = _target.y + _closeOffsetY;
+            }
+        } else {
+            var iconQuest:Dynamic = g.ui.iconQuest;
+            if (iconQuest != null) {
+                if (!_questRecorded && iconQuest.x != 0) {
+                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
+                        _questOffsetX = iconQuest.x - _target.x;
+                        _questOffsetY = iconQuest.y - _target.y;
+                        _questRecorded = true;
+                    }
+                }
+                iconQuest.x = _target.x + _questOffsetX;
+                iconQuest.y = _target.y + _questOffsetY;
+            }
+
+            var monsterIcon:Dynamic = g.ui.monsterIcon;
+            if (monsterIcon != null) {
+                if (!_monsterRecorded && monsterIcon.x != 0) {
+                    if (Math.abs(_target.x - _defaultX) < 1 && Math.abs(_target.y - _defaultY) < 1) {
+                        _monsterOffsetX = monsterIcon.x - _target.x;
+                        _monsterOffsetY = monsterIcon.y - _target.y;
+                        _monsterRecorded = true;
+                    }
+                }
+                monsterIcon.x = _target.x + _monsterOffsetX;
+                monsterIcon.y = _target.y + _monsterOffsetY;
+            }
+
+            var btnMonster:Dynamic = Reflect.field(g.ui, "btnMonster");
+            if (btnMonster != null && btnMonster != monsterIcon) {
+                btnMonster.x = _target.x + _monsterOffsetX;
+                btnMonster.y = _target.y + _monsterOffsetY;
+            }
+
+            try {
+                if (g.mailHub != null) {
+                    g.mailHub.placeHud();
+                }
+            } catch (_:Dynamic) {}
         }
     }
 
@@ -876,14 +989,25 @@ class NativeFrameDrag {
         }
 
         var b = _target.getBounds(parent);
+        var bx = b.x;
+        var by = b.y;
+        var bw = b.width;
+        var bh = b.height;
+
+        if (_isTarget) {
+            bw = Math.max(bw, _closeOffsetX + 20);
+        } else {
+            bh = Math.max(bh, _questOffsetY + 22);
+        }
+
         _bgShape.graphics.clear();
         _bgShape.graphics.beginFill(0x000000, 0.45);
         _bgShape.graphics.lineStyle(1, 0x475569, 0.85);
-        _bgShape.graphics.drawRoundRect(b.x - PAD, b.y - PAD - CAP_H, b.width + PAD * 2, b.height + PAD * 2 + CAP_H, 8, 8);
+        _bgShape.graphics.drawRoundRect(bx - PAD, by - PAD - CAP_H, bw + PAD * 2, bh + PAD * 2 + CAP_H, 8, 8);
         _bgShape.graphics.endFill();
 
-        _capTxt.x = b.x - PAD + 5;
-        _capTxt.y = b.y - PAD - CAP_H + 1;
+        _capTxt.x = bx - PAD + 5;
+        _capTxt.y = by - PAD - CAP_H + 1;
         _backdrop.visible = true;
     }
 
@@ -954,6 +1078,7 @@ class NativeFrameDrag {
         _target.x = newX;
         _target.y = newY;
 
+        syncSatellites();
         drawBackdrop();
         e.updateAfterEvent();
     }
@@ -1011,6 +1136,7 @@ class NativeFrameDrag {
                 }
             } catch (_:Dynamic) {}
         }
+        syncSatellites();
     }
 
     public function resetPosition():Void {
@@ -1026,6 +1152,7 @@ class NativeFrameDrag {
 
         _target.x = _defaultX;
         _target.y = _defaultY;
+        syncSatellites();
         hideBackdrop();
     }
 }
