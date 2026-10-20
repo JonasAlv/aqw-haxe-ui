@@ -106,17 +106,9 @@ class NativeFramesEnhancer {
             _theStage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
         }
 
-        // Player frame stays locked to native authoring position (0, 0) to avoid fighting AQW engine satellites
-        if (g.ui.mcPortrait != null) {
-            if (ApiConfig.has("api_pos_player_frame_x") || ApiConfig.has("api_pos_player_frame_y")) {
-                ApiConfig.delete("api_pos_player_frame_x");
-                ApiConfig.delete("api_pos_player_frame_y");
-                try {
-                    g.ui.mcPortrait.x = 0;
-                    g.ui.mcPortrait.y = 0;
-                } catch (_:Dynamic) {}
-            }
-        }
+        // Clean up any legacy player frame configs without touching mcPortrait position (native defaults)
+        if (ApiConfig.has("api_pos_player_frame_x")) ApiConfig.delete("api_pos_player_frame_x");
+        if (ApiConfig.has("api_pos_player_frame_y")) ApiConfig.delete("api_pos_player_frame_y");
 
         // Target unitframe is movable
         if (g.ui.mcPortraitTarget != null && _targetDrag == null) {
@@ -203,6 +195,9 @@ class NativeFramesEnhancer {
             return;
         }
 
+        // Hide native text field to completely eliminate rendering flicker when AQW updates health
+        strIntHP.visible = false;
+
         // Determine health bar width
         if (_playerBarWidth <= 0) {
             if (hpClip.intHPbar != null && Math.abs(hpClip.intHPbar.width) > 30) {
@@ -227,49 +222,59 @@ class NativeFramesEnhancer {
         if (maxHp <= 0) maxHp = 1;
 
         var showPct:Bool = isHpPercentEnabled();
-
-        // Ensure percent text field exists on hpClip
-        var pctTxt:TextField = cast hpClip.getChildByName("strIntHPPct");
-        if (pctTxt == null) {
-            pctTxt = new TextField();
-            pctTxt.name = "strIntHPPct";
-            pctTxt.selectable = false;
-            pctTxt.mouseEnabled = false;
-            pctTxt.autoSize = TextFieldAutoSize.NONE;
-            hpClip.addChild(pctTxt);
-        }
-
-        // Setup layouts & formats (Text only)
         var rightReserve:Float = showPct ? 34.0 : 0.0;
-        strIntHP.autoSize = TextFieldAutoSize.NONE;
-        strIntHP.selectable = false;
-        strIntHP.mouseEnabled = false;
-        strIntHP.x = 3.0;
-        strIntHP.width = barW - rightReserve - 5.0;
 
-        var tf = strIntHP.defaultTextFormat;
-        if (tf.align != TextFormatAlign.LEFT) {
-            tf.align = TextFormatAlign.LEFT;
-            strIntHP.defaultTextFormat = tf;
-            strIntHP.setTextFormat(tf);
+        // Persistent enhanced HP text field (separate from native strIntHP to avoid flicker)
+        var txtEnhancedHP:TextField = cast hpClip.getChildByName("_txtEnhancedHP");
+        if (txtEnhancedHP == null) {
+            txtEnhancedHP = new TextField();
+            txtEnhancedHP.name = "_txtEnhancedHP";
+            txtEnhancedHP.selectable = false;
+            txtEnhancedHP.mouseEnabled = false;
+            txtEnhancedHP.autoSize = TextFieldAutoSize.NONE;
+
+            var tf = strIntHP.defaultTextFormat;
+            var myTf = new TextFormat(tf.font, tf.size, 0xFFFFFF, true);
+            myTf.align = TextFormatAlign.LEFT;
+            txtEnhancedHP.defaultTextFormat = myTf;
+            txtEnhancedHP.setTextFormat(myTf);
+            txtEnhancedHP.filters = ApiStyle.getTextOutlineFilter();
+            hpClip.addChild(txtEnhancedHP);
         }
 
-        pctTxt.visible = showPct;
-        if (showPct) {
-            pctTxt.x = barW - 35.0;
-            pctTxt.y = strIntHP.y;
-            pctTxt.width = 33.0;
-            pctTxt.height = strIntHP.height;
+        // Persistent enhanced Percent text field
+        var txtEnhancedPct:TextField = cast hpClip.getChildByName("_txtEnhancedPct");
+        if (txtEnhancedPct == null) {
+            txtEnhancedPct = new TextField();
+            txtEnhancedPct.name = "_txtEnhancedPct";
+            txtEnhancedPct.selectable = false;
+            txtEnhancedPct.mouseEnabled = false;
+            txtEnhancedPct.autoSize = TextFieldAutoSize.NONE;
+
+            var tf = strIntHP.defaultTextFormat;
             var pctTf = new TextFormat(tf.font, tf.size, 0xFFFFFF, true);
             pctTf.align = TextFormatAlign.RIGHT;
-            pctTxt.defaultTextFormat = pctTf;
-            pctTxt.setTextFormat(pctTf);
-            pctTxt.filters = ApiStyle.getTextOutlineFilter();
+            txtEnhancedPct.defaultTextFormat = pctTf;
+            txtEnhancedPct.setTextFormat(pctTf);
+            txtEnhancedPct.filters = ApiStyle.getTextOutlineFilter();
+            hpClip.addChild(txtEnhancedPct);
         }
 
-        strIntHP.filters = ApiStyle.getTextOutlineFilter();
+        txtEnhancedHP.visible = true;
+        txtEnhancedHP.x = 3.0;
+        txtEnhancedHP.y = strIntHP.y;
+        txtEnhancedHP.width = barW - rightReserve - 5.0;
+        txtEnhancedHP.height = strIntHP.height > 0 ? strIntHP.height : 16.0;
 
-        // Update Text
+        txtEnhancedPct.visible = showPct;
+        if (showPct) {
+            txtEnhancedPct.x = barW - 35.0;
+            txtEnhancedPct.y = strIntHP.y;
+            txtEnhancedPct.width = 33.0;
+            txtEnhancedPct.height = strIntHP.height > 0 ? strIntHP.height : 16.0;
+        }
+
+        // Update text values only when modified to avoid unnecessary redraws
         var hpStr:String;
         if (hp <= 0) {
             hpStr = "0 / " + formatNumber(maxHp);
@@ -278,16 +283,16 @@ class NativeFramesEnhancer {
             hpStr = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldStr;
         }
 
-        if (strIntHP.text != hpStr) {
-            strIntHP.text = hpStr;
+        if (txtEnhancedHP.text != hpStr) {
+            txtEnhancedHP.text = hpStr;
         }
 
-        var hpRatio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
         if (showPct) {
+            var hpRatio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
             var pctVal:Int = (hp > 0 && hpRatio < 0.01) ? 1 : Math.round(hpRatio * 100);
             var pctStr:String = pctVal + "%";
-            if (pctTxt.text != pctStr) {
-                pctTxt.text = pctStr;
+            if (txtEnhancedPct.text != pctStr) {
+                txtEnhancedPct.text = pctStr;
             }
         }
 
@@ -336,6 +341,9 @@ class NativeFramesEnhancer {
             return;
         }
 
+        // Hide native text field to completely eliminate rendering flicker when AQW updates health
+        strIntHP.visible = false;
+
         // Determine target health bar width
         if (_targetBarWidth <= 0) {
             if (hpClip.intHPbar != null && Math.abs(hpClip.intHPbar.width) > 30) {
@@ -365,49 +373,59 @@ class NativeFramesEnhancer {
         if (maxHp <= 0) maxHp = 1;
 
         var showPct:Bool = isHpPercentEnabled();
-
-        // Ensure percent text field exists on target hpClip
-        var pctTxt:TextField = cast hpClip.getChildByName("strIntHPPct");
-        if (pctTxt == null) {
-            pctTxt = new TextField();
-            pctTxt.name = "strIntHPPct";
-            pctTxt.selectable = false;
-            pctTxt.mouseEnabled = false;
-            pctTxt.autoSize = TextFieldAutoSize.NONE;
-            hpClip.addChild(pctTxt);
-        }
-
-        // Setup layouts & formats (Text only)
         var rightReserve:Float = showPct ? 34.0 : 0.0;
-        strIntHP.autoSize = TextFieldAutoSize.NONE;
-        strIntHP.selectable = false;
-        strIntHP.mouseEnabled = false;
-        strIntHP.x = 3.0;
-        strIntHP.width = barW - rightReserve - 5.0;
 
-        var tf = strIntHP.defaultTextFormat;
-        if (tf.align != TextFormatAlign.LEFT) {
-            tf.align = TextFormatAlign.LEFT;
-            strIntHP.defaultTextFormat = tf;
-            strIntHP.setTextFormat(tf);
+        // Persistent enhanced HP text field (separate from native strIntHP to avoid flicker)
+        var txtEnhancedHP:TextField = cast hpClip.getChildByName("_txtEnhancedHP");
+        if (txtEnhancedHP == null) {
+            txtEnhancedHP = new TextField();
+            txtEnhancedHP.name = "_txtEnhancedHP";
+            txtEnhancedHP.selectable = false;
+            txtEnhancedHP.mouseEnabled = false;
+            txtEnhancedHP.autoSize = TextFieldAutoSize.NONE;
+
+            var tf = strIntHP.defaultTextFormat;
+            var myTf = new TextFormat(tf.font, tf.size, 0xFFFFFF, true);
+            myTf.align = TextFormatAlign.LEFT;
+            txtEnhancedHP.defaultTextFormat = myTf;
+            txtEnhancedHP.setTextFormat(myTf);
+            txtEnhancedHP.filters = ApiStyle.getTextOutlineFilter();
+            hpClip.addChild(txtEnhancedHP);
         }
 
-        pctTxt.visible = showPct;
-        if (showPct) {
-            pctTxt.x = barW - 35.0;
-            pctTxt.y = strIntHP.y;
-            pctTxt.width = 33.0;
-            pctTxt.height = strIntHP.height;
+        // Persistent enhanced Percent text field
+        var txtEnhancedPct:TextField = cast hpClip.getChildByName("_txtEnhancedPct");
+        if (txtEnhancedPct == null) {
+            txtEnhancedPct = new TextField();
+            txtEnhancedPct.name = "_txtEnhancedPct";
+            txtEnhancedPct.selectable = false;
+            txtEnhancedPct.mouseEnabled = false;
+            txtEnhancedPct.autoSize = TextFieldAutoSize.NONE;
+
+            var tf = strIntHP.defaultTextFormat;
             var pctTf = new TextFormat(tf.font, tf.size, 0xFFFFFF, true);
             pctTf.align = TextFormatAlign.RIGHT;
-            pctTxt.defaultTextFormat = pctTf;
-            pctTxt.setTextFormat(pctTf);
-            pctTxt.filters = ApiStyle.getTextOutlineFilter();
+            txtEnhancedPct.defaultTextFormat = pctTf;
+            txtEnhancedPct.setTextFormat(pctTf);
+            txtEnhancedPct.filters = ApiStyle.getTextOutlineFilter();
+            hpClip.addChild(txtEnhancedPct);
         }
 
-        strIntHP.filters = ApiStyle.getTextOutlineFilter();
+        txtEnhancedHP.visible = true;
+        txtEnhancedHP.x = 3.0;
+        txtEnhancedHP.y = strIntHP.y;
+        txtEnhancedHP.width = barW - rightReserve - 5.0;
+        txtEnhancedHP.height = strIntHP.height > 0 ? strIntHP.height : 16.0;
 
-        // Update Text
+        txtEnhancedPct.visible = showPct;
+        if (showPct) {
+            txtEnhancedPct.x = barW - 35.0;
+            txtEnhancedPct.y = strIntHP.y;
+            txtEnhancedPct.width = 33.0;
+            txtEnhancedPct.height = strIntHP.height > 0 ? strIntHP.height : 16.0;
+        }
+
+        // Update text values only when modified to avoid unnecessary redraws
         var hpStr:String;
         if (hp <= 0) {
             hpStr = "0 / " + formatNumber(maxHp);
@@ -416,16 +434,16 @@ class NativeFramesEnhancer {
             hpStr = formatNumber(hp) + " / " + formatNumber(maxHp) + shieldStr;
         }
 
-        if (strIntHP.text != hpStr) {
-            strIntHP.text = hpStr;
+        if (txtEnhancedHP.text != hpStr) {
+            txtEnhancedHP.text = hpStr;
         }
 
-        var hpRatio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
         if (showPct) {
+            var hpRatio:Float = Math.max(0.0, Math.min(1.0, hp / maxHp));
             var pctVal:Int = (hp > 0 && hpRatio < 0.01) ? 1 : Math.round(hpRatio * 100);
             var pctStr:String = pctVal + "%";
-            if (pctTxt.text != pctStr) {
-                pctTxt.text = pctStr;
+            if (txtEnhancedPct.text != pctStr) {
+                txtEnhancedPct.text = pctStr;
             }
         }
 
@@ -464,10 +482,15 @@ class NativeFramesEnhancer {
     // RESTORE NATIVE BEHAVIOR
     // =========================================================================
     private static function restoreNativeFrame(hpClip:Dynamic, strIntHP:TextField):Void {
-        var pctTxt:TextField = cast hpClip.getChildByName("strIntHPPct");
-        if (pctTxt != null) {
-            pctTxt.visible = false;
+        if (strIntHP != null) {
+            strIntHP.visible = true;
         }
+        var oldHP:Dynamic = hpClip.getChildByName("_txtEnhancedHP");
+        if (oldHP != null) oldHP.visible = false;
+        var oldPct:Dynamic = hpClip.getChildByName("_txtEnhancedPct");
+        if (oldPct != null) oldPct.visible = false;
+        var legacyPct:Dynamic = hpClip.getChildByName("strIntHPPct");
+        if (legacyPct != null) legacyPct.visible = false;
         if (hpClip.intHPbar != null && hpClip.intHPbar.transform != null) {
             hpClip.intHPbar.transform.colorTransform = new ColorTransform();
         }
@@ -596,7 +619,22 @@ class NativeFramesEnhancer {
                 Api.game.ui.mcPortrait.y = 0;
             }
         } catch (_:Dynamic) {}
-        if (_targetDrag != null) _targetDrag.resetPosition();
+        if (_targetDrag != null) {
+            _targetDrag.resetPosition();
+        } else {
+            try {
+                if (Api.game != null && Api.game.ui != null) {
+                    if (Api.game.ui.mcPortraitTarget != null) {
+                        Api.game.ui.mcPortraitTarget.x = 235.0;
+                        Api.game.ui.mcPortraitTarget.y = 2.0;
+                    }
+                    if (Api.game.ui.btnTargetPortraitClose != null) {
+                        Api.game.ui.btnTargetPortraitClose.x = 413.7;
+                        Api.game.ui.btnTargetPortraitClose.y = 10.0;
+                    }
+                }
+            } catch (_:Dynamic) {}
+        }
     }
 
     public static function reloadFromConfig():Void {
@@ -618,13 +656,11 @@ class NativeFramesEnhancer {
  * - Persistent saved coordinates synced with config and kept in sync during target switches
  */
 class NativeFrameDrag {
-    private static inline var THRESHOLD_SQ:Float = 16.0;
+    private static inline var THRESHOLD_SQ:Float = 9.0; // 3px drag threshold
 
-    // Visual frame physical offsets & dimensions relative to mcPortraitTarget origin
-    public static inline var FRAME_OFFSET_X:Float = 75.0;
-    public static inline var FRAME_OFFSET_Y:Float = 10.0;
-    public static inline var FRAME_WIDTH:Float    = 176.0;
-    public static inline var FRAME_HEIGHT:Float   = 75.0;
+    // Physical dimensions of target frame (mcPortraitTarget)
+    public static inline var FRAME_WIDTH:Float    = 182.0;
+    public static inline var FRAME_HEIGHT:Float   = 80.0;
 
     private var _target:Sprite;
     private var _key:String;
@@ -633,9 +669,9 @@ class NativeFrameDrag {
     private var _defaultY:Float = 2.0;
     private var _defaultRecorded:Bool = false;
 
-    // Close button offset relative to target frame origin
-    private var _closeOffsetX:Float = 238.0;
-    private var _closeOffsetY:Float = 16.0;
+    // Close button offset relative to target frame origin (native AQW: 413.7 - 235.0 = 178.7, 10.0 - 2.0 = 8.0)
+    private var _closeOffsetX:Float = 178.7;
+    private var _closeOffsetY:Float = 8.0;
 
     private var _stage:Stage = null;
     private var _isDragging:Bool = false;
@@ -657,6 +693,7 @@ class NativeFrameDrag {
         _target.mouseEnabled = true;
         ensureHitLayer();
 
+        _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false);
         _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, true);
         _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false);
         _target.addEventListener(MouseEvent.ROLL_OUT, onRollOut, false);
@@ -672,9 +709,10 @@ class NativeFrameDrag {
             _hitLayer.name = "_dragHitLayer";
             _hitLayer.mouseEnabled = true;
             _hitLayer.buttonMode = false;
-            _hitLayer.graphics.beginFill(0x000000, 0.001);
-            _hitLayer.graphics.drawRect(FRAME_OFFSET_X, FRAME_OFFSET_Y, FRAME_WIDTH, FRAME_HEIGHT);
+            _hitLayer.graphics.beginFill(0x000000, 0.01);
+            _hitLayer.graphics.drawRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
             _hitLayer.graphics.endFill();
+            _hitLayer.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false);
             try {
                 _target.addChildAt(_hitLayer, 0);
             } catch (_:Dynamic) {
@@ -692,10 +730,18 @@ class NativeFrameDrag {
     public function ensureAttached():Void {
         if (_target == null) return;
         ensureHitLayer();
+
+        var g:Dynamic = Api.game;
+        var closeBtn:Dynamic = (g != null && g.ui != null) ? g.ui.btnTargetPortraitClose : null;
+
         if (!_defaultRecorded) {
             if (_target.x > 100) {
                 _defaultX = _target.x;
                 _defaultY = _target.y;
+                if (closeBtn != null && !ApiConfig.has(_key + "_x")) {
+                    _closeOffsetX = closeBtn.x - _target.x;
+                    _closeOffsetY = closeBtn.y - _target.y;
+                }
                 _defaultRecorded = true;
                 restorePosition();
             } else if (_target.parent != null && ApiConfig.has(_key + "_x")) {
@@ -711,8 +757,8 @@ class NativeFrameDrag {
         if (_target == null) return;
         ensureHitLayer();
 
-        // Keep target at saved coordinates if movable frames is active
-        if (NativeFramesEnhancer.isMovableFramesEnabled() && !_isDragging) {
+        // Keep target at saved coordinates if movable frames is active, but never interrupt active click/drag!
+        if (NativeFramesEnhancer.isMovableFramesEnabled() && !_isDragging && _stage == null) {
             if (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) {
                 var savedX = ApiConfig.getFloat(_key + "_x", _defaultX);
                 var savedY = ApiConfig.getFloat(_key + "_y", _defaultY);
@@ -723,6 +769,11 @@ class NativeFrameDrag {
             }
         }
 
+        syncCloseButton();
+    }
+
+    public function syncCloseButton():Void {
+        if (_target == null) return;
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return;
 
@@ -744,6 +795,7 @@ class NativeFrameDrag {
     private function onClickCapture(e:MouseEvent):Void {
         if (_hasDragged) {
             e.stopImmediatePropagation();
+            e.stopPropagation();
         }
     }
 
@@ -783,8 +835,8 @@ class NativeFrameDrag {
             }
         }
 
-        var vx = _target.x + FRAME_OFFSET_X;
-        var vy = _target.y + FRAME_OFFSET_Y;
+        var vx = _target.x;
+        var vy = _target.y;
         var bw = FRAME_WIDTH;
         var bh = FRAME_HEIGHT;
 
@@ -808,9 +860,18 @@ class NativeFrameDrag {
 
     private function onDown(e:MouseEvent):Void {
         if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
-        if (_target == null || _target.stage == null) return;
+        if (_target == null) return;
 
-        _stage = _target.stage;
+        var stg:Stage = _target.stage;
+        if (stg == null && Api.game != null && Api.game.stage != null) stg = Api.game.stage;
+        if (stg == null) {
+            try {
+                if (Lib.current != null && Lib.current.stage != null) stg = Lib.current.stage;
+            } catch (_:Dynamic) {}
+        }
+        if (stg == null) return;
+
+        _stage = stg;
         _isDragging = false;
         _hasDragged = false;
         _startX = e.stageX;
@@ -818,8 +879,8 @@ class NativeFrameDrag {
         _origX = _target.x;
         _origY = _target.y;
 
-        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, false);
-        _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, false);
+        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, true);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, true);
     }
 
     private function onMove(e:MouseEvent):Void {
@@ -849,11 +910,11 @@ class NativeFrameDrag {
         var stageH:Float = _stage.stageHeight > 0 ? _stage.stageHeight : 550;
         var maxBottom:Float = stageH - 50;
 
-        // Clamping strictly to visual frame boundaries
-        var minX = Math.round(-FRAME_OFFSET_X);
-        var minY = Math.round(-FRAME_OFFSET_Y);
-        var maxX = Math.round(stageW - FRAME_OFFSET_X - FRAME_WIDTH);
-        var maxY = Math.round(maxBottom - FRAME_OFFSET_Y - FRAME_HEIGHT);
+        // Exact clamping to screen boundaries
+        var minX = 0;
+        var minY = 0;
+        var maxX = Math.round(stageW - FRAME_WIDTH);
+        var maxY = Math.round(maxBottom - FRAME_HEIGHT);
 
         if (newX < minX) newX = minX;
         if (newY < minY) newY = minY;
@@ -863,12 +924,7 @@ class NativeFrameDrag {
         _target.x = newX;
         _target.y = newY;
 
-        var g:Dynamic = Api.game;
-        if (g != null && g.ui != null && g.ui.btnTargetPortraitClose != null) {
-            g.ui.btnTargetPortraitClose.x = _target.x + _closeOffsetX;
-            g.ui.btnTargetPortraitClose.y = _target.y + _closeOffsetY;
-        }
-
+        syncCloseButton();
         drawBackdrop();
         e.updateAfterEvent();
     }
@@ -881,7 +937,7 @@ class NativeFrameDrag {
             savePosition();
             haxe.Timer.delay(function() {
                 _hasDragged = false;
-            }, 120);
+            }, 150);
         }
         hideBackdrop();
     }
@@ -940,11 +996,7 @@ class NativeFrameDrag {
         _target.x = _defaultX;
         _target.y = _defaultY;
 
-        var closeBtn:Dynamic = (Api.game != null && Api.game.ui != null) ? Api.game.ui.btnTargetPortraitClose : null;
-        if (closeBtn != null) {
-            closeBtn.x = _target.x + _closeOffsetX;
-            closeBtn.y = _target.y + _closeOffsetY;
-        }
+        syncCloseButton();
         hideBackdrop();
     }
 }
