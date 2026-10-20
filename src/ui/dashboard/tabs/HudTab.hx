@@ -21,7 +21,7 @@ class HudTab implements IDashboardTab {
 
         modal.addItemRow(
             "Top Bar: Enabled",
-            "Anchored top-right bar with Auto, Jump, Players, and Menu dropdown tabs.",
+            "Anchored control bar with Auto, Jump, Players, and quick action tabs.",
             "toggle",
             "",
             false,
@@ -33,6 +33,156 @@ class HudTab implements IDashboardTab {
             },
             function():Bool {
                 return TopBar.isTopBarEnabled();
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Orientation",
+            "Switch layout style between Horizontal Bar and Vertical Stack.",
+            "button",
+            TopBar.isVertical() ? "Vertical" : "Horizontal",
+            false,
+            function():Void {
+                var nextVert = !TopBar.isVertical();
+                TopBar.setVertical(nextVert);
+                ApiNotificationManager.notify("Top Bar Orientation: " + (nextVert ? "Vertical Stack" : "Horizontal Bar"));
+                ApiDashboardModal.refreshCurrentTab();
+            },
+            null,
+            function():String {
+                return TopBar.isVertical() ? "Vertical" : "Horizontal";
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Lock Position",
+            "Lock the top bar in place to prevent accidental dragging with mouse.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var next = !TopBar.isLocked();
+                TopBar.setLocked(next);
+                ApiNotificationManager.notify("Top Bar: " + (next ? "Position Locked" : "Position Unlocked (Draggable)"));
+            },
+            function():Bool {
+                return TopBar.isLocked();
+            }
+        );
+
+        modal.addItemRow(
+            "Reset Top Bar Position",
+            "Snap the top control bar back to default Top Center position.",
+            "button",
+            "Reset",
+            false,
+            function():Void {
+                TopBar.resetPosition();
+                ApiNotificationManager.notify("Top Bar reset to Top Center!");
+            }
+        );
+
+        modal.addSectionHeader("Top Bar Buttons");
+
+        modal.addItemRow(
+            "Top Bar: Auto Button",
+            "Show or hide the combat Auto panel dropdown tab.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("auto", true);
+                var next = !cur;
+                TopBar.setButtonVisible("auto", next);
+                ApiNotificationManager.notify("Top Bar Auto: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("auto", true);
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Jump Button",
+            "Show or hide the Jump & Navigation dropdown tab.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("jump", true);
+                var next = !cur;
+                TopBar.setButtonVisible("jump", next);
+                ApiNotificationManager.notify("Top Bar Jump: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("jump", true);
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Players Button",
+            "Show or hide the Area Players dropdown tab.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("players", true);
+                var next = !cur;
+                TopBar.setButtonVisible("players", next);
+                ApiNotificationManager.notify("Top Bar Players: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("players", true);
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Menu Button",
+            "Show or hide the Dashboard Menu button.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("menu", true);
+                var next = !cur;
+                TopBar.setButtonVisible("menu", next);
+                ApiNotificationManager.notify("Top Bar Menu: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("menu", true);
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Bank Button",
+            "Quick 1-click bank opener on the top bar.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("bank", false);
+                var next = !cur;
+                TopBar.setButtonVisible("bank", next);
+                ApiNotificationManager.notify("Top Bar Bank: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("bank", false);
+            }
+        );
+
+        modal.addItemRow(
+            "Top Bar: Drops Button",
+            "Quick drops collector / manager button on the top bar.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("drops", false);
+                var next = !cur;
+                TopBar.setButtonVisible("drops", next);
+                ApiNotificationManager.notify("Top Bar Drops: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("drops", false);
             }
         );
 

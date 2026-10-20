@@ -7,6 +7,7 @@ import flash.display.Stage;
 import flash.events.Event;
 import flash.events.KeyboardEvent;
 import flash.events.MouseEvent;
+import flash.geom.Point;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -14,21 +15,21 @@ import com.aqwapi.Api;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiDashboardModal;
 import ui.ApiMenus;
+import ui.ApiNotificationManager;
 import ui.ApiStyle;
 
 /**
- * TopBar: Sleek Skua-style control bar anchored to the top-right of the screen.
+ * TopBar: Sleek Skua-style control bar.
  *
- * Provides:
- * - [Auto]    -> Toggles TopBarAutoPanel (combat automation)
- * - [Jump]    -> Toggles TopBarJumpPanel (map/cell navigation)
- * - [Players] -> Toggles TopBarPlayersPanel (area players list)
- * - [Menu]    -> Toggles ApiDashboardModal
- *
- * Features:
- * - Strict mutual exclusion: opening one panel closes any other open panel.
- * - Clicking the active tab or clicking outside on the stage closes the panel.
- * - 100% pure ASCII strings and vector graphics (zero Unicode glyphs).
+ * Enhancements:
+ * - Default position: Top Center (x = (stageW - barWidth) / 2, y = SCREEN_MARGIN).
+ * - Movable / Draggable: Persistent saved position (api_topbar_x, api_topbar_y), lockable.
+ * - Stackable Vertical Layout: Can be toggled between Horizontal and Vertical Stack
+ *   with left accent markers matching user theme.
+ * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Bank, Drops.
+ * - Adaptive Dropdown Direction: Dropdowns automatically open UP when in the lower half of screen
+ *   or lacking room below, and DOWN when in the top half. Dropdowns NEVER cover or move the button!
+ * - 100% pure ASCII strings and Flash vector graphics.
  */
 class TopBar extends Sprite {
     public static var instance:TopBar = null;
@@ -36,13 +37,15 @@ class TopBar extends Sprite {
     private var _stage:Stage;
     private var _host:Dynamic;
 
-    // Bar dimensions
+    // Bar container & background
     private var _barContainer:Sprite;
     private var _barBg:Shape;
+    private var _dragHandle:Sprite;
     private var _barWidth:Float = 248.0;
     private var _barHeight:Float = 26.0;
 
-    // Tabs
+    // Tabs map: tabId -> { tab:Sprite, lbl:TextField, accent:Shape, def:Dynamic }
+    private var _tabs:Map<String, Sprite> = new Map();
     private var _tabAuto:Sprite;
     private var _txtAuto:TextField;
     private var _dotAuto:Shape;
@@ -55,7 +58,12 @@ class TopBar extends Sprite {
 
     private var _tabMenu:Sprite;
     private var _txtMenu:TextField;
-    private var _accentMenu:Shape;
+
+    private var _tabBank:Sprite;
+    private var _txtBank:TextField;
+
+    private var _tabDrops:Sprite;
+    private var _txtDrops:TextField;
 
     // Dropdown Panels
     private var _dropdownContainer:Sprite;
@@ -68,14 +76,25 @@ class TopBar extends Sprite {
     private var _lastPlayerCount:Int = -1;
     private var _lastCombatActive:Bool = false;
 
+    // Dragging State
+    private var _isDragging:Bool = false;
+    private var _dragMouseStartX:Float = 0;
+    private var _dragMouseStartY:Float = 0;
+    private var _dragBarStartX:Float = 0;
+    private var _dragBarStartY:Float = 0;
+
     public function new(stageObj:Stage, hostObj:Dynamic = null) {
         super();
         _stage = stageObj;
         _host = hostObj;
         instance = this;
 
-        buildBar();
+        this.name = "ApiTopBar";
+        _barContainer = new Sprite();
+        addChild(_barContainer);
+
         buildDropdowns();
+        buildBar();
         setupEvents();
         updatePosition();
     }
@@ -83,6 +102,8 @@ class TopBar extends Sprite {
     public function isHunting():Bool {
         return (_autoPanel != null && _autoPanel.isHunting());
     }
+
+    // --- Configuration Accessors ---
 
     public static function isTopBarEnabled():Bool {
         return ApiConfig.getBool("api_topbar_enabled", true);
@@ -98,24 +119,68 @@ class TopBar extends Sprite {
         StandaloneButtons.updateVisibility();
     }
 
-    public static function toggleAuto(?anchorX:Float, ?anchorY:Float):Void {
+    public static function isVertical():Bool {
+        return ApiConfig.getString("api_topbar_orientation", "horizontal") == "vertical";
+    }
+
+    public static function setVertical(val:Bool):Void {
+        ApiConfig.setString("api_topbar_orientation", val ? "vertical" : "horizontal");
+        if (instance != null) {
+            instance.rebuild();
+        }
+    }
+
+    public static function isLocked():Bool {
+        return ApiConfig.getBool("api_topbar_locked", false);
+    }
+
+    public static function setLocked(val:Bool):Void {
+        ApiConfig.setBool("api_topbar_locked", val);
+    }
+
+    public static function isButtonVisible(id:String, defaultVal:Bool = true):Bool {
+        return ApiConfig.getBool("api_topbar_btn_" + id, defaultVal);
+    }
+
+    public static function setButtonVisible(id:String, visible:Bool):Void {
+        ApiConfig.setBool("api_topbar_btn_" + id, visible);
+        if (instance != null) {
+            instance.rebuild();
+        }
+    }
+
+    public static function resetPosition():Void {
+        ApiConfig.delete("api_topbar_x");
+        ApiConfig.delete("api_topbar_y");
+        if (instance != null) {
+            instance.updatePosition(true);
+        }
+    }
+
+    public static function rebuildBar():Void {
+        if (instance != null) {
+            instance.rebuild();
+        }
+    }
+
+    public static function toggleAuto(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
         if (instance != null) {
             if (instance._activeTab == "auto") instance.closeDropdown();
-            else instance.openTab("auto", anchorX, anchorY);
+            else instance.openTab("auto", anchorX, anchorY, anchorW, anchorH);
         }
     }
 
-    public static function toggleJump(?anchorX:Float, ?anchorY:Float):Void {
+    public static function toggleJump(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
         if (instance != null) {
             if (instance._activeTab == "jump") instance.closeDropdown();
-            else instance.openTab("jump", anchorX, anchorY);
+            else instance.openTab("jump", anchorX, anchorY, anchorW, anchorH);
         }
     }
 
-    public static function togglePlayers(?anchorX:Float, ?anchorY:Float):Void {
+    public static function togglePlayers(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
         if (instance != null) {
             if (instance._activeTab == "players") instance.closeDropdown();
-            else instance.openTab("players", anchorX, anchorY);
+            else instance.openTab("players", anchorX, anchorY, anchorW, anchorH);
         }
     }
 
@@ -134,92 +199,142 @@ class TopBar extends Sprite {
         }
     }
 
+    // --- Bar Construction & Layout ---
+
+    public function rebuild():Void {
+        var prevTab = _activeTab;
+        closeDropdown();
+
+        // Clear container
+        while (_barContainer.numChildren > 0) {
+            _barContainer.removeChildAt(0);
+        }
+        _tabs = new Map();
+
+        buildBar();
+        updatePosition();
+
+        if (prevTab != null) {
+            openTab(prevTab);
+        }
+    }
+
     private function buildBar():Void {
-        this.name = "ApiTopBar";
-
-        _barContainer = new Sprite();
-        addChild(_barContainer);
-
         _barBg = new Shape();
         _barContainer.addChild(_barBg);
 
-        var curX:Float = 4.0;
-        var tabH:Float = 20.0;
-        var tabY:Float = 3.0;
+        var vert:Bool = isVertical();
 
-        // 1. Tab Auto
-        var autoW:Float = 46.0;
-        _tabAuto = createTabButton(autoW, tabH, "Auto");
-        _tabAuto.x = curX;
-        _tabAuto.y = tabY;
-        _txtAuto = cast _tabAuto.getChildByName("label");
-        _txtAuto.x = 10.0;
-        _txtAuto.width = autoW - 12.0;
+        // Build Drag Handle
+        _dragHandle = new Sprite();
+        _dragHandle.buttonMode = true;
+        _dragHandle.useHandCursor = true;
+        _dragHandle.name = "dragHandle";
 
-        _dotAuto = new Shape();
-        _dotAuto.name = "dot";
-        _tabAuto.addChild(_dotAuto);
-        renderAutoDot(false);
+        var dhg = _dragHandle.graphics;
+        dhg.clear();
 
-        _tabAuto.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            e.stopPropagation();
-            toggleTab("auto");
-        });
-        _barContainer.addChild(_tabAuto);
-        curX += autoW + 3.0;
+        if (vert) {
+            _dragHandle.x = 4.0;
+            _dragHandle.y = 2.0;
+            dhg.beginFill(0x000000, 0.0);
+            dhg.drawRect(0, 0, 76.0, 8.0);
+            dhg.endFill();
+            dhg.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.55);
+            for (col in 0...5) {
+                var dotX = 22.0 + col * 8.0;
+                dhg.drawCircle(dotX, 4.0, 1.2);
+            }
+            dhg.endFill();
+        } else {
+            _dragHandle.x = 2.0;
+            _dragHandle.y = 3.0;
+            dhg.beginFill(0x000000, 0.0);
+            dhg.drawRect(0, 0, 12.0, 20.0);
+            dhg.endFill();
+            dhg.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.55);
+            for (row in 0...3) {
+                var dotY = 5.0 + row * 5.0;
+                dhg.drawCircle(4.0, dotY, 1.2);
+                dhg.drawCircle(8.0, dotY, 1.2);
+            }
+            dhg.endFill();
+        }
 
-        // 2. Tab Jump
-        var jumpW:Float = 38.0;
-        _tabJump = createTabButton(jumpW, tabH, "Jump");
-        _tabJump.x = curX;
-        _tabJump.y = tabY;
-        _txtJump = cast _tabJump.getChildByName("label");
-        _tabJump.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            e.stopPropagation();
-            toggleTab("jump");
-        });
-        _barContainer.addChild(_tabJump);
-        curX += jumpW + 3.0;
+        _dragHandle.addEventListener(MouseEvent.MOUSE_DOWN, onDragStart);
+        _barBg.addEventListener(MouseEvent.MOUSE_DOWN, onDragStart);
+        _barContainer.addChild(_dragHandle);
 
-        // 3. Tab Players
-        var playersW:Float = 62.0;
-        _tabPlayers = createTabButton(playersW, tabH, "Players");
-        _tabPlayers.x = curX;
-        _tabPlayers.y = tabY;
-        _txtPlayers = cast _tabPlayers.getChildByName("label");
-        _tabPlayers.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            e.stopPropagation();
-            toggleTab("players");
-        });
-        _barContainer.addChild(_tabPlayers);
-        curX += playersW + 3.0;
+        // Buttons List Definition
+        var buttonDefs = [
+            { id: "auto",    label: "Auto",    accent: 0x2ECC71, defVis: true,  hWidth: 46.0 },
+            { id: "jump",    label: "Jump",    accent: 0x38BDF8, defVis: true,  hWidth: 38.0 },
+            { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 64.0 },
+            { id: "menu",    label: "Menu",    accent: 0xEF4444, defVis: true,  hWidth: 42.0 },
+            { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 },
+            { id: "drops",   label: "Drops",   accent: 0x14B8A6, defVis: false, hWidth: 44.0 }
+        ];
 
-        // 4. Tab Menu
-        var menuW:Float = 42.0;
-        _tabMenu = createTabButton(menuW, tabH, "Menu");
-        _tabMenu.x = curX;
-        _tabMenu.y = tabY;
-        _txtMenu = cast _tabMenu.getChildByName("label");
-        _txtMenu.x = 8.0;
-        _txtMenu.width = menuW - 10.0;
+        var curX:Float = 16.0;
+        var curY:Float = 12.0;
+        var tabH:Float = vert ? 22.0 : 20.0;
+        var tabW:Float = vert ? 76.0 : 40.0;
 
-        _accentMenu = new Shape();
-        _accentMenu.graphics.beginFill(ApiStyle.COLOR_ACCENT_CRIMSON, 1.0);
-        _accentMenu.graphics.drawRoundRect(4, 3, 2.5, 14, 1, 1);
-        _accentMenu.graphics.endFill();
-        _tabMenu.addChild(_accentMenu);
+        for (bDef in buttonDefs) {
+            if (!isButtonVisible(bDef.id, bDef.defVis)) continue;
 
-        _tabMenu.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-            e.stopPropagation();
-            closeDropdown();
-            toggleDashboard();
-        });
-        _barContainer.addChild(_tabMenu);
-        curX += menuW + 4.0;
+            var thisW:Float = vert ? tabW : bDef.hWidth;
+            var tabBtn:Sprite = createTabButton(bDef.id, bDef.label, thisW, tabH, bDef.accent, vert);
 
-        _barWidth = curX;
+            if (vert) {
+                tabBtn.x = 4.0;
+                tabBtn.y = curY;
+                curY += tabH + 3.0;
+            } else {
+                tabBtn.x = curX;
+                tabBtn.y = 3.0;
+                curX += thisW + 3.0;
+            }
 
-        // Redraw bar background
+            _tabs.set(bDef.id, tabBtn);
+            _barContainer.addChild(tabBtn);
+
+            // Hook up specific references
+            if (bDef.id == "auto") {
+                _tabAuto = tabBtn;
+                _txtAuto = cast tabBtn.getChildByName("label");
+                _dotAuto = cast tabBtn.getChildByName("dot");
+                renderAutoDot(_lastCombatActive);
+            } else if (bDef.id == "jump") {
+                _tabJump = tabBtn;
+                _txtJump = cast tabBtn.getChildByName("label");
+            } else if (bDef.id == "players") {
+                _tabPlayers = tabBtn;
+                _txtPlayers = cast tabBtn.getChildByName("label");
+                if (_lastPlayerCount >= 0) {
+                    _txtPlayers.text = "Players (" + _lastPlayerCount + ")";
+                }
+            } else if (bDef.id == "menu") {
+                _tabMenu = tabBtn;
+                _txtMenu = cast tabBtn.getChildByName("label");
+            } else if (bDef.id == "bank") {
+                _tabBank = tabBtn;
+                _txtBank = cast tabBtn.getChildByName("label");
+            } else if (bDef.id == "drops") {
+                _tabDrops = tabBtn;
+                _txtDrops = cast tabBtn.getChildByName("label");
+            }
+        }
+
+        if (vert) {
+            _barWidth = 84.0;
+            _barHeight = Math.max(26.0, curY + 2.0);
+        } else {
+            _barWidth = Math.max(48.0, curX + 1.0);
+            _barHeight = 26.0;
+        }
+
+        // Draw bar background & top bevel highlight
         var g = _barBg.graphics;
         g.clear();
         g.beginFill(ApiStyle.COLOR_BG_WIDGET, 0.94);
@@ -232,47 +347,106 @@ class TopBar extends Sprite {
         g.lineTo(_barWidth - 3, 1);
     }
 
-    private function createTabButton(w:Float, h:Float, labelText:String):Sprite {
+    private function createTabButton(id:String, labelText:String, w:Float, h:Float, accentColor:Int, isVert:Bool):Sprite {
         var tab = new Sprite();
+        tab.name = "tab_" + id;
         tab.buttonMode = true;
         tab.useHandCursor = true;
 
         var lbl = new TextField();
         lbl.name = "label";
         var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 10, ApiStyle.COLOR_TEXT_PRIMARY, true);
-        fmt.align = TextFormatAlign.CENTER;
+        fmt.align = isVert ? TextFormatAlign.LEFT : TextFormatAlign.CENTER;
         lbl.defaultTextFormat = fmt;
-        lbl.x = 0;
-        lbl.y = 2;
-        lbl.width = w;
-        lbl.height = 16;
         lbl.selectable = false;
         lbl.mouseEnabled = false;
+
+        if (isVert) {
+            lbl.x = 12.0;
+            lbl.y = 3.0;
+            lbl.width = w - 16.0;
+            lbl.height = 16.0;
+        } else {
+            if (id == "auto") {
+                lbl.x = 10.0;
+                lbl.width = w - 12.0;
+            } else if (id == "menu") {
+                lbl.x = 7.0;
+                lbl.width = w - 9.0;
+            } else {
+                lbl.x = 0.0;
+                lbl.width = w;
+            }
+            lbl.y = 2.0;
+            lbl.height = 16.0;
+        }
         lbl.text = labelText;
         tab.addChild(lbl);
 
-        renderTabStyle(tab, w, h, false, false);
+        // Auto Live LED Dot
+        if (id == "auto") {
+            var dot = new Shape();
+            dot.name = "dot";
+            tab.addChild(dot);
+        }
+
+        renderTabStyle(tab, w, h, false, false, accentColor, isVert);
 
         tab.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            var isCurrentActive = (_activeTab != null && isTabActive(tab, _activeTab));
-            renderTabStyle(tab, w, h, true, isCurrentActive);
+            var isCurrentActive = (_activeTab != null && _activeTab == id);
+            renderTabStyle(tab, w, h, true, isCurrentActive, accentColor, isVert);
         });
         tab.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            var isCurrentActive = (_activeTab != null && isTabActive(tab, _activeTab));
-            renderTabStyle(tab, w, h, false, isCurrentActive);
+            var isCurrentActive = (_activeTab != null && _activeTab == id);
+            renderTabStyle(tab, w, h, false, isCurrentActive, accentColor, isVert);
+        });
+
+        tab.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+            e.stopPropagation();
+            onTabClicked(id);
         });
 
         return tab;
     }
 
-    private function isTabActive(tab:Sprite, tabId:String):Bool {
-        if (tabId == "auto" && tab == _tabAuto) return true;
-        if (tabId == "jump" && tab == _tabJump) return true;
-        if (tabId == "players" && tab == _tabPlayers) return true;
-        return false;
+    private function onTabClicked(id:String):Void {
+        if (id == "auto" || id == "jump" || id == "players") {
+            toggleTab(id);
+        } else if (id == "menu") {
+            closeDropdown();
+            toggleDashboard();
+        } else if (id == "bank") {
+            closeDropdown();
+            toggleBank();
+        } else if (id == "drops") {
+            closeDropdown();
+            toggleDrops();
+        }
     }
 
-    private function renderTabStyle(tab:Sprite, w:Float, h:Float, hover:Bool, active:Bool):Void {
+    private function toggleBank():Void {
+        try {
+            if (Api.inventory != null) {
+                Api.inventory.toggleBank();
+            } else if (Api.game != null && Api.game.world != null) {
+                Api.game.world.toggleBank();
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    private function toggleDrops():Void {
+        try {
+            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPortrait != null && Api.game.ui.mcPortrait.iconDrops != null) {
+                Api.game.ui.mcPortrait.iconDrops.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+            } else if (Api.drop != null) {
+                Api.drop.scanScreenDrops();
+                Api.drop.acceptAllDrops();
+                ApiNotificationManager.notify("Drops collected!");
+            }
+        } catch (_:Dynamic) {}
+    }
+
+    private function renderTabStyle(tab:Sprite, w:Float, h:Float, hover:Bool, active:Bool, accentColor:Int, isVert:Bool):Void {
         var g = tab.graphics;
         g.clear();
 
@@ -284,6 +458,21 @@ class TopBar extends Sprite {
         g.lineStyle(1, border);
         g.drawRoundRect(0, 0, w, h, 3, 3);
         g.endFill();
+
+        // Accent striping
+        if (isVert) {
+            // Sleek left accent stripe in vertical stack mode
+            g.lineStyle(0, 0, 0);
+            g.beginFill(accentColor, active ? 1.0 : (hover ? 0.95 : 0.80));
+            g.drawRoundRect(3.5, 3.0, 3.0, h - 6.0, 1.5, 1.5);
+            g.endFill();
+        } else if (tab.name == "tab_menu") {
+            // Horizontal menu accent strip
+            g.lineStyle(0, 0, 0);
+            g.beginFill(accentColor, 1.0);
+            g.drawRoundRect(3.5, 3.0, 2.5, 14.0, 1.0, 1.0);
+            g.endFill();
+        }
 
         var lbl:TextField = cast tab.getChildByName("label");
         if (lbl != null) {
@@ -297,9 +486,40 @@ class TopBar extends Sprite {
         g.clear();
         var dotColor = running ? 0x2ECC71 : 0x717789;
         g.beginFill(dotColor, running ? 1.0 : 0.6);
-        g.drawCircle(5.5, 10, 2.2);
+
+        var isVert = isVertical();
+        if (isVert) {
+            // Position dot on right edge in vertical mode
+            g.drawCircle(66.0, 11.0, 2.5);
+        } else {
+            g.drawCircle(5.5, 10.0, 2.2);
+        }
         g.endFill();
     }
+
+    private function updateAllTabStyles():Void {
+        var isVert = isVertical();
+        var accents = [
+            "auto" => 0x2ECC71,
+            "jump" => 0x38BDF8,
+            "players" => 0xC084FC,
+            "menu" => 0xEF4444,
+            "bank" => 0xF59E0B,
+            "drops" => 0x14B8A6
+        ];
+        var tabH:Float = isVert ? 22.0 : 20.0;
+        var tabW:Float = isVert ? 76.0 : 40.0;
+
+        for (id in _tabs.keys()) {
+            var tab = _tabs.get(id);
+            if (tab == null) continue;
+            var thisW:Float = isVert ? tabW : tab.width;
+            var accent = accents.exists(id) ? accents.get(id) : 0x8B5CF6;
+            renderTabStyle(tab, thisW, tabH, false, (_activeTab == id), accent, isVert);
+        }
+    }
+
+    // --- Dropdowns Construction & Adaptive Direction Algorithm ---
 
     private function buildDropdowns():Void {
         _dropdownContainer = new Sprite();
@@ -319,62 +539,6 @@ class TopBar extends Sprite {
         _dropdownContainer.addChild(_playersPanel);
     }
 
-    private function setupEvents():Void {
-        if (_stage == null) return;
-
-        _stage.addChild(this);
-
-        // Keep anchored to top right on window resize
-        _stage.addEventListener(Event.RESIZE, function(e:Event):Void updatePosition());
-
-        // Stage click outside dismissal
-        _stage.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
-            if (_activeTab == null) return;
-            var targetObj:Dynamic = e.target;
-            if (targetObj != null && Std.isOfType(targetObj, flash.display.DisplayObject)) {
-                var disp:flash.display.DisplayObject = cast targetObj;
-                if (this.contains(disp)) {
-                    return; // Click was inside TopBar or open dropdown panel
-                }
-                if (StandaloneButtons.isStandaloneButton(disp)) {
-                    return; // Click was on a standalone button
-                }
-            }
-            closeDropdown();
-        });
-
-        // Stage mouse move / up forwarded to players scroll list
-        _stage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
-            if (_playersPanel != null && _playersPanel.visible) {
-                _playersPanel.handleStageMouseMove(e);
-            }
-        });
-        _stage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
-            if (_playersPanel != null && _playersPanel.visible) {
-                _playersPanel.handleStageMouseUp(e);
-            }
-        });
-
-        // ESC key closes active dropdown
-        _stage.addEventListener(KeyboardEvent.KEY_DOWN, function(e:KeyboardEvent):Void {
-            if (e.keyCode == 27 && _activeTab != null) {
-                closeDropdown();
-            }
-        });
-
-        // Per-frame tick
-        _stage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void onTick());
-    }
-
-    public static inline var MARGIN_RIGHT:Float = 44.0;
-
-    public function updatePosition():Void {
-        if (_stage == null) return;
-        var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
-        this.x = sw - _barWidth - MARGIN_RIGHT;
-        this.y = ApiStyle.SCREEN_MARGIN;
-    }
-
     public function toggleTab(tabId:String):Void {
         if (_activeTab == tabId) {
             closeDropdown();
@@ -383,16 +547,21 @@ class TopBar extends Sprite {
         }
     }
 
-    public function openTab(tabId:String, ?anchorX:Float, ?anchorY:Float):Void {
+    /**
+     * Adaptive Dropdown Placement:
+     * - Calculates available space strictly above and below the anchor button.
+     * - Opens UP when in bottom half or lacking room below, DOWN when in top half.
+     * - NEVER COVERS OR SHIFTS THE BUTTON.
+     * - Does NOT change this.x or this.y; positions dropdown container relative to TopBar.
+     */
+    public function openTab(tabId:String, ?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
         _activeTab = tabId;
 
         _autoPanel.visible = false;
         _jumpPanel.visible = false;
         _playersPanel.visible = false;
 
-        renderTabStyle(_tabAuto, 46.0, 20.0, false, tabId == "auto");
-        renderTabStyle(_tabJump, 38.0, 20.0, false, tabId == "jump");
-        renderTabStyle(_tabPlayers, 62.0, 20.0, false, tabId == "players");
+        updateAllTabStyles();
 
         var activePanel:Sprite = null;
         if (tabId == "auto") {
@@ -412,15 +581,109 @@ class TopBar extends Sprite {
         if (activePanel != null) {
             var sw:Float = (_stage != null && _stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
             var sh:Float = (_stage != null && _stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+            var margin:Float = ApiStyle.SCREEN_MARGIN;
+
+            var btnX:Float;
+            var btnY:Float;
+            var btnW:Float;
+            var btnH:Float;
 
             if (anchorX != null && anchorY != null) {
-                var px:Float = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sw - activePanel.width - ApiStyle.SCREEN_MARGIN, anchorX));
-                var py:Float = Math.max(ApiStyle.SCREEN_MARGIN, Math.min(sh - activePanel.height - ApiStyle.SCREEN_MARGIN, anchorY));
-                _dropdownContainer.x = px - this.x;
-                _dropdownContainer.y = py - this.y;
+                btnX = anchorX;
+                btnY = anchorY;
+                btnW = (anchorW != null && anchorW > 0) ? anchorW : 78.0;
+                btnH = (anchorH != null && anchorH > 0) ? anchorH : 26.0;
             } else {
-                _dropdownContainer.x = _barWidth - activePanel.width;
-                _dropdownContainer.y = _barHeight + 2.0;
+                var tabSprite = _tabs.get(tabId);
+                if (tabSprite != null) {
+                    var pt = tabSprite.localToGlobal(new Point(0, 0));
+                    btnX = pt.x;
+                    btnY = pt.y;
+                    btnW = tabSprite.width;
+                    btnH = tabSprite.height;
+                } else {
+                    btnX = this.x;
+                    btnY = this.y;
+                    btnW = _barWidth;
+                    btnH = _barHeight;
+                }
+            }
+
+            var panelW:Float = (activePanel.width > 0) ? activePanel.width : 220.0;
+            var panelH:Float = (activePanel.height > 0) ? activePanel.height : 120.0;
+
+            var isVert:Bool = isVertical();
+
+            // Check if opening from vertical stack
+            if (isVert && (anchorX == null || Math.abs(anchorX - (this.x + 4.0)) < 2.0)) {
+                // In vertical stack mode: try placing beside the stack
+                var gap:Float = 4.0;
+                var spaceRight:Float = sw - margin - (this.x + _barWidth);
+                var spaceLeft:Float = this.x - margin;
+
+                var targetStageX:Float;
+                var targetStageY:Float = Math.max(margin, Math.min(sh - panelH - margin, btnY));
+
+                if (spaceRight >= panelW + gap) {
+                    targetStageX = this.x + _barWidth + gap;
+                } else if (spaceLeft >= panelW + gap) {
+                    targetStageX = this.x - panelW - gap;
+                } else {
+                    // Fallback to vertical up/down if screen is ultra narrow
+                    var spaceAbove:Float = btnY - margin;
+                    var spaceBelow:Float = sh - margin - (btnY + btnH);
+                    var openUp:Bool = (spaceBelow < panelH + 4.0) || (spaceAbove >= spaceBelow);
+                    if (openUp) {
+                        targetStageY = Math.max(margin, Math.min(btnY - panelH - 1.0, btnY - panelH - gap));
+                    } else {
+                        targetStageY = Math.max(btnY + btnH + 1.0, Math.min(sh - panelH - margin, btnY + btnH + gap));
+                    }
+                    targetStageX = Math.max(margin, Math.min(sw - panelW - margin, btnX));
+                }
+
+                _dropdownContainer.x = targetStageX - this.x;
+                _dropdownContainer.y = targetStageY - this.y;
+            } else {
+                // Horizontal bar or Standalone button: strictly UP or DOWN outside button bounds
+                var spaceAbove:Float = btnY - margin;
+                var spaceBelow:Float = sh - margin - (btnY + btnH);
+
+                var pastMid:Bool = (btnY + btnH * 0.5) > (sh * 0.5);
+                var fitsAbove:Bool = spaceAbove >= (panelH + 4.0);
+                var fitsBelow:Bool = spaceBelow >= (panelH + 4.0);
+
+                var openUp:Bool = false;
+                if (pastMid) {
+                    openUp = fitsAbove || (spaceAbove >= spaceBelow);
+                } else {
+                    openUp = !fitsBelow && (spaceAbove > spaceBelow);
+                }
+
+                var gap:Float = 3.0;
+                var targetStageY:Float;
+
+                if (openUp) {
+                    // Strictly ABOVE: bottom of panel is at btnY - gap
+                    targetStageY = btnY - panelH - gap;
+                    // Mathematical ceiling: targetStageY <= btnY - panelH - 1.0
+                    var maxAllowedY:Float = btnY - panelH - 1.0;
+                    targetStageY = Math.max(margin, Math.min(maxAllowedY, targetStageY));
+                } else {
+                    // Strictly BELOW: top of panel is at btnY + btnH + gap
+                    targetStageY = btnY + btnH + gap;
+                    // Mathematical floor: targetStageY >= btnY + btnH + 1.0
+                    var minAllowedY:Float = btnY + btnH + 1.0;
+                    targetStageY = Math.max(minAllowedY, Math.min(sh - panelH - margin, targetStageY));
+                }
+
+                var targetStageX:Float = btnX;
+                if (targetStageX + panelW > sw - margin) {
+                    targetStageX = (btnX + btnW) - panelW;
+                }
+                targetStageX = Math.max(margin, Math.min(sw - panelW - margin, targetStageX));
+
+                _dropdownContainer.x = targetStageX - this.x;
+                _dropdownContainer.y = targetStageY - this.y;
             }
         }
 
@@ -436,9 +699,121 @@ class TopBar extends Sprite {
         if (_jumpPanel != null) _jumpPanel.visible = false;
         if (_playersPanel != null) _playersPanel.visible = false;
 
-        renderTabStyle(_tabAuto, 46.0, 20.0, false, false);
-        renderTabStyle(_tabJump, 38.0, 20.0, false, false);
-        renderTabStyle(_tabPlayers, 62.0, 20.0, false, false);
+        updateAllTabStyles();
+    }
+
+    // --- Dragging & Repositioning ---
+
+    private function onDragStart(e:MouseEvent):Void {
+        if (isLocked()) return;
+        if (_stage == null) return;
+        closeDropdown();
+
+        _isDragging = true;
+        _dragMouseStartX = e.stageX;
+        _dragMouseStartY = e.stageY;
+        _dragBarStartX = this.x;
+        _dragBarStartY = this.y;
+
+        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onStageDragMove);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, onStageDragUp);
+    }
+
+    private function onStageDragMove(e:MouseEvent):Void {
+        if (!_isDragging || _stage == null) return;
+
+        var dx = e.stageX - _dragMouseStartX;
+        var dy = e.stageY - _dragMouseStartY;
+        var sw = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+        var sh = (_stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+        var margin = ApiStyle.SCREEN_MARGIN;
+
+        var nx = _dragBarStartX + dx;
+        var ny = _dragBarStartY + dy;
+        nx = Math.max(margin, Math.min(sw - _barWidth - margin, nx));
+        ny = Math.max(margin, Math.min(sh - _barHeight - margin, ny));
+
+        this.x = nx;
+        this.y = ny;
+    }
+
+    private function onStageDragUp(e:MouseEvent):Void {
+        if (_stage != null) {
+            _stage.removeEventListener(MouseEvent.MOUSE_MOVE, onStageDragMove);
+            _stage.removeEventListener(MouseEvent.MOUSE_UP, onStageDragUp);
+        }
+        _isDragging = false;
+        ApiConfig.setInt("api_topbar_x", Math.round(this.x));
+        ApiConfig.setInt("api_topbar_y", Math.round(this.y));
+    }
+
+    public function updatePosition(forceCenter:Bool = false):Void {
+        if (_stage == null) return;
+        var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+        var sh:Float = (_stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+        var margin:Float = ApiStyle.SCREEN_MARGIN;
+
+        if (!forceCenter && ApiConfig.has("api_topbar_x") && ApiConfig.has("api_topbar_y")) {
+            var px:Float = ApiConfig.getInt("api_topbar_x");
+            var py:Float = ApiConfig.getInt("api_topbar_y");
+            this.x = Math.max(margin, Math.min(sw - _barWidth - margin, px));
+            this.y = Math.max(margin, Math.min(sh - _barHeight - margin, py));
+        } else {
+            // DEFAULT POSITION: STRICTLY TOP CENTER
+            this.x = Math.round((sw - _barWidth) / 2.0);
+            this.y = margin;
+        }
+    }
+
+    // --- Events & Tick Loop ---
+
+    private function setupEvents():Void {
+        if (_stage == null) return;
+
+        _stage.addChild(this);
+
+        // Keep anchored / clamped on stage resize
+        _stage.addEventListener(Event.RESIZE, function(e:Event):Void {
+            if (!_isDragging) updatePosition();
+        });
+
+        // Stage click outside dismissal
+        _stage.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
+            if (_activeTab == null) return;
+            var targetObj:Dynamic = e.target;
+            if (targetObj != null && Std.isOfType(targetObj, flash.display.DisplayObject)) {
+                var disp:flash.display.DisplayObject = cast targetObj;
+                if (this.contains(disp)) {
+                    return; // Inside TopBar or open dropdown panel
+                }
+                if (StandaloneButtons.isStandaloneButton(disp)) {
+                    return; // On a standalone button
+                }
+            }
+            closeDropdown();
+        });
+
+        // Forward stage mouse movement to players scroll list
+        _stage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
+            if (_playersPanel != null && _playersPanel.visible) {
+                _playersPanel.handleStageMouseMove(e);
+            }
+        });
+        _stage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
+            if (_playersPanel != null && _playersPanel.visible) {
+                _playersPanel.handleStageMouseUp(e);
+            }
+        });
+
+        // ESC key closes active dropdown
+        _stage.addEventListener(KeyboardEvent.KEY_DOWN, function(e:KeyboardEvent):Void {
+            if (e.keyCode == 27 && _activeTab != null) {
+                closeDropdown();
+            }
+        });
+
+        // Frame tick
+        _stage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void onTick());
     }
 
     private function toggleDashboard():Void {
@@ -503,12 +878,21 @@ class TopBar extends Sprite {
             closeDropdown();
         }
 
-        // 6. Ensure TopBar position remains synced with stage
-        if (_stage != null) {
-            var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
-            var targetX = sw - _barWidth - MARGIN_RIGHT;
-            if (Math.abs(this.x - targetX) > 1.0) {
-                updatePosition();
+        // 6. Ensure default centered anchor if uncustomized
+        if (!_isDragging && _stage != null) {
+            if (!ApiConfig.has("api_topbar_x")) {
+                var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+                var targetCenterX = Math.round((sw - _barWidth) / 2.0);
+                if (Math.abs(this.x - targetCenterX) > 1.0) {
+                    this.x = targetCenterX;
+                    this.y = ApiStyle.SCREEN_MARGIN;
+                }
+            } else {
+                var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+                var sh:Float = (_stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+                var margin = ApiStyle.SCREEN_MARGIN;
+                if (this.x > sw - _barWidth - margin) this.x = Math.max(margin, sw - _barWidth - margin);
+                if (this.y > sh - _barHeight - margin) this.y = Math.max(margin, sh - _barHeight - margin);
             }
         }
     }
@@ -519,9 +903,17 @@ class TopBar {
     public static function init(stageObj:Dynamic, hostObj:Dynamic = null):Void {}
     public static function isTopBarEnabled():Bool return false;
     public static function setTopBarEnabled(enabled:Bool):Void {}
-    public static function toggleAuto(?anchorX:Float, ?anchorY:Float):Void {}
-    public static function toggleJump(?anchorX:Float, ?anchorY:Float):Void {}
-    public static function togglePlayers(?anchorX:Float, ?anchorY:Float):Void {}
+    public static function isVertical():Bool return false;
+    public static function setVertical(val:Bool):Void {}
+    public static function isLocked():Bool return false;
+    public static function setLocked(val:Bool):Void {}
+    public static function isButtonVisible(id:String, defaultVal:Bool = true):Bool return false;
+    public static function setButtonVisible(id:String, visible:Bool):Void {}
+    public static function resetPosition():Void {}
+    public static function rebuildBar():Void {}
+    public static function toggleAuto(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
+    public static function toggleJump(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
+    public static function togglePlayers(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public function isHunting():Bool return false;
 }
 #end

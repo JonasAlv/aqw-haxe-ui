@@ -443,7 +443,43 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 3. Combat Auras Filter
+        // 3. Aura Dark Backing
+        modal.addItemRow(
+            "Aura Dark Backing",
+            "Adds a sleek semi-transparent dark slate plate behind aura cells to maximize icon and timer contrast.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = AuraFramesManager.isAuraBackingEnabled();
+                var next = !cur;
+                AuraFramesManager.setAuraBackingEnabled(next);
+                ApiNotificationManager.notify("Aura Dark Backing: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return AuraFramesManager.isAuraBackingEnabled();
+            }
+        );
+
+        // 4. Aura Colored Borders
+        modal.addItemRow(
+            "Aura Colored Borders",
+            "Frames aura cells with vibrant Blue borders for Buffs and Crimson Red borders for Debuffs.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = AuraFramesManager.isColoredBordersEnabled();
+                var next = !cur;
+                AuraFramesManager.setColoredBordersEnabled(next);
+                ApiNotificationManager.notify("Aura Colored Borders: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return AuraFramesManager.isColoredBordersEnabled();
+            }
+        );
+
+        // 5. Combat Auras Filter
         modal.addItemRow(
             "Combat Auras Filter",
             "Show My Auras Only: Displays only your debuffs and boss mechanics on target, and your own buffs/debuffs on player (excludes other players' clutter).",

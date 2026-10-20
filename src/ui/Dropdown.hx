@@ -448,9 +448,20 @@ class Dropdown extends Sprite {
         var curListHeight:Float = getVisibleListHeight();
         var opensUp:Bool = false;
         if (stage != null) {
-            var globalPos:Point = localToGlobal(new Point(0, _height));
-            if (globalPos.y + curListHeight > stage.stageHeight - 20) {
-                opensUp = true;
+            var btnTopGlobal:Float = localToGlobal(new Point(0, 0)).y;
+            var btnBottomGlobal:Float = localToGlobal(new Point(0, _height)).y;
+            var stageH:Float = stage.stageHeight;
+            var margin:Float = ApiStyle.SCREEN_MARGIN;
+            var spaceAbove:Float = btnTopGlobal - margin;
+            var spaceBelow:Float = stageH - margin - btnBottomGlobal;
+            var pastMid:Bool = (btnTopGlobal + _height * 0.5) > (stageH * 0.5);
+            var fitsBelow:Bool = spaceBelow >= (curListHeight + 4.0);
+            var fitsAbove:Bool = spaceAbove >= (curListHeight + 4.0);
+
+            if (pastMid) {
+                opensUp = fitsAbove || (spaceAbove >= spaceBelow);
+            } else {
+                opensUp = !fitsBelow && (spaceAbove > spaceBelow);
             }
         } else if (this.y > 180) {
             opensUp = true;

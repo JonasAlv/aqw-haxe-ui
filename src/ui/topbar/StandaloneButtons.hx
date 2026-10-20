@@ -7,6 +7,7 @@ import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
+import flash.geom.Point;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -73,7 +74,8 @@ class StandaloneButtons {
             0x2ECC71,
             true,
             function(btn:Sprite):Void {
-                TopBar.toggleAuto(btn.x, btn.y + btnH + 2.0);
+                var pt:Point = btn.localToGlobal(new Point(0, 0));
+                TopBar.toggleAuto(pt.x, pt.y, btnW, btnH);
             }
         );
 
@@ -88,7 +90,8 @@ class StandaloneButtons {
             0x38BDF8,
             false,
             function(btn:Sprite):Void {
-                TopBar.toggleJump(btn.x, btn.y + btnH + 2.0);
+                var pt:Point = btn.localToGlobal(new Point(0, 0));
+                TopBar.toggleJump(pt.x, pt.y, btnW, btnH);
             }
         );
 
@@ -103,7 +106,8 @@ class StandaloneButtons {
             0xC084FC,
             false,
             function(btn:Sprite):Void {
-                TopBar.togglePlayers(btn.x, btn.y + btnH + 2.0);
+                var pt:Point = btn.localToGlobal(new Point(0, 0));
+                TopBar.togglePlayers(pt.x, pt.y, btnW, btnH);
             }
         );
 

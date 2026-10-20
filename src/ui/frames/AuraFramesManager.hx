@@ -117,6 +117,14 @@ class AuraFramesManager {
         ApiConfig.setBool("api_auras_colored_borders", v);
     }
 
+    public static inline function isAuraBackingEnabled():Bool {
+        return ApiConfig.getBool("api_auras_backing", true);
+    }
+
+    public static function setAuraBackingEnabled(v:Bool):Void {
+        ApiConfig.setBool("api_auras_backing", v);
+    }
+
     /**
      * Safely retrieves all child AuraCell instances from an AuraHUD container
      * without accessing the private 'order' or 'cells' members.
@@ -305,6 +313,69 @@ class AuraFramesManager {
             } catch (_:Dynamic) {}
         }
 
+        var backingEnabled:Bool = isAuraBackingEnabled();
+
+        // Calculate outer boundary enclosing the aura button frame:
+        var bx:Float = -1.0;
+        var by:Float = -1.0;
+        var bw:Float = 28.5;
+        var bh:Float = 26.0;
+
+        try {
+            var base:Dynamic = (cell.numChildren != null && cell.numChildren > 0) ? cell.getChildAt(0) : null;
+            if (base != null) {
+                var bounds:flash.geom.Rectangle = null;
+                if (base.bg != null) {
+                    bounds = base.bg.getBounds(cell);
+                } else {
+                    bounds = base.getBounds(cell);
+                }
+                if (bounds != null && bounds.width >= 20.0 && bounds.height >= 18.0) {
+                    bx = bounds.x - 1.0;
+                    by = bounds.y - 1.0;
+                    bw = bounds.width + 2.0;
+                    bh = bounds.height + 2.0;
+                }
+            }
+        } catch (_:Dynamic) {}
+
+        // Semi-transparent dark background backing (behind icon and text for maximum readability)
+        var backing:flash.display.Shape = null;
+        try {
+            var childObj:Dynamic = cell.getChildByName("__backing");
+            if (childObj != null && Std.isOfType(childObj, flash.display.Shape)) {
+                backing = cast childObj;
+            }
+        } catch (_:Dynamic) {}
+
+        if (backing == null && backingEnabled) {
+            backing = new flash.display.Shape();
+            backing.name = "__backing";
+            try {
+                cell.addChildAt(backing, 0);
+            } catch (_:Dynamic) {
+                try { cell.addChild(backing); } catch (_:Dynamic) {}
+            }
+        }
+
+        if (backing != null) {
+            if (!backingEnabled) {
+                backing.visible = false;
+            } else {
+                backing.visible = true;
+                var bgG = backing.graphics;
+                bgG.clear();
+                bgG.beginFill(0x0A0B10, 0.72); // Semi-transparent dark slate backing
+                bgG.drawRoundRect(bx, by, bw, bh, 3.5, 3.5);
+                bgG.endFill();
+                try {
+                    if (cell.numChildren != null && cell.getChildIndex(backing) > 0) {
+                        cell.setChildIndex(backing, 0);
+                    }
+                } catch (_:Dynamic) {}
+            }
+        }
+
         // B. Colored Border (Red for Debuffs, Blue for Buffs)
         var border:flash.display.Shape = null;
         try {
@@ -330,34 +401,6 @@ class AuraFramesManager {
                 var borderColor:Int = isDebuff ? COLOR_BORDER_DEBUFF : COLOR_BORDER_BUFF;
                 var g = border.graphics;
                 g.clear();
-
-                // Calculate outer boundary enclosing the aura button frame:
-                // Base AQW aura cell button is ~27.0px x ~24.6px (including outer bevel).
-                // Positioning at (-1.0, -1.0) with (28.5, 26.0) ensures our border frames
-                // the entire button perimeter on the OUTSIDE, never covering the stack counter (tStk).
-                var bx:Float = -1.0;
-                var by:Float = -1.0;
-                var bw:Float = 28.5;
-                var bh:Float = 26.0;
-
-                try {
-                    var base:Dynamic = (cell.numChildren != null && cell.numChildren > 0) ? cell.getChildAt(0) : null;
-                    if (base != null) {
-                        var bounds:flash.geom.Rectangle = null;
-                        if (base.bg != null) {
-                            bounds = base.bg.getBounds(cell);
-                        } else {
-                            bounds = base.getBounds(cell);
-                        }
-                        if (bounds != null && bounds.width >= 20.0 && bounds.height >= 18.0) {
-                            bx = bounds.x - 1.0;
-                            by = bounds.y - 1.0;
-                            bw = bounds.width + 2.0;
-                            bh = bounds.height + 2.0;
-                        }
-                    }
-                } catch (_:Dynamic) {}
-
                 g.lineStyle(1.8, borderColor, 0.95, true, flash.display.LineScaleMode.NORMAL, flash.display.CapsStyle.ROUND, flash.display.JointStyle.ROUND);
                 g.drawRoundRect(bx, by, bw, bh, 3.5, 3.5);
 

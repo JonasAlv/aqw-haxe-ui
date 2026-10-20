@@ -596,28 +596,16 @@ class NativeFramesEnhancer {
         var totEnabled = isTargetOfTargetEnabled();
 
         if (!totEnabled) {
-            if (btnOption != null) {
-                btnOption.visible = true;
-                setButtonTextVisible(btnOption, true);
-            }
+            if (btnOption != null) btnOption.visible = true;
             var oldPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
             if (oldPlate != null) oldPlate.visible = false;
             return;
         }
 
+        // Hide native options button so it doesn't show through or conflict
         if (btnOption != null) {
-            btnOption.visible = true;
-            if (!Reflect.hasField(btnOption, "_hasToTHook")) {
-                Reflect.setField(btnOption, "_hasToTHook", true);
-                btnOption.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    onToTClick();
-                });
-            }
+            btnOption.visible = false;
         }
-
-        var textHidden = setButtonTextVisible(btnOption, false);
 
         var totPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
         var txtToT:TextField = null;
@@ -652,6 +640,15 @@ class NativeFramesEnhancer {
                 onToTClick();
             });
 
+            totPlate.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+                Reflect.setField(totPlate, "_isHover", true);
+                renderToTPlate(totPlate, bW, bH, true);
+            });
+            totPlate.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
+                Reflect.setField(totPlate, "_isHover", false);
+                renderToTPlate(totPlate, bW, bH, false);
+            });
+
             mcPortraitTarget.addChild(totPlate);
         } else {
             txtToT = cast totPlate.getChildByName("txtToT");
@@ -660,14 +657,15 @@ class NativeFramesEnhancer {
             totPlate.visible = true;
         }
 
-        // Zero artificial borders: leaves native AQW button plate art completely intact
-        totPlate.graphics.clear();
-        if (!textHidden) {
-            // Only draw a flat borderless dark patch if the native "Options" text could not be hidden from button states
-            totPlate.graphics.beginFill(0x15161B, 0.95);
-            totPlate.graphics.drawRoundRect(2, 2, bW - 4, bH - 4, 3, 3);
-            totPlate.graphics.endFill();
-        }
+        // Keep on top of timeline children
+        try {
+            if (mcPortraitTarget.numChildren != null && mcPortraitTarget.getChildIndex(totPlate) < mcPortraitTarget.numChildren - 1) {
+                mcPortraitTarget.setChildIndex(totPlate, mcPortraitTarget.numChildren - 1);
+            }
+        } catch (_:Dynamic) {}
+
+        var isHover = (Reflect.field(totPlate, "_isHover") == true);
+        renderToTPlate(totPlate, bW, bH, isHover);
 
         var totInfo = getTargetOfTargetInfo(targetAvt);
 
@@ -680,9 +678,30 @@ class NativeFramesEnhancer {
                 txtToT.text = totInfo.name;
             }
 
-            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : 0xEEEEF2);
+            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : (isHover ? 0xFFFFFF : 0xEEEEF2));
             txtToT.textColor = textColor;
         }
+    }
+
+    private static function renderToTPlate(plate:Sprite, w:Float, h:Float, hover:Bool):Void {
+        var g = plate.graphics;
+        g.clear();
+        var bg = hover ? 0x22252E : 0x141519;
+        var border = hover ? 0x475569 : 0x262832;
+
+        g.beginFill(bg, 0.96);
+        g.lineStyle(1.0, border, 0.9);
+        g.moveTo(0, 0);
+        g.lineTo(w, 0);
+        g.lineTo(w - 3, h);
+        g.lineTo(3, h);
+        g.lineTo(0, 0);
+        g.endFill();
+
+        // Subtle top bevel highlight matching AQW status box
+        g.lineStyle(1.0, 0x3E4250, hover ? 0.6 : 0.35);
+        g.moveTo(1, 1);
+        g.lineTo(w - 1, 1);
     }
 
     private static function onToTClick():Void {
@@ -695,31 +714,10 @@ class NativeFramesEnhancer {
         }
     }
 
-    private static function setButtonTextVisible(btn:Dynamic, visible:Bool):Bool {
-        if (btn == null) return false;
-        var modified = false;
-        try {
-            var states:Array<Dynamic> = [btn.upState, btn.overState, btn.downState];
-            for (st in states) {
-                if (st != null && Std.isOfType(st, DisplayObjectContainer)) {
-                    var doc:DisplayObjectContainer = cast st;
-                    for (i in 0...doc.numChildren) {
-                        var ch = doc.getChildAt(i);
-                        if (ch != null && (Std.isOfType(ch, TextField) || i >= 1)) {
-                            ch.visible = visible;
-                            ch.alpha = visible ? 1.0 : 0.0;
-                            modified = true;
-                        }
-                    }
-                }
-            }
-        } catch (_:Dynamic) {}
-        return modified;
-    }
-
     public static function getTargetOfTarget(targetAvt:Dynamic):Dynamic {
         if (targetAvt == null) return null;
         var g:Dynamic = Api.game;
+        if (g == null || g.world == null) return null;
 
         // 1. Direct target property
         try {
@@ -728,7 +726,7 @@ class NativeFramesEnhancer {
             }
         } catch (_:Dynamic) {}
 
-        // 2. dataLeaf.targets or targets map
+        // 2. dataLeaf.targets or targets map on avatar
         try {
             var targetsObj:Dynamic = null;
             if (targetAvt.dataLeaf != null && targetAvt.dataLeaf.targets != null) {
@@ -737,14 +735,41 @@ class NativeFramesEnhancer {
                 targetsObj = targetAvt.targets;
             }
 
-            if (targetsObj != null && g != null && g.world != null) {
+            // 3. AQW Monster tree targets lookup: world.monTree[MonMapID].targets
+            if (targetsObj == null && targetAvt.objData != null && targetAvt.objData.MonMapID != null) {
+                var monId = targetAvt.objData.MonMapID;
+                var monNode:Dynamic = null;
+                if (g.world.monTree != null) {
+                    try { monNode = Reflect.field(g.world.monTree, Std.string(monId)); } catch (_:Dynamic) {}
+                    if (monNode == null) {
+                        try { monNode = g.world.monTree[monId]; } catch (_:Dynamic) {}
+                    }
+                }
+                if (monNode != null && monNode.targets != null) {
+                    targetsObj = monNode.targets;
+                }
+            }
+
+            // 4. AQW Player tree targets lookup: world.uoTree[username].targets
+            if (targetsObj == null && targetAvt.objData != null && targetAvt.objData.strUsername != null) {
+                var uName = Std.string(targetAvt.objData.strUsername).toLowerCase();
+                var uNode:Dynamic = null;
+                if (g.world.uoTree != null) {
+                    try { uNode = Reflect.field(g.world.uoTree, uName); } catch (_:Dynamic) {}
+                }
+                if (uNode != null && uNode.targets != null) {
+                    targetsObj = uNode.targets;
+                }
+            }
+
+            if (targetsObj != null) {
+                var myUid:String = (g.world.myAvatar != null && g.world.myAvatar.objData != null) ? Std.string(g.world.myAvatar.objData.uid) : "";
+                var myCharId:String = (g.world.myAvatar != null && g.world.myAvatar.objData != null) ? Std.string(g.world.myAvatar.objData.CharID) : "";
+                var mySfcId:String = (g.sfc != null && g.sfc.myUserId != null) ? Std.string(g.sfc.myUserId) : "";
+
                 for (key in Reflect.fields(targetsObj)) {
-                    if (g.world.myAvatar != null && g.world.myAvatar.objData != null) {
-                        var myUid = Std.string(g.world.myAvatar.objData.uid);
-                        var myCharId = Std.string(g.world.myAvatar.objData.CharID);
-                        if (key == myUid || key == myCharId) {
-                            return g.world.myAvatar;
-                        }
+                    if (key == myUid || key == myCharId || key == mySfcId) {
+                        return g.world.myAvatar;
                     }
                     try {
                         var numKey = Std.parseInt(key);
@@ -755,6 +780,19 @@ class NativeFramesEnhancer {
                             if (mon != null) return mon;
                         }
                     } catch (_:Dynamic) {}
+                }
+            }
+        } catch (_:Dynamic) {}
+
+        // 5. Fallback: If player is currently targeting monster and monster is in combat with player
+        try {
+            if (g.world.myAvatar != null && g.world.myAvatar.dataLeaf != null && g.world.myAvatar.dataLeaf.targets != null) {
+                var myTargets = g.world.myAvatar.dataLeaf.targets;
+                if (targetAvt.objData != null && targetAvt.objData.MonMapID != null) {
+                    var monIdStr = Std.string(targetAvt.objData.MonMapID);
+                    if (Reflect.hasField(myTargets, monIdStr)) {
+                        return g.world.myAvatar;
+                    }
                 }
             }
         } catch (_:Dynamic) {}
@@ -940,6 +978,14 @@ class NativeFrameDrag {
         }
     }
 
+    public inline function getVisualWidth():Float {
+        return _isTarget ? 212.0 : 200.0;
+    }
+
+    public inline function getVisualHeight():Float {
+        return _isTarget ? 70.0 : 82.0;
+    }
+
     private function onClickCapture(e:MouseEvent):Void {
         if (_hasDragged) {
             e.stopImmediatePropagation();
@@ -988,17 +1034,10 @@ class NativeFrameDrag {
             parent.addChildAt(_backdrop, idx);
         }
 
-        var b = _target.getBounds(parent);
-        var bx = b.x;
-        var by = b.y;
-        var bw = b.width;
-        var bh = b.height;
-
-        if (_isTarget) {
-            bw = Math.max(bw, _closeOffsetX + 20);
-        } else {
-            bh = Math.max(bh, _questOffsetY + 22);
-        }
+        var bx = _target.x;
+        var by = _target.y;
+        var bw = getVisualWidth();
+        var bh = getVisualHeight();
 
         _bgShape.graphics.clear();
         _bgShape.graphics.beginFill(0x000000, 0.45);
