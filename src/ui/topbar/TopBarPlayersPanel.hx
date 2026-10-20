@@ -123,11 +123,15 @@ class TopBarPlayersPanel extends Sprite {
         _isDraggingList = false;
     }
 
-    private function getVisibleListHeight():Float {
+    public function getVisibleListHeight():Float {
         var players = getMapPlayers();
         var rowCount = (players.length > 0) ? players.length : 1;
         var visibleCount = (rowCount > MAX_VISIBLE_ROWS) ? MAX_VISIBLE_ROWS : rowCount;
         return visibleCount * ROW_H;
+    }
+
+    public function getPanelHeight():Float {
+        return 28.0 + getVisibleListHeight() + 4.0;
     }
 
     public function refreshPlayers():Void {

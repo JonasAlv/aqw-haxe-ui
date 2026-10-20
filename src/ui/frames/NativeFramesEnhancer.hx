@@ -978,12 +978,20 @@ class NativeFrameDrag {
         }
     }
 
+    public inline function getVisualOffsetX():Float {
+        return -44.0;
+    }
+
+    public inline function getVisualOffsetY():Float {
+        return 0.0;
+    }
+
     public inline function getVisualWidth():Float {
-        return _isTarget ? 212.0 : 200.0;
+        return 252.0;
     }
 
     public inline function getVisualHeight():Float {
-        return _isTarget ? 70.0 : 82.0;
+        return _isTarget ? 98.0 : 88.0;
     }
 
     private function onClickCapture(e:MouseEvent):Void {
@@ -1034,19 +1042,19 @@ class NativeFrameDrag {
             parent.addChildAt(_backdrop, idx);
         }
 
-        var bx = _target.x;
-        var by = _target.y;
+        var vx = _target.x + getVisualOffsetX();
+        var vy = _target.y + getVisualOffsetY();
         var bw = getVisualWidth();
         var bh = getVisualHeight();
 
         _bgShape.graphics.clear();
         _bgShape.graphics.beginFill(0x000000, 0.45);
         _bgShape.graphics.lineStyle(1, 0x475569, 0.85);
-        _bgShape.graphics.drawRoundRect(bx - PAD, by - PAD - CAP_H, bw + PAD * 2, bh + PAD * 2 + CAP_H, 8, 8);
+        _bgShape.graphics.drawRoundRect(vx - PAD, vy - PAD - CAP_H, bw + PAD * 2, bh + PAD * 2 + CAP_H, 8, 8);
         _bgShape.graphics.endFill();
 
-        _capTxt.x = bx - PAD + 5;
-        _capTxt.y = by - PAD - CAP_H + 1;
+        _capTxt.x = vx - PAD + 6;
+        _capTxt.y = vy - PAD - CAP_H + 1;
         _backdrop.visible = true;
     }
 
@@ -1106,13 +1114,20 @@ class NativeFrameDrag {
         var stageH:Float = _stage.stageHeight > 0 ? _stage.stageHeight : 550;
         var maxBottom:Float = stageH - 50;
 
-        var w = Math.max(160, _target.width);
-        var h = Math.max(60, _target.height);
+        var offX = getVisualOffsetX();
+        var offY = getVisualOffsetY();
+        var vw = getVisualWidth();
+        var vh = getVisualHeight();
 
-        if (newX < 0) newX = 0;
-        if (newY < 0) newY = 0;
-        if (newX + w > stageW) newX = Std.int(stageW - w);
-        if (newY + h > maxBottom) newY = Std.int(maxBottom - h);
+        var minX = Math.round(-offX);
+        var minY = Math.round(-offY);
+        var maxX = Math.round(stageW - vw - offX);
+        var maxY = Math.round(maxBottom - vh - offY);
+
+        if (newX < minX) newX = minX;
+        if (newY < minY) newY = minY;
+        if (newX > maxX) newX = maxX;
+        if (newY > maxY) newY = maxY;
 
         _target.x = newX;
         _target.y = newY;

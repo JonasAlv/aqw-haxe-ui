@@ -23,12 +23,13 @@ import ui.ApiStyle;
  *
  * Enhancements:
  * - Default position: Top Center (x = (stageW - barWidth) / 2, y = SCREEN_MARGIN).
- * - Movable / Draggable: Persistent saved position (api_topbar_x, api_topbar_y), lockable.
+ * - Draggable by holding anywhere on the bar (no clunky grab handle).
  * - Stackable Vertical Layout: Can be toggled between Horizontal and Vertical Stack
  *   with left accent markers matching user theme.
  * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Bank, Drops.
  * - Adaptive Dropdown Direction: Dropdowns automatically open UP when in the lower half of screen
  *   or lacking room below, and DOWN when in the top half. Dropdowns NEVER cover or move the button!
+ * - Perfectly attached: uses true visual panel heights (e.g. _playersPanel.getPanelHeight()).
  * - 100% pure ASCII strings and Flash vector graphics.
  */
 class TopBar extends Sprite {
@@ -40,11 +41,10 @@ class TopBar extends Sprite {
     // Bar container & background
     private var _barContainer:Sprite;
     private var _barBg:Shape;
-    private var _dragHandle:Sprite;
     private var _barWidth:Float = 248.0;
     private var _barHeight:Float = 26.0;
 
-    // Tabs map: tabId -> { tab:Sprite, lbl:TextField, accent:Shape, def:Dynamic }
+    // Tabs map: tabId -> Sprite
     private var _tabs:Map<String, Sprite> = new Map();
     private var _tabAuto:Sprite;
     private var _txtAuto:TextField;
@@ -65,7 +65,7 @@ class TopBar extends Sprite {
     private var _tabDrops:Sprite;
     private var _txtDrops:TextField;
 
-    // Dropdown Panels
+    // Dropdown Panels (attached to stage for pure coordinate stability)
     private var _dropdownContainer:Sprite;
     private var _autoPanel:TopBarAutoPanel;
     private var _jumpPanel:TopBarJumpPanel;
@@ -78,6 +78,7 @@ class TopBar extends Sprite {
 
     // Dragging State
     private var _isDragging:Bool = false;
+    private var _hasDragged:Bool = false;
     private var _dragMouseStartX:Float = 0;
     private var _dragMouseStartY:Float = 0;
     private var _dragBarStartX:Float = 0;
@@ -225,58 +226,21 @@ class TopBar extends Sprite {
 
         var vert:Bool = isVertical();
 
-        // Build Drag Handle
-        _dragHandle = new Sprite();
-        _dragHandle.buttonMode = true;
-        _dragHandle.useHandCursor = true;
-        _dragHandle.name = "dragHandle";
-
-        var dhg = _dragHandle.graphics;
-        dhg.clear();
-
-        if (vert) {
-            _dragHandle.x = 4.0;
-            _dragHandle.y = 2.0;
-            dhg.beginFill(0x000000, 0.0);
-            dhg.drawRect(0, 0, 76.0, 8.0);
-            dhg.endFill();
-            dhg.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.55);
-            for (col in 0...5) {
-                var dotX = 22.0 + col * 8.0;
-                dhg.drawCircle(dotX, 4.0, 1.2);
-            }
-            dhg.endFill();
-        } else {
-            _dragHandle.x = 2.0;
-            _dragHandle.y = 3.0;
-            dhg.beginFill(0x000000, 0.0);
-            dhg.drawRect(0, 0, 12.0, 20.0);
-            dhg.endFill();
-            dhg.beginFill(ApiStyle.COLOR_TEXT_MUTED, 0.55);
-            for (row in 0...3) {
-                var dotY = 5.0 + row * 5.0;
-                dhg.drawCircle(4.0, dotY, 1.2);
-                dhg.drawCircle(8.0, dotY, 1.2);
-            }
-            dhg.endFill();
-        }
-
-        _dragHandle.addEventListener(MouseEvent.MOUSE_DOWN, onDragStart);
-        _barBg.addEventListener(MouseEvent.MOUSE_DOWN, onDragStart);
-        _barContainer.addChild(_dragHandle);
+        // Drag listener on bar container background: holding on the bar moves it!
+        _barContainer.addEventListener(MouseEvent.MOUSE_DOWN, onDragStart);
 
         // Buttons List Definition
         var buttonDefs = [
             { id: "auto",    label: "Auto",    accent: 0x2ECC71, defVis: true,  hWidth: 46.0 },
             { id: "jump",    label: "Jump",    accent: 0x38BDF8, defVis: true,  hWidth: 38.0 },
-            { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 64.0 },
+            { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 76.0 },
             { id: "menu",    label: "Menu",    accent: 0xEF4444, defVis: true,  hWidth: 42.0 },
             { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 },
             { id: "drops",   label: "Drops",   accent: 0x14B8A6, defVis: false, hWidth: 44.0 }
         ];
 
-        var curX:Float = 16.0;
-        var curY:Float = 12.0;
+        var curX:Float = 4.0;
+        var curY:Float = 4.0;
         var tabH:Float = vert ? 22.0 : 20.0;
         var tabW:Float = vert ? 76.0 : 40.0;
 
@@ -401,8 +365,20 @@ class TopBar extends Sprite {
             renderTabStyle(tab, w, h, false, isCurrentActive, accentColor, isVert);
         });
 
+        // Tab click vs drag handling:
+        var downX:Float = 0;
+        var downY:Float = 0;
+        tab.addEventListener(MouseEvent.MOUSE_DOWN, function(e:MouseEvent):Void {
+            downX = e.stageX;
+            downY = e.stageY;
+        });
+
         tab.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             e.stopPropagation();
+            if (_hasDragged) return;
+            var dx = e.stageX - downX;
+            var dy = e.stageY - downY;
+            if (dx * dx + dy * dy > 16.0) return; // Ignore if dragged
             onTabClicked(id);
         });
 
@@ -436,12 +412,12 @@ class TopBar extends Sprite {
 
     private function toggleDrops():Void {
         try {
-            if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPortrait != null && Api.game.ui.mcPortrait.iconDrops != null) {
-                Api.game.ui.mcPortrait.iconDrops.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
-            } else if (Api.drop != null) {
+            if (Api.drop != null) {
                 Api.drop.scanScreenDrops();
                 Api.drop.acceptAllDrops();
                 ApiNotificationManager.notify("Drops collected!");
+            } else if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPortrait != null && Api.game.ui.mcPortrait.iconDrops != null) {
+                Api.game.ui.mcPortrait.iconDrops.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
             }
         } catch (_:Dynamic) {}
     }
@@ -489,7 +465,6 @@ class TopBar extends Sprite {
 
         var isVert = isVertical();
         if (isVert) {
-            // Position dot on right edge in vertical mode
             g.drawCircle(66.0, 11.0, 2.5);
         } else {
             g.drawCircle(5.5, 10.0, 2.2);
@@ -523,8 +498,7 @@ class TopBar extends Sprite {
 
     private function buildDropdowns():Void {
         _dropdownContainer = new Sprite();
-        _dropdownContainer.y = _barHeight + 2.0;
-        addChild(_dropdownContainer);
+        _dropdownContainer.visible = false;
 
         _autoPanel = new TopBarAutoPanel();
         _autoPanel.visible = false;
@@ -547,12 +521,19 @@ class TopBar extends Sprite {
         }
     }
 
+    private function getActivePanelVisualHeight(tabId:String):Float {
+        if (tabId == "auto") return TopBarAutoPanel.PANEL_HEIGHT;
+        if (tabId == "jump") return TopBarJumpPanel.PANEL_HEIGHT;
+        if (tabId == "players" && _playersPanel != null) return _playersPanel.getPanelHeight();
+        return 120.0;
+    }
+
     /**
      * Adaptive Dropdown Placement:
-     * - Calculates available space strictly above and below the anchor button.
+     * - Uses true visual panel height (_playersPanel.getPanelHeight(), not bloated Flash sprite bounds).
      * - Opens UP when in bottom half or lacking room below, DOWN when in top half.
-     * - NEVER COVERS OR SHIFTS THE BUTTON.
-     * - Does NOT change this.x or this.y; positions dropdown container relative to TopBar.
+     * - NEVER covers or shifts the button.
+     * - Placed directly on stage so TopBar bounds are never affected.
      */
     public function openTab(tabId:String, ?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
         _activeTab = tabId;
@@ -578,9 +559,14 @@ class TopBar extends Sprite {
             activePanel = _playersPanel;
         }
 
-        if (activePanel != null) {
-            var sw:Float = (_stage != null && _stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
-            var sh:Float = (_stage != null && _stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
+        if (activePanel != null && _stage != null) {
+            if (_dropdownContainer.parent != _stage) {
+                _stage.addChild(_dropdownContainer);
+            }
+            _dropdownContainer.visible = true;
+
+            var sw:Float = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
+            var sh:Float = (_stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
             var margin:Float = ApiStyle.SCREEN_MARGIN;
 
             var btnX:Float;
@@ -609,8 +595,8 @@ class TopBar extends Sprite {
                 }
             }
 
-            var panelW:Float = (activePanel.width > 0) ? activePanel.width : 220.0;
-            var panelH:Float = (activePanel.height > 0) ? activePanel.height : 120.0;
+            var panelW:Float = TopBarAutoPanel.PANEL_WIDTH; // 220.0
+            var panelH:Float = getActivePanelVisualHeight(tabId); // Exact visual height
 
             var isVert:Bool = isVertical();
 
@@ -641,8 +627,8 @@ class TopBar extends Sprite {
                     targetStageX = Math.max(margin, Math.min(sw - panelW - margin, btnX));
                 }
 
-                _dropdownContainer.x = targetStageX - this.x;
-                _dropdownContainer.y = targetStageY - this.y;
+                _dropdownContainer.x = targetStageX;
+                _dropdownContainer.y = targetStageY;
             } else {
                 // Horizontal bar or Standalone button: strictly UP or DOWN outside button bounds
                 var spaceAbove:Float = btnY - margin;
@@ -665,13 +651,11 @@ class TopBar extends Sprite {
                 if (openUp) {
                     // Strictly ABOVE: bottom of panel is at btnY - gap
                     targetStageY = btnY - panelH - gap;
-                    // Mathematical ceiling: targetStageY <= btnY - panelH - 1.0
                     var maxAllowedY:Float = btnY - panelH - 1.0;
                     targetStageY = Math.max(margin, Math.min(maxAllowedY, targetStageY));
                 } else {
                     // Strictly BELOW: top of panel is at btnY + btnH + gap
                     targetStageY = btnY + btnH + gap;
-                    // Mathematical floor: targetStageY >= btnY + btnH + 1.0
                     var minAllowedY:Float = btnY + btnH + 1.0;
                     targetStageY = Math.max(minAllowedY, Math.min(sh - panelH - margin, targetStageY));
                 }
@@ -682,9 +666,11 @@ class TopBar extends Sprite {
                 }
                 targetStageX = Math.max(margin, Math.min(sw - panelW - margin, targetStageX));
 
-                _dropdownContainer.x = targetStageX - this.x;
-                _dropdownContainer.y = targetStageY - this.y;
+                _dropdownContainer.x = targetStageX;
+                _dropdownContainer.y = targetStageY;
             }
+
+            _stage.setChildIndex(_dropdownContainer, _stage.numChildren - 1);
         }
 
         // Raise TopBar to top display layer
@@ -698,6 +684,7 @@ class TopBar extends Sprite {
         if (_autoPanel != null) _autoPanel.visible = false;
         if (_jumpPanel != null) _jumpPanel.visible = false;
         if (_playersPanel != null) _playersPanel.visible = false;
+        if (_dropdownContainer != null) _dropdownContainer.visible = false;
 
         updateAllTabStyles();
     }
@@ -707,9 +694,9 @@ class TopBar extends Sprite {
     private function onDragStart(e:MouseEvent):Void {
         if (isLocked()) return;
         if (_stage == null) return;
-        closeDropdown();
 
-        _isDragging = true;
+        _isDragging = false;
+        _hasDragged = false;
         _dragMouseStartX = e.stageX;
         _dragMouseStartY = e.stageY;
         _dragBarStartX = this.x;
@@ -720,10 +707,18 @@ class TopBar extends Sprite {
     }
 
     private function onStageDragMove(e:MouseEvent):Void {
-        if (!_isDragging || _stage == null) return;
+        if (_stage == null) return;
 
         var dx = e.stageX - _dragMouseStartX;
         var dy = e.stageY - _dragMouseStartY;
+
+        if (!_isDragging) {
+            if (dx * dx + dy * dy < 16.0) return; // 4px deadzone threshold
+            _isDragging = true;
+            _hasDragged = true;
+            closeDropdown();
+        }
+
         var sw = (_stage.stageWidth > 0) ? _stage.stageWidth : 960.0;
         var sh = (_stage.stageHeight > 0) ? _stage.stageHeight : 550.0;
         var margin = ApiStyle.SCREEN_MARGIN;
@@ -742,9 +737,17 @@ class TopBar extends Sprite {
             _stage.removeEventListener(MouseEvent.MOUSE_MOVE, onStageDragMove);
             _stage.removeEventListener(MouseEvent.MOUSE_UP, onStageDragUp);
         }
-        _isDragging = false;
-        ApiConfig.setInt("api_topbar_x", Math.round(this.x));
-        ApiConfig.setInt("api_topbar_y", Math.round(this.y));
+
+        if (_isDragging) {
+            _isDragging = false;
+            ApiConfig.setInt("api_topbar_x", Math.round(this.x));
+            ApiConfig.setInt("api_topbar_y", Math.round(this.y));
+            haxe.Timer.delay(function() {
+                _hasDragged = false;
+            }, 100);
+        } else {
+            _hasDragged = false;
+        }
     }
 
     public function updatePosition(forceCenter:Bool = false):Void {
@@ -784,7 +787,10 @@ class TopBar extends Sprite {
             if (targetObj != null && Std.isOfType(targetObj, flash.display.DisplayObject)) {
                 var disp:flash.display.DisplayObject = cast targetObj;
                 if (this.contains(disp)) {
-                    return; // Inside TopBar or open dropdown panel
+                    return; // Inside TopBar
+                }
+                if (_dropdownContainer != null && _dropdownContainer.contains(disp)) {
+                    return; // Inside open dropdown panel
                 }
                 if (StandaloneButtons.isStandaloneButton(disp)) {
                     return; // On a standalone button
