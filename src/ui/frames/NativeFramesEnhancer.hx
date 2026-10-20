@@ -445,8 +445,15 @@ class NativeFramesEnhancer {
             }
         }
 
-        // Target of Target (replaces native Options button)
-        updateTargetOfTarget(mcPortraitTarget, targetAvt);
+        // Restore native options button and remove any legacy ToT plate
+        var btnOption:Dynamic = Reflect.field(mcPortraitTarget, "btnOption");
+        if (btnOption != null) {
+            btnOption.visible = true;
+        }
+        var oldPlate:Dynamic = mcPortraitTarget.getChildByName("mcTargetOfTarget");
+        if (oldPlate != null && oldPlate.parent != null) {
+            try { oldPlate.parent.removeChild(oldPlate); } catch (_:Dynamic) {}
+        }
 
         if (_targetDrag != null) {
             _targetDrag.syncSatellites();
@@ -567,13 +574,10 @@ class NativeFramesEnhancer {
     }
 
     public static inline function isTargetOfTargetEnabled():Bool {
-        return ApiConfig.getBool(CONFIG_TOT, true);
+        return false;
     }
 
-    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {
-        ApiConfig.setBool(CONFIG_TOT, enabled);
-        updateFrames();
-    }
+    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {}
 
     public static inline function isMovableFramesEnabled():Bool {
         return ApiConfig.getBool(CONFIG_MOVABLE, true);
@@ -599,262 +603,19 @@ class NativeFramesEnhancer {
         updateFrames();
     }
 
-    // =========================================================================
-    // TARGET OF TARGET (TEXT-ONLY REPLACEMENT OF NATIVE OPTIONS BUTTON)
-    // =========================================================================
-    private static function updateTargetOfTarget(mcPortraitTarget:Dynamic, targetAvt:Dynamic):Void {
-        var btnOption:Dynamic = Reflect.field(mcPortraitTarget, "btnOption");
-        var totEnabled = isTargetOfTargetEnabled();
 
-        if (!totEnabled) {
-            if (btnOption != null) btnOption.visible = true;
-            var oldPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
-            if (oldPlate != null) oldPlate.visible = false;
-            return;
-        }
 
-        // Hide native options button so it doesn't show through or conflict
-        if (btnOption != null) {
-            btnOption.visible = false;
-        }
-
-        var totPlate:Sprite = cast mcPortraitTarget.getChildByName("mcTargetOfTarget");
-        var txtToT:TextField = null;
-
-        var bX:Float = (btnOption != null) ? btnOption.x : 68.0;
-        var bY:Float = (btnOption != null) ? btnOption.y : 63.0;
-        var bW:Float = (btnOption != null && btnOption.width > 40) ? btnOption.width : 98.0;
-        var bH:Float = (btnOption != null && btnOption.height > 10) ? btnOption.height : 18.0;
-
-        if (totPlate == null) {
-            totPlate = new Sprite();
-            totPlate.name = "mcTargetOfTarget";
-            totPlate.buttonMode = true;
-            totPlate.useHandCursor = true;
-            totPlate.x = bX;
-            totPlate.y = bY;
-
-            txtToT = new TextField();
-            txtToT.name = "txtToT";
-            var fmt = new TextFormat(ApiStyle.FONT_FAMILY, 9.5, 0xEEEEF2, true);
-            fmt.align = TextFormatAlign.CENTER;
-            txtToT.defaultTextFormat = fmt;
-            txtToT.selectable = false;
-            txtToT.mouseEnabled = false;
-            txtToT.autoSize = TextFieldAutoSize.NONE;
-            txtToT.filters = ApiStyle.getTextOutlineFilter();
-            totPlate.addChild(txtToT);
-
-            totPlate.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                onToTClick();
-            });
-
-            totPlate.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-                Reflect.setField(totPlate, "_isHover", true);
-                renderToTPlate(totPlate, bW, bH, true);
-            });
-            totPlate.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-                Reflect.setField(totPlate, "_isHover", false);
-                renderToTPlate(totPlate, bW, bH, false);
-            });
-
-            mcPortraitTarget.addChild(totPlate);
-        } else {
-            txtToT = cast totPlate.getChildByName("txtToT");
-            totPlate.x = bX;
-            totPlate.y = bY;
-            totPlate.visible = true;
-        }
-
-        // Keep on top of timeline children
-        try {
-            if (mcPortraitTarget.numChildren != null && mcPortraitTarget.getChildIndex(totPlate) < mcPortraitTarget.numChildren - 1) {
-                mcPortraitTarget.setChildIndex(totPlate, mcPortraitTarget.numChildren - 1);
-            }
-        } catch (_:Dynamic) {}
-
-        var isHover = (Reflect.field(totPlate, "_isHover") == true);
-        renderToTPlate(totPlate, bW, bH, isHover);
-
-        var totInfo = getTargetOfTargetInfo(targetAvt);
-
-        if (txtToT != null) {
-            txtToT.x = 2;
-            txtToT.y = 1;
-            txtToT.width = bW - 4;
-            txtToT.height = bH;
-            if (txtToT.text != totInfo.name) {
-                txtToT.text = totInfo.name;
-            }
-
-            var textColor = totInfo.isSelf ? 0xFBBF24 : (totInfo.isNone ? 0x8E95AA : (isHover ? 0xFFFFFF : 0xEEEEF2));
-            txtToT.textColor = textColor;
-        }
-    }
-
-    private static function renderToTPlate(plate:Sprite, w:Float, h:Float, hover:Bool):Void {
-        var g = plate.graphics;
-        g.clear();
-        var bg = hover ? 0x22252E : 0x141519;
-        var border = hover ? 0x475569 : 0x262832;
-
-        g.beginFill(bg, 0.96);
-        g.lineStyle(1.0, border, 0.9);
-        g.moveTo(0, 0);
-        g.lineTo(w, 0);
-        g.lineTo(w - 3, h);
-        g.lineTo(3, h);
-        g.lineTo(0, 0);
-        g.endFill();
-
-        // Subtle top bevel highlight matching AQW status box
-        g.lineStyle(1.0, 0x3E4250, hover ? 0.6 : 0.35);
-        g.moveTo(1, 1);
-        g.lineTo(w - 1, 1);
-    }
-
-    private static function onToTClick():Void {
-        var curTgt:Dynamic = (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) ? Api.game.world.myAvatar.target : null;
-        var curTot = getTargetOfTarget(curTgt);
-        if (curTot != null && Api.game != null && Api.game.world != null) {
-            try {
-                Api.game.world.setTarget(curTot);
-            } catch (_:Dynamic) {}
-        }
-    }
-
-    public static function getTargetOfTarget(targetAvt:Dynamic):Dynamic {
-        if (targetAvt == null) return null;
-        var g:Dynamic = Api.game;
-        if (g == null || g.world == null) return null;
-
-        // 1. Direct target property
-        try {
-            if (Reflect.hasField(targetAvt, "target") && targetAvt.target != null) {
-                return targetAvt.target;
-            }
-        } catch (_:Dynamic) {}
-
-        // 2. dataLeaf.targets or targets map on avatar
-        try {
-            var targetsObj:Dynamic = null;
-            if (targetAvt.dataLeaf != null && targetAvt.dataLeaf.targets != null) {
-                targetsObj = targetAvt.dataLeaf.targets;
-            } else if (Reflect.hasField(targetAvt, "targets") && targetAvt.targets != null) {
-                targetsObj = targetAvt.targets;
-            }
-
-            // 3. AQW Monster tree targets lookup: world.monTree[MonMapID].targets
-            if (targetsObj == null && targetAvt.objData != null && targetAvt.objData.MonMapID != null) {
-                var monId = targetAvt.objData.MonMapID;
-                var monNode:Dynamic = null;
-                if (g.world.monTree != null) {
-                    try { monNode = Reflect.field(g.world.monTree, Std.string(monId)); } catch (_:Dynamic) {}
-                    if (monNode == null) {
-                        try { monNode = g.world.monTree[monId]; } catch (_:Dynamic) {}
-                    }
-                }
-                if (monNode != null && monNode.targets != null) {
-                    targetsObj = monNode.targets;
-                }
-            }
-
-            // 4. AQW Player tree targets lookup: world.uoTree[username].targets
-            if (targetsObj == null && targetAvt.objData != null && targetAvt.objData.strUsername != null) {
-                var uName = Std.string(targetAvt.objData.strUsername).toLowerCase();
-                var uNode:Dynamic = null;
-                if (g.world.uoTree != null) {
-                    try { uNode = Reflect.field(g.world.uoTree, uName); } catch (_:Dynamic) {}
-                }
-                if (uNode != null && uNode.targets != null) {
-                    targetsObj = uNode.targets;
-                }
-            }
-
-            if (targetsObj != null) {
-                var myUid:String = (g.world.myAvatar != null && g.world.myAvatar.objData != null) ? Std.string(g.world.myAvatar.objData.uid) : "";
-                var myCharId:String = (g.world.myAvatar != null && g.world.myAvatar.objData != null) ? Std.string(g.world.myAvatar.objData.CharID) : "";
-                var mySfcId:String = (g.sfc != null && g.sfc.myUserId != null) ? Std.string(g.sfc.myUserId) : "";
-
-                for (key in Reflect.fields(targetsObj)) {
-                    if (key == myUid || key == myCharId || key == mySfcId) {
-                        return g.world.myAvatar;
-                    }
-                    try {
-                        var numKey = Std.parseInt(key);
-                        if (numKey != null) {
-                            var avt = g.world.getAvatarByUserID(numKey);
-                            if (avt != null) return avt;
-                            var mon = g.world.getMonster(numKey);
-                            if (mon != null) return mon;
-                        }
-                    } catch (_:Dynamic) {}
-                }
-            }
-        } catch (_:Dynamic) {}
-
-        // 5. Fallback: If player is currently targeting monster and monster is in combat with player
-        try {
-            if (g.world.myAvatar != null && g.world.myAvatar.dataLeaf != null && g.world.myAvatar.dataLeaf.targets != null) {
-                var myTargets = g.world.myAvatar.dataLeaf.targets;
-                if (targetAvt.objData != null && targetAvt.objData.MonMapID != null) {
-                    var monIdStr = Std.string(targetAvt.objData.MonMapID);
-                    if (Reflect.hasField(myTargets, monIdStr)) {
-                        return g.world.myAvatar;
-                    }
-                }
-            }
-        } catch (_:Dynamic) {}
-
-        return null;
-    }
-
-    public static function getTargetOfTargetInfo(targetAvt:Dynamic):{ name:String, isSelf:Bool, isNone:Bool, entity:Dynamic } {
-        var tot = getTargetOfTarget(targetAvt);
-        if (tot == null) {
-            return { name: "No Target", isSelf: false, isNone: true, entity: null };
-        }
-
-        var g:Dynamic = Api.game;
-        var isSelf:Bool = (g != null && g.world != null && g.world.myAvatar != null && tot == g.world.myAvatar);
-
-        var nameStr:String = "";
-        try {
-            if (tot.objData != null) {
-                if (tot.objData.strUsername != null && tot.objData.strUsername != "") {
-                    nameStr = tot.objData.strUsername;
-                } else if (tot.objData.strMonName != null && tot.objData.strMonName != "") {
-                    nameStr = tot.objData.strMonName;
-                }
-            }
-            if (nameStr == "" && tot.pAV != null && tot.pAV.objData != null) {
-                if (tot.pAV.objData.strUsername != null) nameStr = tot.pAV.objData.strUsername;
-                else if (tot.pAV.objData.strMonName != null) nameStr = tot.pAV.objData.strMonName;
-            }
-        } catch (_:Dynamic) {}
-
-        if (nameStr == "") nameStr = "Target";
-
-        return {
-            name: isSelf ? "► YOU ◄" : nameStr,
-            isSelf: isSelf,
-            isNone: false,
-            entity: tot
-        };
-    }
 }
 
 /**
  * NativeFrameDrag:
  * Draggable frame controller for default AQW target frame (mcPortraitTarget).
- * - Mouse drag anywhere on target frame
+ * - Mouse drag anywhere on target frame (with full-coverage transparent hit area)
  * - Screen boundary clamping strictly to physical borders (no off-screen hiding)
  * - Clean outline border highlight when hovering/dragging (no black background pad)
- * - Suppressed click on release so dragging doesn't untarget
+ * - Suppressed click on release so dragging doesn't untarget or open options
  * - Close button (btnTargetPortraitClose) anchored 1:1 with frame
- * - Persistent saved coordinates synced with config
+ * - Persistent saved coordinates synced with config and kept in sync during target switches
  */
 class NativeFrameDrag {
     private static inline var THRESHOLD_SQ:Float = 16.0;
@@ -877,44 +638,85 @@ class NativeFrameDrag {
     private var _startY:Float = 0;
     private var _origX:Float = 0;
     private var _origY:Float = 0;
-    private var _kidsWas:Bool = true;
-    private var _kidsOff:Bool = false;
 
     private var _backdrop:Sprite = null;
     private var _bgShape:Shape = null;
+    private var _hitLayer:Sprite = null;
 
     public function new(target:Sprite, key:String, litePrefKey:String) {
         _target = target;
         _key = key;
         _litePrefKey = litePrefKey;
 
-        _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, false, 0, true);
-        _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false, 0, true);
-        _target.addEventListener(MouseEvent.ROLL_OUT, onRollOut, false, 0, true);
-        _target.addEventListener(MouseEvent.CLICK, onClickCapture, true, 0, true);
+        _target.mouseEnabled = true;
+        ensureHitLayer();
+
+        _target.addEventListener(MouseEvent.MOUSE_DOWN, onDown, true);
+        _target.addEventListener(MouseEvent.ROLL_OVER, onRollOver, false);
+        _target.addEventListener(MouseEvent.ROLL_OUT, onRollOut, false);
+        _target.addEventListener(MouseEvent.CLICK, onClickCapture, true);
 
         ensureAttached();
     }
 
+    private function ensureHitLayer():Void {
+        if (_target == null) return;
+        if (_hitLayer == null) {
+            _hitLayer = new Sprite();
+            _hitLayer.name = "_dragHitLayer";
+            _hitLayer.mouseEnabled = true;
+            _hitLayer.buttonMode = false;
+            _hitLayer.graphics.beginFill(0x000000, 0.001);
+            _hitLayer.graphics.drawRect(0, 0, getVisualWidth(), getVisualHeight());
+            _hitLayer.graphics.endFill();
+            try {
+                _target.addChildAt(_hitLayer, 0);
+            } catch (_:Dynamic) {
+                try { _target.addChild(_hitLayer); } catch (_:Dynamic) {}
+            }
+        } else if (_hitLayer.parent != _target) {
+            try {
+                _target.addChildAt(_hitLayer, 0);
+            } catch (_:Dynamic) {
+                try { _target.addChild(_hitLayer); } catch (_:Dynamic) {}
+            }
+        }
+    }
+
     public function ensureAttached():Void {
         if (_target == null) return;
-        if (!_defaultRecorded && _target.x != 0 && _target.y != 0) {
-            _defaultX = _target.x;
-            _defaultY = _target.y;
-            _defaultRecorded = true;
-            restorePosition();
-        } else if (!_defaultRecorded && _target.parent != null) {
-            _defaultX = _target.x;
-            _defaultY = _target.y;
-            _defaultRecorded = true;
-            restorePosition();
-        } else if (_defaultRecorded) {
+        ensureHitLayer();
+        if (!_defaultRecorded) {
+            if (_target.x > 100) {
+                _defaultX = _target.x;
+                _defaultY = _target.y;
+                _defaultRecorded = true;
+                restorePosition();
+            } else if (_target.parent != null && ApiConfig.has(_key + "_x")) {
+                _defaultRecorded = true;
+                restorePosition();
+            }
+        } else {
             syncSatellites();
         }
     }
 
     public function syncSatellites():Void {
         if (_target == null) return;
+        ensureHitLayer();
+
+        // Keep target at saved coordinates if movable frames is active
+        if (NativeFramesEnhancer.isMovableFramesEnabled() && !_isDragging) {
+            if (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) {
+                var savedX = ApiConfig.getFloat(_key + "_x", _defaultX);
+                var savedY = ApiConfig.getFloat(_key + "_y", _defaultY);
+                if (_target.x != savedX || _target.y != savedY) {
+                    _target.x = savedX;
+                    _target.y = savedY;
+                }
+            }
+        }
+
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return;
 
@@ -930,7 +732,7 @@ class NativeFrameDrag {
     }
 
     public inline function getVisualHeight():Float {
-        return 98.0;
+        return 78.0;
     }
 
     private function onClickCapture(e:MouseEvent):Void {
@@ -968,7 +770,11 @@ class NativeFrameDrag {
         var parent = _target.parent;
         if (_backdrop.parent != parent) {
             var idx = parent.getChildIndex(_target);
-            parent.addChildAt(_backdrop, idx);
+            if (idx + 1 < parent.numChildren) {
+                parent.addChildAt(_backdrop, idx + 1);
+            } else {
+                parent.addChild(_backdrop);
+            }
         }
 
         var vx = _target.x;
@@ -976,7 +782,7 @@ class NativeFrameDrag {
         var bw = getVisualWidth();
         var bh = getVisualHeight();
 
-        // Exact physical boundaries - zero black pad, crisp 1.5px border highlight
+        // Exact physical boundaries - zero black pad, crisp 1.5px cyan outline
         _bgShape.graphics.clear();
         _bgShape.graphics.lineStyle(1.5, 0x38BDF8, 0.85);
         _bgShape.graphics.drawRoundRect(vx, vy, bw, bh, 6, 6);
@@ -1006,8 +812,8 @@ class NativeFrameDrag {
         _origX = _target.x;
         _origY = _target.y;
 
-        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, true);
-        _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, true);
+        _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, false);
+        _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, false);
     }
 
     private function onMove(e:MouseEvent):Void {
@@ -1022,9 +828,6 @@ class NativeFrameDrag {
         if (!_isDragging) {
             if (dx * dx + dy * dy < THRESHOLD_SQ) return;
             _isDragging = true;
-            _kidsWas = _target.mouseChildren;
-            _kidsOff = true;
-            _target.mouseChildren = false;
 
             try {
                 if (Api.game != null && Api.game.ui != null && Api.game.ui.ToolTip != null) {
@@ -1056,29 +859,31 @@ class NativeFrameDrag {
         _target.x = newX;
         _target.y = newY;
 
-        syncSatellites();
+        var g:Dynamic = Api.game;
+        if (g != null && g.ui != null && g.ui.btnTargetPortraitClose != null) {
+            g.ui.btnTargetPortraitClose.x = _target.x + _closeOffsetX;
+            g.ui.btnTargetPortraitClose.y = _target.y + _closeOffsetY;
+        }
+
         drawBackdrop();
         e.updateAfterEvent();
     }
 
     private function onUp(e:MouseEvent):Void {
+        var wasDragging = _isDragging;
         stopPress();
-        if (_isDragging) {
-            _isDragging = false;
+        if (wasDragging) {
             _hasDragged = true;
             savePosition();
             haxe.Timer.delay(function() {
                 _hasDragged = false;
-            }, 100);
+            }, 120);
         }
         hideBackdrop();
     }
 
     private function stopPress():Void {
-        if (_kidsOff) {
-            _kidsOff = false;
-            if (_target != null) _target.mouseChildren = _kidsWas;
-        }
+        _isDragging = false;
         if (_stage != null) {
             _stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMove);
             _stage.removeEventListener(MouseEvent.MOUSE_UP, onUp);
@@ -1151,7 +956,7 @@ class NativeFramesEnhancer {
     public static function setHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickEnabled():Bool return true;
     public static function setRightClickEnabled(enabled:Bool):Void {}
-    public static function isTargetOfTargetEnabled():Bool return true;
+    public static function isTargetOfTargetEnabled():Bool return false;
     public static function setTargetOfTargetEnabled(enabled:Bool):Void {}
     public static function isMovableFramesEnabled():Bool return true;
     public static function setMovableFramesEnabled(enabled:Bool):Void {}

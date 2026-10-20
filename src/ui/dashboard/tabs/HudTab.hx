@@ -169,23 +169,6 @@ class HudTab implements IDashboardTab {
             }
         );
 
-        modal.addItemRow(
-            "Top Bar: Drops Button",
-            "Quick drops collector / manager button on the top bar.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = TopBar.isButtonVisible("drops", false);
-                var next = !cur;
-                TopBar.setButtonVisible("drops", next);
-                ApiNotificationManager.notify("Top Bar Drops: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return TopBar.isButtonVisible("drops", false);
-            }
-        );
-
         modal.addSectionHeader("Standalone Control Buttons");
 
         modal.addItemRow(

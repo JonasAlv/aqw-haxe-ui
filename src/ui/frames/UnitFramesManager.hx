@@ -69,12 +69,10 @@ class UnitFramesManager {
     }
 
     public static inline function isTargetOfTargetEnabled():Bool {
-        return NativeFramesEnhancer.isTargetOfTargetEnabled();
+        return false;
     }
 
-    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {
-        NativeFramesEnhancer.setTargetOfTargetEnabled(enabled);
-    }
+    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {}
 
     public static inline function isMovableFramesEnabled():Bool {
         return NativeFramesEnhancer.isMovableFramesEnabled();
@@ -266,14 +264,8 @@ class UnitFramesManager {
             var hasTarget:Bool = (g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null);
             if (g.ui.mcPortraitTarget != null) {
                 g.ui.mcPortraitTarget.alpha = 1.0;
-                if (!NativeFramesEnhancer.isMovableFramesEnabled() && !ApiConfig.has("api_pos_target_frame_x")) {
-                    g.ui.mcPortraitTarget.y = 0;
-                }
                 g.ui.mcPortraitTarget.visible = hasTarget;
                 if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
-                if (hasTarget && Reflect.isFunction(g.showPortraitTarget)) {
-                    try { g.showPortraitTarget(g.world.myAvatar.target); } catch (_:Dynamic) {}
-                }
             }
 
             NativeFramesEnhancer.updateFrames();
@@ -363,7 +355,7 @@ class UnitFramesManager {
     public static function setShowHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickMenuEnabled():Bool return true;
     public static function setRightClickMenuEnabled(enabled:Bool):Void {}
-    public static function isTargetOfTargetEnabled():Bool return true;
+    public static function isTargetOfTargetEnabled():Bool return false;
     public static function setTargetOfTargetEnabled(enabled:Bool):Void {}
     public static function isMovableFramesEnabled():Bool return true;
     public static function setMovableFramesEnabled(enabled:Bool):Void {}

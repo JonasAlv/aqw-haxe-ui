@@ -26,7 +26,7 @@ import ui.ApiStyle;
  * - Draggable by holding anywhere on the bar (no clunky grab handle).
  * - Stackable Vertical Layout: Can be toggled between Horizontal and Vertical Stack
  *   with left accent markers matching user theme.
- * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Bank, Drops.
+ * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Bank.
  * - Adaptive Dropdown Direction: Dropdowns automatically open UP when in the lower half of screen
  *   or lacking room below, and DOWN when in the top half. Dropdowns NEVER cover or move the button!
  * - Perfectly attached: uses true visual panel heights (e.g. _playersPanel.getPanelHeight()).
@@ -61,9 +61,6 @@ class TopBar extends Sprite {
 
     private var _tabBank:Sprite;
     private var _txtBank:TextField;
-
-    private var _tabDrops:Sprite;
-    private var _txtDrops:TextField;
 
     // Dropdown Panels (attached to stage for pure coordinate stability)
     private var _dropdownContainer:Sprite;
@@ -121,7 +118,7 @@ class TopBar extends Sprite {
     }
 
     public static function isVertical():Bool {
-        return ApiConfig.getString("api_topbar_orientation", "horizontal") == "vertical";
+        return ApiConfig.getString("api_topbar_orientation", "vertical") == "vertical";
     }
 
     public static function setVertical(val:Bool):Void {
@@ -235,8 +232,7 @@ class TopBar extends Sprite {
             { id: "jump",    label: "Jump",    accent: 0x38BDF8, defVis: true,  hWidth: 38.0 },
             { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 76.0 },
             { id: "menu",    label: "Menu",    accent: 0xEF4444, defVis: true,  hWidth: 42.0 },
-            { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 },
-            { id: "drops",   label: "Drops",   accent: 0x14B8A6, defVis: false, hWidth: 44.0 }
+            { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 }
         ];
 
         var curX:Float = 4.0;
@@ -284,9 +280,6 @@ class TopBar extends Sprite {
             } else if (bDef.id == "bank") {
                 _tabBank = tabBtn;
                 _txtBank = cast tabBtn.getChildByName("label");
-            } else if (bDef.id == "drops") {
-                _tabDrops = tabBtn;
-                _txtDrops = cast tabBtn.getChildByName("label");
             }
         }
 
@@ -394,9 +387,6 @@ class TopBar extends Sprite {
         } else if (id == "bank") {
             closeDropdown();
             toggleBank();
-        } else if (id == "drops") {
-            closeDropdown();
-            toggleDrops();
         }
     }
 
@@ -406,18 +396,6 @@ class TopBar extends Sprite {
                 Api.inventory.toggleBank();
             } else if (Api.game != null && Api.game.world != null) {
                 Api.game.world.toggleBank();
-            }
-        } catch (_:Dynamic) {}
-    }
-
-    private function toggleDrops():Void {
-        try {
-            if (Api.drop != null) {
-                Api.drop.scanScreenDrops();
-                Api.drop.acceptAllDrops();
-                ApiNotificationManager.notify("Drops collected!");
-            } else if (Api.game != null && Api.game.ui != null && Api.game.ui.mcPortrait != null && Api.game.ui.mcPortrait.iconDrops != null) {
-                Api.game.ui.mcPortrait.iconDrops.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
             }
         } catch (_:Dynamic) {}
     }
@@ -479,8 +457,14 @@ class TopBar extends Sprite {
             "jump" => 0x38BDF8,
             "players" => 0xC084FC,
             "menu" => 0xEF4444,
-            "bank" => 0xF59E0B,
-            "drops" => 0x14B8A6
+            "bank" => 0xF59E0B
+        ];
+        var buttonWidths = [
+            "auto"    => 46.0,
+            "jump"    => 38.0,
+            "players" => 76.0,
+            "menu"    => 42.0,
+            "bank"    => 40.0
         ];
         var tabH:Float = isVert ? 22.0 : 20.0;
         var tabW:Float = isVert ? 76.0 : 40.0;
@@ -488,7 +472,7 @@ class TopBar extends Sprite {
         for (id in _tabs.keys()) {
             var tab = _tabs.get(id);
             if (tab == null) continue;
-            var thisW:Float = isVert ? tabW : tab.width;
+            var thisW:Float = isVert ? tabW : (buttonWidths.exists(id) ? buttonWidths.get(id) : 40.0);
             var accent = accents.exists(id) ? accents.get(id) : 0x8B5CF6;
             renderTabStyle(tab, thisW, tabH, false, (_activeTab == id), accent, isVert);
         }

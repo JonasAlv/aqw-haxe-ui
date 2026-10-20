@@ -89,25 +89,7 @@ class UnitFramesTab implements IDashboardTab {
             }
         );
 
-        // 5. Target of Target (ToT)
-        modal.addItemRow(
-            "Target of Target (ToT)",
-            "Replaces the redundant Options button on the target frame with live target-of-target name. Click to switch target.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = UnitFramesManager.isTargetOfTargetEnabled();
-                var next = !cur;
-                UnitFramesManager.setTargetOfTargetEnabled(next);
-                ApiNotificationManager.notify("Target of Target: " + (next ? "Enabled" : "Disabled"));
-            },
-            function():Bool {
-                return UnitFramesManager.isTargetOfTargetEnabled();
-            }
-        );
-
-        // 6. Movable Target Frame
+        // 5. Movable Target Frame
         modal.addItemRow(
             "Movable Target Frame",
             "Allows clicking and dragging the target frame freely anywhere on screen (hover reveals border outline).",
