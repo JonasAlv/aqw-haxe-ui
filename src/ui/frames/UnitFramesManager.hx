@@ -251,10 +251,12 @@ class UnitFramesManager {
                 }
             }
 
-            // 1. Player portrait: always fully visible and at native (0, 0)
+            // 1. Player portrait: always fully visible
             if (g.ui.mcPortrait != null) {
                 g.ui.mcPortrait.alpha = 1.0;
-                g.ui.mcPortrait.y = 0;
+                if (!NativeFramesEnhancer.isMovableFramesEnabled() && !ApiConfig.has("api_pos_player_frame_x")) {
+                    g.ui.mcPortrait.y = 0;
+                }
                 g.ui.mcPortrait.visible = true;
                 if (g.world != null && g.world.myAvatar != null && Reflect.isFunction(g.showPortrait)) {
                     try { g.showPortrait(g.world.myAvatar); } catch (_:Dynamic) {}
@@ -265,7 +267,9 @@ class UnitFramesManager {
             var hasTarget:Bool = (g.world != null && g.world.myAvatar != null && g.world.myAvatar.target != null);
             if (g.ui.mcPortraitTarget != null) {
                 g.ui.mcPortraitTarget.alpha = 1.0;
-                g.ui.mcPortraitTarget.y = 0;
+                if (!NativeFramesEnhancer.isMovableFramesEnabled() && !ApiConfig.has("api_pos_target_frame_x")) {
+                    g.ui.mcPortraitTarget.y = 0;
+                }
                 g.ui.mcPortraitTarget.visible = hasTarget;
                 if (g.ui.btnTargetPortraitClose != null) g.ui.btnTargetPortraitClose.visible = hasTarget;
                 if (hasTarget && Reflect.isFunction(g.showPortraitTarget)) {
