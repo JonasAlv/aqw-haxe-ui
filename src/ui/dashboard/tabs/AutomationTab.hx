@@ -2,7 +2,7 @@ package ui.dashboard.tabs;
 
 #if flash
 import com.aqwapi.Api;
-import com.aqwapi.modules.CombatEngine;
+
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
@@ -50,17 +50,16 @@ class AutomationTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                var next = !CombatEngine.counterHandler;
+                var cur = (Api.combat != null) ? Api.combat.counterHandler : ApiConfig.getBool("api_counter_handler", false);
+                var next = !cur;
                 if (Api.combat != null) {
                     Api.combat.enableCounterHandler(next);
-                } else {
-                    CombatEngine.counterHandler = next;
                 }
                 ApiConfig.setBool("api_counter_handler", next);
                 ApiNotificationManager.notify("Counter Handler: " + (next ? "Enabled" : "Disabled"));
             },
             function():Bool {
-                return CombatEngine.counterHandler;
+                return (Api.combat != null) ? Api.combat.counterHandler : ApiConfig.getBool("api_counter_handler", false);
             }
         );
 

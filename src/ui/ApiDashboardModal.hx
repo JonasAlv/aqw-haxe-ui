@@ -2,7 +2,7 @@ package ui;
 
 #if flash
 import com.aqwapi.Api;
-import com.aqwapi.modules.CombatEngine;
+
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Shape;
 import flash.display.Sprite;

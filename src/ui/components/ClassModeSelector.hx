@@ -4,7 +4,7 @@ package ui.components;
 import flash.display.Sprite;
 import flash.events.Event;
 import com.aqwapi.Api;
-import com.aqwapi.modules.CombatEngine;
+
 import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
 import ui.ApiStyle;
@@ -81,7 +81,7 @@ class ClassModeSelector extends Sprite {
             if (sel != null && sel != "" && sel.toLowerCase() != "current") {
                 if (Api.inventory != null) {
                     try {
-                        var cur = CombatEngine.getCurrentClassName();
+                        var cur = getCurrentClass();
                         if (cur == "" || cur.toLowerCase() != sel.toLowerCase()) {
                             Api.inventory.equip(sel);
                         }
@@ -235,8 +235,9 @@ class ClassModeSelector extends Sprite {
 
     public static function getCurrentClass():String {
         try {
-            var cur:String = CombatEngine.getCurrentClassName();
-            if (cur != null && cur != "" && cur.toLowerCase() != "current") return cur;
+            if (Api.player != null && Api.player.className != null && Api.player.className != "") {
+                return Api.player.className;
+            }
             if (Api.game != null && Api.game.world != null && Api.game.world.myAvatar != null) {
                 var av:Dynamic = Api.game.world.myAvatar;
                 if (av.objData != null && av.objData.strClassName != null) {
@@ -303,25 +304,11 @@ class ClassModeSelector extends Sprite {
                     var sTypeStr:String = (item.sType != null) ? Std.string(item.sType).toLowerCase() : "";
                     if (sTypeStr == "class" || item.bClass == 1 || item.bClass == true || item.bClass == "1") {
                         isClass = true;
-                    } else if (item.sES != null && Std.string(item.sES).toLowerCase() == "ar" && sTypeStr != "armor") {
-                        if (CombatEngine.findClassConfig(item.sName) != null) isClass = true;
                     }
                     if (isClass) addClass(item.sName, true);
                 }
             }
         } catch (_:Dynamic) {}
-
-        // 3. Known built-in classes from CombatEngine
-        if (includeAllKnown) {
-            try {
-                var known = CombatEngine.getKnownClasses();
-                if (known != null) {
-                    for (kc in known) {
-                        addClass(kc, false);
-                    }
-                }
-            } catch (_:Dynamic) {}
-        }
 
         try {
             invClasses.sort(function(a, b) {
@@ -331,59 +318,15 @@ class ClassModeSelector extends Sprite {
                 if (la > lb) return 1;
                 return 0;
             });
-            if (includeAllKnown) {
-                otherClasses.sort(function(a, b) {
-                    var la:String = a.toLowerCase();
-                    var lb:String = b.toLowerCase();
-                    if (la < lb) return -1;
-                    if (la > lb) return 1;
-                    return 0;
-                });
-            }
         } catch (_:Dynamic) {}
 
         var result:Array<String> = ["Current"];
         for (c in invClasses) result.push(c);
-        if (includeAllKnown) {
-            for (c in otherClasses) result.push(c);
-        }
         return result;
     }
 
     public static function getModesForClass(cName:String, autoLabel:String = "Auto"):Array<String> {
-        var modes:Array<String> = [];
-        var isCurrent = (cName == null || cName == "" || cName.toLowerCase() == "current");
-        var targetClass:String = cName;
-
-        if (isCurrent) {
-            modes.push(autoLabel);
-            try {
-                var cur = CombatEngine.getCurrentClassName();
-                if (cur != null && cur != "" && cur.toLowerCase() != "current") {
-                    targetClass = cur;
-                }
-            } catch (_:Dynamic) {}
-        }
-
-        if (targetClass != null && targetClass != "" && targetClass.toLowerCase() != "current") {
-            try {
-                var engineModes = CombatEngine.getAvailableModes(targetClass);
-                if (engineModes != null) {
-                    for (m in engineModes) {
-                        if (m != null && m != "" && modes.indexOf(m) == -1) {
-                            modes.push(m);
-                        }
-                    }
-                }
-            } catch (_:Dynamic) {}
-        }
-
-        if (modes.length == 0) {
-            modes = [autoLabel, "Solo", "Farm"];
-        } else if (modes.indexOf(autoLabel) == -1 && isCurrent) {
-            modes.unshift(autoLabel);
-        }
-        return modes;
+        return [autoLabel, "Solo", "Farm"];
     }
 }
 #else

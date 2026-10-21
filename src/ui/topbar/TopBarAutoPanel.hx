@@ -12,7 +12,7 @@ import flash.text.TextFieldType;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
 import com.aqwapi.Api;
-import com.aqwapi.modules.CombatEngine;
+
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
@@ -105,7 +105,7 @@ class TopBarAutoPanel extends Sprite {
                 Api.combat.startSmartStandalone(_selectedClass, _selectedMode);
             } else if (selClass != "Current" && Api.inventory != null) {
                 try {
-                    var curClass = CombatEngine.getCurrentClassName();
+                    var curClass = (Api.player != null && Api.player.className != null) ? Api.player.className : "";
                     if (curClass == "" || curClass.toLowerCase() != selClass.toLowerCase()) {
                         Api.inventory.equip(selClass);
                     }
@@ -209,13 +209,19 @@ class TopBarAutoPanel extends Sprite {
         _txtCounter.mouseEnabled = false;
         _btnCounter.addChild(_txtCounter);
 
-        renderCounterBtnStyle(CombatEngine.counterHandler, CombatEngine.isPausedByAura, false);
+        var isCounter = (Api.combat != null ? Api.combat.counterHandler : false);
+        var isPaused = (Api.combat != null ? Api.combat.isPausedByAura : false);
+        renderCounterBtnStyle(isCounter, isPaused, false);
 
         _btnCounter.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
-            renderCounterBtnStyle(CombatEngine.counterHandler, CombatEngine.isPausedByAura, true);
+            var c = (Api.combat != null ? Api.combat.counterHandler : false);
+            var p = (Api.combat != null ? Api.combat.isPausedByAura : false);
+            renderCounterBtnStyle(c, p, true);
         });
         _btnCounter.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
-            renderCounterBtnStyle(CombatEngine.counterHandler, CombatEngine.isPausedByAura, false);
+            var c = (Api.combat != null ? Api.combat.counterHandler : false);
+            var p = (Api.combat != null ? Api.combat.isPausedByAura : false);
+            renderCounterBtnStyle(c, p, false);
         });
         _btnCounter.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             toggleCounterHandler();
@@ -430,7 +436,6 @@ class TopBarAutoPanel extends Sprite {
         var targetStr = (_targetInput != null && _targetInput.text != "Target (Name/ID)" && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
         if (targetStr == "") targetStr = "*";
 
-        CombatEngine.targetName = targetStr;
         if (Api.combat != null && !Api.combat.isRunning()) {
             Api.combat.startSmartStandalone(_selectedClass, _selectedMode);
         }
@@ -445,7 +450,6 @@ class TopBarAutoPanel extends Sprite {
             _huntTimer.stop();
             _huntTimer = null;
         }
-        CombatEngine.targetName = null;
         if (Api.combat != null) {
             Api.combat.stop();
         }
@@ -454,11 +458,12 @@ class TopBarAutoPanel extends Sprite {
     }
 
     public function toggleCounterHandler():Void {
-        var next = !CombatEngine.counterHandler;
+        var cur = (Api.combat != null ? Api.combat.counterHandler : false);
+        var next = !cur;
         if (Api.combat != null) Api.combat.enableCounterHandler(next);
-        else CombatEngine.counterHandler = next;
         ApiNotificationManager.notify("Counter: " + (next ? "ON" : "OFF"));
-        renderCounterBtnStyle(next, CombatEngine.isPausedByAura, false);
+        var isPaused = (Api.combat != null ? Api.combat.isPausedByAura : false);
+        renderCounterBtnStyle(next, isPaused, false);
     }
 
     private function acquireCurrentTarget():Void {
@@ -492,8 +497,8 @@ class TopBarAutoPanel extends Sprite {
             renderActionBtnStyle(_btnHunt, huntRunning, "Hunt", 98.0, 24.0, false);
         }
 
-        var isCounter = CombatEngine.counterHandler;
-        var isPaused = CombatEngine.isPausedByAura;
+        var isCounter = (Api.combat != null ? Api.combat.counterHandler : false);
+        var isPaused = (Api.combat != null ? Api.combat.isPausedByAura : false);
         var counterInt = isCounter ? 1 : 0;
         if (counterInt != _lastCounterActive || isPaused != _lastCounterPaused) {
             _lastCounterActive = counterInt;

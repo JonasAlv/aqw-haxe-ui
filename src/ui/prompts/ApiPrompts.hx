@@ -2,8 +2,7 @@ package ui.prompts;
 
 #if flash
 import com.aqwapi.Api;
-import com.aqwapi.modules.CombatEngine;
-import com.aqwapi.managers.SkillManager;
+
 import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Sprite;
@@ -539,7 +538,7 @@ class ApiPrompts {
     public static function showSmartCombatPrompt(overlay:Dynamic):Void {
         try {
             var dlg = ApiPromptModal.createDialog(460, 230, "Smart Combat Setup (Standalone)");
-            var curEquipped = CombatEngine.getCurrentClassName();
+            var curEquipped = (Api.player != null && Api.player.className != null) ? Api.player.className : "";
             var subText = (curEquipped != "")
                 ? "Active class: " + curEquipped + " (For scripts, use Loadouts in Scripts tab)"
                 : "Standalone setup. For scripts, use Loadouts in Scripts tab.";
@@ -573,7 +572,7 @@ class ApiPrompts {
             selectedModeStr = selector.selectedMode;
             dlg.addChild(selector);
 
-            var currentCounter:Bool = CombatEngine.counterHandler;
+            var currentCounter:Bool = (Api.combat != null ? Api.combat.counterHandler : false);
             var counterBtn:flash.display.Sprite = null;
             var updateCounterBtnText:Void->Void = function():Void {
                 if (counterBtn != null) {
@@ -602,9 +601,12 @@ class ApiPrompts {
                 ApiConfig.setString("api_smart_class", selectedClassStr);
                 ApiConfig.setString("api_smart_mode", saveModeVal);
                 ApiConfig.setBool("api_counter_handler", currentCounter);
-                CombatEngine.counterHandler = currentCounter;
-                CombatEngine.smartClass = selectedClassStr;
-                CombatEngine.skillMode = saveModeVal;
+                if (Api.combat != null) {
+                    Api.combat.counterHandler = currentCounter;
+                    Api.combat.smartClass = selectedClassStr;
+                    Api.combat.skillMode = saveModeVal;
+                    Api.combat.mode = saveModeVal;
+                }
                 if (Api.combat != null) {
                     Api.combat.mode = saveModeVal;
                 }
