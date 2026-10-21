@@ -430,36 +430,11 @@ class TopBarAutoPanel extends Sprite {
         var targetStr = (_targetInput != null && _targetInput.text != "Target (Name/ID)" && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
         if (targetStr == "") targetStr = "*";
 
+        CombatEngine.targetName = targetStr;
         if (Api.combat != null && !Api.combat.isRunning()) {
             Api.combat.startSmartStandalone(_selectedClass, _selectedMode);
         }
 
-        if (_huntTimer != null) {
-            _huntTimer.stop();
-            _huntTimer = null;
-        }
-
-        _huntTimer = new flash.utils.Timer(250);
-        _huntTimer.addEventListener(flash.events.TimerEvent.TIMER, function(e:flash.events.TimerEvent):Void {
-            if (!_isHunting) {
-                stopAutoHunt();
-                return;
-            }
-            if (Api.player != null && !Api.player.isAlive) return;
-            if (Api.map != null && !Api.map.isLoaded) return;
-
-            var raw = (_targetInput != null && _targetInput.text != "Target (Name/ID)" && _targetInput.text != "Target (Name / ID / MMID)") ? StringTools.trim(_targetInput.text) : "*";
-            var num = Std.parseInt(raw);
-            if (num != null && num > 0 && !StringTools.contains(raw, " ")) {
-                Api.combat.hunt("*", null, 1, num);
-            } else if (StringTools.contains(raw, ",")) {
-                var list = raw.split(",").map(function(s) return StringTools.trim(s));
-                Api.combat.hunt(list);
-            } else {
-                Api.combat.hunt(raw);
-            }
-        });
-        _huntTimer.start();
         ApiNotificationManager.notify("Hunt: " + targetStr);
         _lastHuntActive = -1;
     }
@@ -470,6 +445,7 @@ class TopBarAutoPanel extends Sprite {
             _huntTimer.stop();
             _huntTimer = null;
         }
+        CombatEngine.targetName = null;
         if (Api.combat != null) {
             Api.combat.stop();
         }
