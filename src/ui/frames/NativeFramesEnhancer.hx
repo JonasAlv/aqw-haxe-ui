@@ -111,10 +111,15 @@ class NativeFramesEnhancer {
         if (ApiConfig.has("api_pos_player_frame_y")) ApiConfig.delete("api_pos_player_frame_y");
 
         // Target unitframe is movable
-        if (g.ui.mcPortraitTarget != null && _targetDrag == null) {
-            _targetDrag = new NativeFrameDrag(cast g.ui.mcPortraitTarget, "api_pos_target_frame", "posTargetFrame");
-        } else if (_targetDrag != null) {
-            _targetDrag.ensureAttached();
+        var targetMc:Dynamic = g.ui.mcPortraitTarget;
+        if (targetMc != null) {
+            if (_targetDrag == null) {
+                _targetDrag = new NativeFrameDrag(cast targetMc, "api_pos_target_frame", "posTargetFrame");
+            } else if (_targetDrag.isStale(cast targetMc)) {
+                _targetDrag.rebind(cast targetMc);
+            } else {
+                _targetDrag.ensureAttached();
+            }
         }
 
         setupRightClickMenu(g);
@@ -657,6 +662,32 @@ class NativeFramesEnhancer {
 
     public static inline function setMovableFramesEnabled(enabled:Bool):Void {
         ApiConfig.setBool(CONFIG_MOVABLE, enabled);
+        if (!enabled) {
+            // Give position controls back to the game:
+            // Stop any active dragging / outlines
+            if (_targetDrag != null) {
+                _targetDrag.stopPress();
+                _targetDrag.hideBackdrop();
+            }
+            // Reset target frame and close button back to game's native default coordinates
+            try {
+                if (Api.game != null && Api.game.ui != null) {
+                    if (Api.game.ui.mcPortraitTarget != null) {
+                        Api.game.ui.mcPortraitTarget.x = 235.0;
+                        Api.game.ui.mcPortraitTarget.y = 2.0;
+                    }
+                    if (Api.game.ui.btnTargetPortraitClose != null) {
+                        Api.game.ui.btnTargetPortraitClose.x = 413.7;
+                        Api.game.ui.btnTargetPortraitClose.y = 10.0;
+                    }
+                }
+            } catch (_:Dynamic) {}
+        } else {
+            // Restore custom movable coordinates
+            if (_targetDrag != null) {
+                _targetDrag.restorePosition();
+            }
+        }
     }
 
     public static function resetFramePositions():Void {
@@ -713,6 +744,10 @@ class NativeFrameDrag {
     public static inline var FRAME_WIDTH:Float    = 188.0;
     public static inline var FRAME_HEIGHT:Float   = 81.0;
 
+    // Close button offset relative to target frame origin (native AQW: 413.7 - 235.0 = 178.7, 10.0 - 2.0 = 8.0)
+    public static inline var CLOSE_OFFSET_X:Float = 178.7;
+    public static inline var CLOSE_OFFSET_Y:Float = 8.0;
+
     private var _target:Sprite;
     private var _key:String;
     private var _litePrefKey:String;
@@ -720,9 +755,8 @@ class NativeFrameDrag {
     private var _defaultY:Float = 2.0;
     private var _defaultRecorded:Bool = false;
 
-    // Close button offset relative to target frame origin (native AQW: 413.7 - 235.0 = 178.7, 10.0 - 2.0 = 8.0)
-    private var _closeOffsetX:Float = 178.7;
-    private var _closeOffsetY:Float = 8.0;
+    private var _closeOffsetX:Float = CLOSE_OFFSET_X;
+    private var _closeOffsetY:Float = CLOSE_OFFSET_Y;
 
     private var _stage:Stage = null;
     private var _isDragging:Bool = false;
@@ -736,10 +770,31 @@ class NativeFrameDrag {
     private var _bgShape:Shape = null;
     private var _hitLayer:Sprite = null;
 
+    public var target(get, never):Sprite;
+    private inline function get_target():Sprite {
+        return _target;
+    }
+
     public function new(target:Sprite, key:String, litePrefKey:String) {
-        _target = target;
         _key = key;
         _litePrefKey = litePrefKey;
+        rebind(target);
+    }
+
+    public function isStale(current:Sprite):Bool {
+        if (current == null) return false;
+        if (_target != current) return true;
+        if (_target == null) return true;
+        if (_target.parent == null && current.parent != null) return true;
+        return false;
+    }
+
+    public function rebind(newTarget:Sprite):Void {
+        if (_target == newTarget && _target != null && _target.parent != null) return;
+
+        destroy();
+        _target = newTarget;
+        if (_target == null) return;
 
         _target.mouseEnabled = true;
         ensureHitLayer();
@@ -750,11 +805,41 @@ class NativeFrameDrag {
         _target.addEventListener(MouseEvent.ROLL_OUT, onRollOut, false);
         _target.addEventListener(MouseEvent.CLICK, onClickCapture, true);
 
+        _defaultRecorded = false;
         ensureAttached();
+    }
+
+    public function destroy():Void {
+        stopPress();
+        hideBackdrop();
+        if (_target != null) {
+            try {
+                _target.removeEventListener(MouseEvent.MOUSE_DOWN, onDown, false);
+                _target.removeEventListener(MouseEvent.MOUSE_DOWN, onDown, true);
+                _target.removeEventListener(MouseEvent.ROLL_OVER, onRollOver, false);
+                _target.removeEventListener(MouseEvent.ROLL_OUT, onRollOut, false);
+                _target.removeEventListener(MouseEvent.CLICK, onClickCapture, true);
+            } catch (_:Dynamic) {}
+            if (_hitLayer != null && _hitLayer.parent == _target) {
+                try { _target.removeChild(_hitLayer); } catch (_:Dynamic) {}
+            }
+        }
+        if (_hitLayer != null) {
+            _hitLayer.removeEventListener(MouseEvent.MOUSE_DOWN, onDown, false);
+            _hitLayer = null;
+        }
+        _target = null;
     }
 
     private function ensureHitLayer():Void {
         if (_target == null) return;
+        // When movable is OFF, do not attach custom hit interception layer
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) {
+            if (_hitLayer != null && _hitLayer.parent != null) {
+                try { _hitLayer.parent.removeChild(_hitLayer); } catch (_:Dynamic) {}
+            }
+            return;
+        }
         if (_hitLayer == null) {
             _hitLayer = new Sprite();
             _hitLayer.name = "_dragHitLayer";
@@ -782,20 +867,40 @@ class NativeFrameDrag {
         if (_target == null) return;
         ensureHitLayer();
 
+        // When movable is OFF, give position controls completely to the game
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) {
+            return;
+        }
+
         var g:Dynamic = Api.game;
         var closeBtn:Dynamic = (g != null && g.ui != null) ? g.ui.btnTargetPortraitClose : null;
+
+        // Verify close button offset within expected bounds or lock to exact native constants
+        if (closeBtn != null && _target.x > 100) {
+            var diffX = closeBtn.x - _target.x;
+            var diffY = closeBtn.y - _target.y;
+            if (diffX >= 170.0 && diffX <= 190.0) {
+                _closeOffsetX = diffX;
+            } else {
+                _closeOffsetX = CLOSE_OFFSET_X;
+            }
+            if (diffY >= 0.0 && diffY <= 20.0) {
+                _closeOffsetY = diffY;
+            } else {
+                _closeOffsetY = CLOSE_OFFSET_Y;
+            }
+        } else {
+            _closeOffsetX = CLOSE_OFFSET_X;
+            _closeOffsetY = CLOSE_OFFSET_Y;
+        }
 
         if (!_defaultRecorded) {
             if (_target.x > 100) {
                 _defaultX = _target.x;
                 _defaultY = _target.y;
-                if (closeBtn != null && !ApiConfig.has(_key + "_x")) {
-                    _closeOffsetX = closeBtn.x - _target.x;
-                    _closeOffsetY = closeBtn.y - _target.y;
-                }
                 _defaultRecorded = true;
                 restorePosition();
-            } else if (_target.parent != null && ApiConfig.has(_key + "_x")) {
+            } else if (_target.parent != null && (ApiConfig.has(_key + "_x") || hasLitePref())) {
                 _defaultRecorded = true;
                 restorePosition();
             }
@@ -804,12 +909,23 @@ class NativeFrameDrag {
         }
     }
 
+    private function hasLitePref():Bool {
+        try {
+            if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
+                var lp:Dynamic = Reflect.field(Api.game.litePreference.data, _litePrefKey);
+                return lp != null && lp.x != null && lp.y != null;
+            }
+        } catch (_:Dynamic) {}
+        return false;
+    }
+
     public function syncSatellites():Void {
         if (_target == null) return;
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
         ensureHitLayer();
 
         // Keep target at saved coordinates if movable frames is active, but never interrupt active click/drag!
-        if (NativeFramesEnhancer.isMovableFramesEnabled() && !_isDragging && _stage == null) {
+        if (!_isDragging && _stage == null) {
             if (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) {
                 var savedX = ApiConfig.getFloat(_key + "_x", _defaultX);
                 var savedY = ApiConfig.getFloat(_key + "_y", _defaultY);
@@ -825,6 +941,7 @@ class NativeFrameDrag {
 
     public function syncCloseButton():Void {
         if (_target == null) return;
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
         var g:Dynamic = Api.game;
         if (g == null || g.ui == null) return;
 
@@ -861,7 +978,11 @@ class NativeFrameDrag {
         }
     }
 
-    private function drawBackdrop():Void {
+    public function drawBackdrop():Void {
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) {
+            hideBackdrop();
+            return;
+        }
         if (_target == null || _target.parent == null || !_target.visible) {
             hideBackdrop();
             return;
@@ -899,7 +1020,7 @@ class NativeFrameDrag {
         _backdrop.visible = true;
     }
 
-    private function hideBackdrop():Void {
+    public function hideBackdrop():Void {
         if (_backdrop != null) {
             if (_bgShape != null) _bgShape.graphics.clear();
             if (_backdrop.parent != null) {
@@ -932,6 +1053,11 @@ class NativeFrameDrag {
 
         _stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, false, 0, true);
         _stage.addEventListener(MouseEvent.MOUSE_UP, onUp, false, 0, true);
+        _stage.addEventListener(Event.MOUSE_LEAVE, onStageLeave, false, 0, true);
+    }
+
+    private function onStageLeave(e:Event):Void {
+        onUp(null);
     }
 
     private function onMove(e:MouseEvent):Void {
@@ -993,11 +1119,12 @@ class NativeFrameDrag {
         hideBackdrop();
     }
 
-    private function stopPress():Void {
+    public function stopPress():Void {
         _isDragging = false;
         if (_stage != null) {
             _stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMove);
             _stage.removeEventListener(MouseEvent.MOUSE_UP, onUp);
+            _stage.removeEventListener(Event.MOUSE_LEAVE, onStageLeave);
             _stage = null;
         }
     }
@@ -1016,6 +1143,8 @@ class NativeFrameDrag {
 
     public function restorePosition():Void {
         if (_target == null) return;
+        if (!NativeFramesEnhancer.isMovableFramesEnabled()) return;
+
         if (ApiConfig.has(_key + "_x") && ApiConfig.has(_key + "_y")) {
             _target.x = ApiConfig.getFloat(_key + "_x", _defaultX);
             _target.y = ApiConfig.getFloat(_key + "_y", _defaultY);
@@ -1024,8 +1153,12 @@ class NativeFrameDrag {
                 if (Api.game != null && Api.game.litePreference != null && Api.game.litePreference.data != null) {
                     var lp:Dynamic = Reflect.field(Api.game.litePreference.data, _litePrefKey);
                     if (lp != null && lp.x != null && lp.y != null) {
-                        _target.x = Std.int(lp.x);
-                        _target.y = Std.int(lp.y);
+                        var px:Float = Std.parseFloat(Std.string(lp.x));
+                        var py:Float = Std.parseFloat(Std.string(lp.y));
+                        _target.x = px;
+                        _target.y = py;
+                        ApiConfig.setFloat(_key + "_x", px);
+                        ApiConfig.setFloat(_key + "_y", py);
                     }
                 }
             } catch (_:Dynamic) {}
@@ -1047,7 +1180,12 @@ class NativeFrameDrag {
         _target.x = _defaultX;
         _target.y = _defaultY;
 
-        syncCloseButton();
+        var g:Dynamic = Api.game;
+        if (g != null && g.ui != null && g.ui.btnTargetPortraitClose != null) {
+            g.ui.btnTargetPortraitClose.x = _defaultX + _closeOffsetX;
+            g.ui.btnTargetPortraitClose.y = _defaultY + _closeOffsetY;
+        }
+
         hideBackdrop();
     }
 }
