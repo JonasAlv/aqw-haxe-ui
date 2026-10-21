@@ -64,6 +64,7 @@ class WidgetManager {
             try { UnitFramesManager.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] UnitFramesManager init error: " + e); }
             try { DamageNumbers.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] DamageNumbers init error: " + e); }
             try { ApiHudManager.init(st, _overlay); } catch (e:Dynamic) { trace("[WidgetManager] ApiHudManager init error: " + e); }
+            try { ui.helpers.SpellFXOptimizer.init(); } catch (e:Dynamic) {}
 
             // 3. Single master frame tick loop
             _theStage.addEventListener(Event.ENTER_FRAME, onStageFrame);
@@ -152,7 +153,6 @@ class WidgetManager {
     public static function getDefaultCustomWidgetItems():Array<WidgetItemConfig> {
         return [
             { toolId: "script_runner", isFixed: true },
-            { toolId: "lag_killer", isFixed: true },
             { toolId: "infinite_range", isFixed: false },
             { toolId: "accept_loot", isFixed: false },
             { toolId: "provoke_all", isFixed: false },

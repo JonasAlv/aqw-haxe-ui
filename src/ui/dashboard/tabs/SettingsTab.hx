@@ -230,14 +230,12 @@ class SettingsTab implements IDashboardTab {
             "",
             false,
             function():Void {
-                if (Api.visual != null) {
-                    var next = !Api.visual.optimizeSpellFX;
-                    Api.visual.optimizeSpellFX = next;
-                    ApiNotificationManager.notify("Fast Spell FX: " + (next ? "Enabled (1x Low Pass)" : "Disabled (Native)"));
-                }
+                var next = !ui.helpers.SpellFXOptimizer.isEnabled();
+                ui.helpers.SpellFXOptimizer.setEnabled(next);
+                ApiNotificationManager.notify("Fast Spell FX: " + (next ? "Enabled (1x Low Pass)" : "Disabled (Native)"));
             },
             function():Bool {
-                return (Api.visual != null) ? Api.visual.optimizeSpellFX : true;
+                return ui.helpers.SpellFXOptimizer.isEnabled();
             }
         );
 

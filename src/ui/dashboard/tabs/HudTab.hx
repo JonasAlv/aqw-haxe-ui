@@ -438,24 +438,6 @@ class HudTab implements IDashboardTab {
             }
         );
 
-        // 8. HUD: Lag Killer
-        modal.addItemRow(
-            "HUD: Lag Killer",
-            "Toggle performance optimization mode.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = ApiHudManager.isButtonEnabled("lag_killer");
-                var next = !cur;
-                ApiHudManager.setButtonEnabled("lag_killer", next);
-                ApiNotificationManager.notify("Lag Killer Button: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiHudManager.isButtonEnabled("lag_killer");
-            }
-        );
-
         modal.addSectionHeader("Layout Controls");
 
         // Reset HUD Button Positions

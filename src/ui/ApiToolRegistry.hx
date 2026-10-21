@@ -218,25 +218,6 @@ class ApiToolRegistry {
                 }
             },
             {
-                id: "lag_killer",
-                name: "Lag Killer",
-                defaultLabel: "Lag",
-                activeText: "Lag Killer",
-                inactiveText: "Lag Killer",
-                isToggle: true,
-                defaultHudX: 544,
-                defaultHudY: 45,
-                getState: function():Bool {
-                    return (Api.visual != null && Api.visual.lagKiller);
-                },
-                onAction: function():Void {
-                    if (Api.visual != null) {
-                        Api.visual.lagKiller = !Api.visual.lagKiller;
-                        ApiNotificationManager.notify("Lag Killer: " + (Api.visual.lagKiller ? "ON" : "OFF"));
-                    }
-                }
-            },
-            {
                 id: "open_dashboard",
                 name: "Dashboard Menu",
                 defaultLabel: "Menu",
