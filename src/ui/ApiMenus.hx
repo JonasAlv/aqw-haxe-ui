@@ -3,7 +3,6 @@ package ui;
 #if flash
 import com.aqwapi.Api;
 import com.aqwapi.events.ApiEvent;
-import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
 import com.aqwapi.utils.ApiStorage;
@@ -160,10 +159,8 @@ class ApiMenus {
 
     private static function setupFrameHooks(theStage:Stage):Void {
         theStage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var isScriptRunning = ScriptManager.SINGLETON.isRunning;
-
-            // Cutscene skipping (Skua logic - always active during scripts or when enabled in settings)
-            var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
+            // Cutscene skipping
+            var skipCutscenesActive = ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
             if (Api.map != null) {
                 Api.map.skipCutscenes = skipCutscenesActive;
                 if (skipCutscenesActive) {
@@ -172,8 +169,8 @@ class ApiMenus {
             }
 
             // Infinite range & Death spawn tick
-            var infiniteRangeActive = isScriptRunning || ApiConfig.getBool("api_infinite_range", false);
-            var deathSpawnActive = isScriptRunning || ApiConfig.getBool("api_death_spawn", false);
+            var infiniteRangeActive = ApiConfig.getBool("api_infinite_range", false);
+            var deathSpawnActive = ApiConfig.getBool("api_death_spawn", false);
 
             if (Api.map != null) {
                 Api.map.autoDeathSpawn = deathSpawnActive;

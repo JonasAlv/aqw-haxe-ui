@@ -48,8 +48,6 @@ class ApiNotificationManager {
         Api.dispatcher.addEventListener(ApiEvent.STICKY_NOTIFICATION, onStickyNotification);
         Api.dispatcher.addEventListener(ApiEvent.REMOVE_STICKY, onRemoveSticky);
         Api.dispatcher.addEventListener(ApiEvent.COMBAT_TOGGLED, onApiNotification);
-        Api.dispatcher.addEventListener(ApiEvent.SCRIPT_STARTED, onApiNotification);
-        Api.dispatcher.addEventListener(ApiEvent.SCRIPT_STOPPED, onApiNotification);
     }
 
     #if flash

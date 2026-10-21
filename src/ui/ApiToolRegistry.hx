@@ -3,7 +3,6 @@ package ui;
 #if flash
 import com.aqwapi.Api;
 import com.aqwapi.modules.CombatEngine;
-import com.aqwapi.modules.ScriptManager;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import com.aqwapi.utils.ApiConfig;
@@ -80,32 +79,6 @@ class ApiToolRegistry {
                         }
                     }
                     ApiNotificationManager.notify("Smart Combat: " + (next ? "Enabled" : "Disabled"));
-                }
-            },
-            {
-                id: "script_runner",
-                name: "Script Runner",
-                defaultLabel: "Script",
-                activeText: "Script",
-                inactiveText: "Script",
-                isToggle: true,
-                defaultHudX: 318,
-                defaultHudY: 10,
-                getState: function():Bool {
-                    return (ScriptManager.SINGLETON != null && ScriptManager.SINGLETON.isRunning);
-                },
-                onAction: function():Void {
-                    if (ScriptManager.SINGLETON.isRunning) {
-                        ScriptManager.SINGLETON.stop();
-                        ApiNotificationManager.notify("Script stopped.");
-                    } else {
-                        ScriptManager.SINGLETON.start();
-                        if (ScriptManager.SINGLETON.isRunning) {
-                            ApiNotificationManager.notify("Script started.");
-                        } else {
-                            ApiNotificationManager.notify("No script loaded! Open Script Manager.");
-                        }
-                    }
                 }
             },
             {

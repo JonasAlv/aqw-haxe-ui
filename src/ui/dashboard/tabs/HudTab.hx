@@ -328,24 +328,6 @@ class HudTab implements IDashboardTab {
             }
         );
 
-        // 2. HUD: Script Runner
-        modal.addItemRow(
-            "HUD: Script Runner",
-            "Floating button to start or stop running scripts.",
-            "toggle",
-            "",
-            false,
-            function():Void {
-                var cur = ApiHudManager.isButtonEnabled("script_runner");
-                var next = !cur;
-                ApiHudManager.setButtonEnabled("script_runner", next);
-                ApiNotificationManager.notify("Script Runner Button: " + (next ? "Visible" : "Hidden"));
-            },
-            function():Bool {
-                return ApiHudManager.isButtonEnabled("script_runner");
-            }
-        );
-
         modal.addSectionHeader("Gear & Loot");
 
         // 3. HUD: Smart Enhance

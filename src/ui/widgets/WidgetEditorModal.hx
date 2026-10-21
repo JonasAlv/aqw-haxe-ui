@@ -285,7 +285,7 @@ class WidgetEditorModal {
                 }
             }
             if (newItems.length == 0) {
-                newItems.push({ toolId: "script_runner", isFixed: true });
+                newItems.push({ toolId: "open_dashboard", isFixed: true });
             }
             def.items = newItems;
 

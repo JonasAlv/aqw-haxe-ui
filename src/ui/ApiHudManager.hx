@@ -3,7 +3,6 @@ package ui;
 #if flash
 import com.aqwapi.Api;
 import com.aqwapi.modules.CombatEngine;
-import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Sprite;
 import flash.events.Event;

@@ -3,9 +3,7 @@
 -D air
 -swf-version 40
 -debug
--lib hscript
 -swf bin/ModUI.swc
 
 --macro include('ui')
 --macro exclude('com.aqwapi')
---macro exclude('hscript')

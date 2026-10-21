@@ -3,7 +3,6 @@ package ui;
 #if flash
 import com.aqwapi.Api;
 import com.aqwapi.modules.CombatEngine;
-import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.utils.ApiLogger;
 import flash.display.Shape;
 import flash.display.Sprite;
@@ -20,7 +19,6 @@ import ui.prompts.ApiPrompts;
 import com.aqwapi.utils.ApiConfig;
 import ui.ApiStyle;
 import ui.dashboard.IDashboardTab;
-import ui.dashboard.tabs.ScriptsTab;
 import ui.dashboard.tabs.AutomationTab;
 import ui.dashboard.tabs.EnhancementsTab;
 import ui.dashboard.tabs.HudTab;
@@ -28,7 +26,6 @@ import ui.dashboard.tabs.UnitFramesTab;
 import ui.dashboard.tabs.SettingsTab;
 
 enum DashboardTab {
-    TabScripts;
     TabAutomation;
     TabEnhancements;
     TabHud;
@@ -82,7 +79,7 @@ class ApiDashboardModal extends Sprite {
     private var _closeBtn:Sprite;
     private var _escHintTxt:TextField;
 
-    private var _currentTab:DashboardTab = TabScripts;
+    private var _currentTab:DashboardTab = TabAutomation;
     private var _tabButtons:Map<DashboardTab, Sprite> = new Map<DashboardTab, Sprite>();
     private var _tabLabels:Map<DashboardTab, TextField> = new Map<DashboardTab, TextField>();
     private var _tabHandlers:Map<DashboardTab, IDashboardTab>;
@@ -136,7 +133,6 @@ class ApiDashboardModal extends Sprite {
         _pocket = pocket;
 
         _tabHandlers = [
-            TabScripts => new ScriptsTab(),
             TabAutomation => new AutomationTab(),
             TabEnhancements => new EnhancementsTab(),
             TabHud => new HudTab(),
@@ -171,7 +167,7 @@ class ApiDashboardModal extends Sprite {
         setupContentViewport();
 
         // 6. Render Initial Tab
-        switchTab(TabScripts);
+        switchTab(TabAutomation);
 
         // 7. Global Stage Listeners
         addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
@@ -368,7 +364,6 @@ class ApiDashboardModal extends Sprite {
 
     private function setupSidebar():Void {
         var tabs = [
-            { id: TabScripts, label: "Scripts" },
             { id: TabAutomation, label: "Automation" },
             { id: TabEnhancements, label: "Enhancements" },
             { id: TabHud, label: "On-Screen HUD" },

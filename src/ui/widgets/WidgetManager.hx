@@ -152,13 +152,12 @@ class WidgetManager {
 
     public static function getDefaultCustomWidgetItems():Array<WidgetItemConfig> {
         return [
-            { toolId: "script_runner", isFixed: true },
+            { toolId: "open_dashboard", isFixed: true },
             { toolId: "infinite_range", isFixed: false },
             { toolId: "accept_loot", isFixed: false },
             { toolId: "provoke_all", isFixed: false },
             { toolId: "toggle_bank", isFixed: false },
-            { toolId: "smart_enhance", isFixed: false },
-            { toolId: "open_dashboard", isFixed: false }
+            { toolId: "smart_enhance", isFixed: false }
         ];
     }
 

@@ -3,7 +3,6 @@ package ui.prompts;
 #if flash
 import com.aqwapi.Api;
 import com.aqwapi.modules.CombatEngine;
-import com.aqwapi.modules.ScriptManager;
 import com.aqwapi.managers.SkillManager;
 import com.aqwapi.utils.ApiConfig;
 import com.aqwapi.utils.ApiLogger;
@@ -16,7 +15,6 @@ import ui.Dropdown;
 import ui.EnhancementColors;
 import ui.ApiStyle;
 import ui.prompts.combat.CombatModeEditorModal;
-import ui.prompts.scripts.ScriptManagerModal;
 import ui.components.ClassModeSelector;
 
 class ApiPrompts {
@@ -407,33 +405,6 @@ class ApiPrompts {
         ApiPromptModal.show(overlay, dlg);
     }
 
-    public static function showPastePrompt(overlay:Dynamic):Void {
-        var dlg = ApiPromptModal.createDialog(600, 400, "Paste Script Below");
-
-        var input = ApiPromptModal.createInput(560, 300, "", true);
-        input.x = 20;
-        input.y = 40;
-        dlg.addChild(input);
-
-        var loadBtn = ApiPromptModal.createButton("Load Script", 120, 30, function():Void {
-            var txt = input.text;
-            ApiPromptModal.close();
-            ScriptManager.SINGLETON.loadScript(txt);
-            ApiNotificationManager.notify("Script loaded successfully!");
-        }, false);
-        loadBtn.x = 160;
-        loadBtn.y = 350;
-        dlg.addChild(loadBtn);
-
-        var cancelBtn = ApiPromptModal.createButton("Cancel", 120, 30, function():Void {
-            ApiPromptModal.close();
-        }, false);
-        cancelBtn.x = 320;
-        cancelBtn.y = 350;
-        dlg.addChild(cancelBtn);
-
-        ApiPromptModal.show(overlay, dlg);
-    }
 
     public static function showEnhancementPrompt(
         overlay:Dynamic,
@@ -773,88 +744,6 @@ class ApiPrompts {
         CombatModeEditorModal.show(overlay, initialClass, initialMode);
     }
 
-    public static function showLoadoutsPrompt(overlay:Dynamic):Void {
-        try {
-            var dlg = ApiPromptModal.createDialog(460, 390, "Class Loadouts (For Scripts)");
-
-            var availableClasses = getAvailableClasses();
-            if (availableClasses == null || availableClasses.length == 0) availableClasses = ["Current"];
-
-            var lblClassHdr = ApiPromptModal.createLabel("Class:", 210, 11, true);
-            lblClassHdr.x = 24;
-            lblClassHdr.y = 34;
-            lblClassHdr.textColor = ApiStyle.COLOR_TEXT_MUTED;
-            dlg.addChild(lblClassHdr);
-
-            var lblModeHdr = ApiPromptModal.createLabel("Combat Mode:", 188, 11, true);
-            lblModeHdr.x = 248;
-            lblModeHdr.y = 34;
-            lblModeHdr.textColor = ApiStyle.COLOR_TEXT_MUTED;
-            dlg.addChild(lblModeHdr);
-
-            setupLoadoutRow(dlg, "FARM Loadout:", 52, 74, availableClasses, "api_farm_class", "api_farm_mode", function(c:String, m:String):Void {
-                CombatEngine.farmClass = c;
-                CombatEngine.farmMode = m;
-            });
-
-            setupLoadoutRow(dlg, "SOLO Loadout:", 116, 138, availableClasses, "api_solo_class", "api_solo_mode", function(c:String, m:String):Void {
-                CombatEngine.soloClass = c;
-                CombatEngine.soloMode = m;
-            });
-
-            setupLoadoutRow(dlg, "BOSS Loadout:", 180, 202, availableClasses, "api_boss_class", "api_boss_mode", function(c:String, m:String):Void {
-                CombatEngine.bossClass = c;
-                CombatEngine.bossMode = m;
-            });
-
-            setupLoadoutRow(dlg, "DODGE Loadout:", 244, 266, availableClasses, "api_dodge_class", "api_dodge_mode", function(c:String, m:String):Void {
-                CombatEngine.dodgeClass = c;
-                CombatEngine.dodgeMode = m;
-            });
-
-            var doneBtn = ApiPromptModal.createButton("Done", 150, 35, function():Void {
-                ApiPromptModal.close();
-                ApiNotificationManager.notify("Class Loadouts Saved!");
-            }, true);
-            doneBtn.x = 155;
-            doneBtn.y = 335;
-            dlg.addChild(doneBtn);
-
-            ApiPromptModal.show(overlay, dlg);
-        } catch (e:Dynamic) {
-            var stackTrace:String = "";
-            #if flash
-            if (Std.isOfType(e, flash.errors.Error)) {
-                stackTrace = "\n" + (cast e : flash.errors.Error).getStackTrace();
-            }
-            #end
-            ApiLogger.error("Prompt", "Failed to show Class Loadouts prompt: " + e + stackTrace);
-            ApiNotificationManager.notify("Error opening loadouts: " + e);
-        }
-    }
-
-    private static function setupLoadoutRow(
-        dlg:Sprite,
-        title:String,
-        lblY:Float,
-        ddY:Float,
-        classes:Array<String>,
-        classKey:String,
-        modeKey:String,
-        onUpdate:String->String->Void
-    ):Void {
-        var lbl = ApiPromptModal.createLabel(title, 210, 14, true);
-        lbl.x = 24;
-        lbl.y = lblY;
-        dlg.addChild(lbl);
-
-        var selector = new ClassModeSelector(215, 188, 25, 9, false, "Auto (First Available)", onUpdate);
-        selector.x = 24;
-        selector.y = ddY;
-        selector.bindConfig(classKey, modeKey);
-        dlg.addChild(selector);
-    }
-
     public static var lastInventoryClassKeys(get, never):Map<String, Bool>;
     private static inline function get_lastInventoryClassKeys():Map<String, Bool> {
         return ClassModeSelector.lastInventoryClassKeys;
@@ -867,15 +756,10 @@ class ApiPrompts {
     public static inline function getCurrentClass():String {
         return ClassModeSelector.getCurrentClass();
     }
-
-    public static inline function showScriptManager(overlay:Dynamic):Void {
-        ScriptManagerModal.show(overlay);
-    }
 }
 #else
 class ApiPrompts {
     public static function showCombatModeEditorPrompt(overlay:Dynamic, initialClass:String = null, initialMode:String = null):Void {}
-    public static function showScriptManager(overlay:Dynamic):Void {}
     public static function getAvailableClasses(includeAllKnown:Bool = true):Array<String> return ["Current"];
     public static function getCurrentClass():String return "";
 }
