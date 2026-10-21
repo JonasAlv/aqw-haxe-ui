@@ -101,23 +101,6 @@ class AutomationTab implements IDashboardTab {
                 ApiPrompts.showCombatPrompt(modal.overlay);
             }
         );
-
-        // 5. Auto-Quest
-        var isQuestAuto = (Api.quest != null && Api.quest.isAutoRunning);
-        var qStr = (Api.quest != null) ? Api.quest.autoQuestString : "";
-        var questDesc = isQuestAuto
-            ? ("Active: Safe looping accept & turn-in (" + (qStr != "" ? qStr : "Running") + ")")
-            : "Automatically accept and turn in quests by IDs in the background using safe queue pacing.";
-        modal.addItemRow(
-            "Auto-Quest",
-            questDesc,
-            "button",
-            isQuestAuto ? "Running" : "Configure",
-            isQuestAuto,
-            function():Void {
-                ApiPrompts.showQuestPrompt(modal.overlay);
-            }
-        );
     }
 }
 #else
