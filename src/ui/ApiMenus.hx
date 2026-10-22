@@ -159,7 +159,10 @@ class ApiMenus {
         // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
         WidgetManager.init(theStage, host);
 
-        // 7. Frame hooks (cutscenes, infinite range, death spawn)
+        // 7. Central API keybind registry and input dispatcher.
+        ApiKeybinds.init(theStage, host);
+
+        // 8. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);
     }
 
@@ -208,6 +211,7 @@ class ApiMenus {
         try { ApiNotificationManager.instance.destroy(); } catch (_:Dynamic) {}
         try { ApiHudManager.dispose(); } catch (_:Dynamic) {}
         try { ScreenFilterManager.dispose(); } catch (_:Dynamic) {}
+        try { ApiKeybinds.dispose(); } catch (_:Dynamic) {}
         _injected = false;
         _stage = null;
         _host = null;
