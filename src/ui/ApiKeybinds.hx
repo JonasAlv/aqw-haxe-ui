@@ -135,6 +135,8 @@ class ApiKeybinds {
             function():Void { toggleCombat(); });
         register("script_toggle", "Script Runner", "Start or stop the active API script.", 0,
             function():Void { toggleScript(); });
+        register("script_manager", "Script Manager", "Open the API script editor and script list.", 0,
+            function():Void { TopBar.openScriptManager(); });
         register("menu_toggle", "API Menu", "Open or close the API control center.", 0,
             function():Void { toggleMenu(); });
         register("auto_panel", "Auto Panel", "Open or close the combat and hunt controls.", 0,
