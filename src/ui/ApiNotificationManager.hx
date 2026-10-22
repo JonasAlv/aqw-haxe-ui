@@ -5,6 +5,7 @@ import com.aqwapi.events.ApiEvent;
 
 #if flash
 import flash.display.Sprite;
+import flash.events.Event;
 #end
 
 class ApiNotificationManager {
@@ -32,7 +33,7 @@ class ApiNotificationManager {
         if (instance._initialized) {
             instance.showNotification(null, message, false, 1);
         } else {
-            instance._pendingMessages.push({ id: null, message: message, sticky: false, repeat: 1 });
+            instance.enqueue({ id: null, message: message, sticky: false, repeat: 1 });
         }
     }
 
@@ -41,22 +42,48 @@ class ApiNotificationManager {
     private var _notifications:Array<ApiNotification> = [];
     #end
     private var _initialized:Bool = false;
+    private var _listenersAttached:Bool = false;
+    #if flash
+    private var _resizeHandler:Dynamic = null;
+    #end
     private var _pendingMessages:Array<{ id:String, message:String, sticky:Bool, repeat:Int }> = [];
 
     public function new() {
+        attachListeners();
+    }
+
+    private function attachListeners():Void {
+        if (_listenersAttached || Api.dispatcher == null) return;
         Api.dispatcher.addEventListener(ApiEvent.NOTIFICATION, onApiNotification);
         Api.dispatcher.addEventListener(ApiEvent.STICKY_NOTIFICATION, onStickyNotification);
         Api.dispatcher.addEventListener(ApiEvent.REMOVE_STICKY, onRemoveSticky);
         Api.dispatcher.addEventListener(ApiEvent.COMBAT_TOGGLED, onApiNotification);
         Api.dispatcher.addEventListener(ApiEvent.SCRIPT_STARTED, onApiNotification);
         Api.dispatcher.addEventListener(ApiEvent.SCRIPT_STOPPED, onApiNotification);
+        _listenersAttached = true;
+    }
+
+    private function detachListeners():Void {
+        if (!_listenersAttached || Api.dispatcher == null) return;
+        Api.dispatcher.removeEventListener(ApiEvent.NOTIFICATION, onApiNotification);
+        Api.dispatcher.removeEventListener(ApiEvent.STICKY_NOTIFICATION, onStickyNotification);
+        Api.dispatcher.removeEventListener(ApiEvent.REMOVE_STICKY, onRemoveSticky);
+        Api.dispatcher.removeEventListener(ApiEvent.COMBAT_TOGGLED, onApiNotification);
+        Api.dispatcher.removeEventListener(ApiEvent.SCRIPT_STARTED, onApiNotification);
+        Api.dispatcher.removeEventListener(ApiEvent.SCRIPT_STOPPED, onApiNotification);
+        _listenersAttached = false;
     }
 
     #if flash
     public function init(container:Sprite):Void {
         if (_initialized) return;
+        attachListeners();
         _initialized = true;
         _container = container;
+        if (_container.stage != null) {
+            _resizeHandler = function(_:Event):Void { positionNotifications(); };
+            _container.stage.addEventListener(Event.RESIZE, _resizeHandler, false, 0, true);
+        }
         for (item in _pendingMessages) {
             showNotification(item.id, item.message, item.sticky, item.repeat);
         }
@@ -64,6 +91,7 @@ class ApiNotificationManager {
     }
     #else
     public function init(container:Dynamic):Void {
+        attachListeners();
         _initialized = true;
     }
     #end
@@ -215,12 +243,18 @@ class ApiNotificationManager {
             notif.destroy();
         }
         _notifications = [];
+        if (_resizeHandler != null && _container != null && _container.stage != null) {
+            _container.stage.removeEventListener(Event.RESIZE, _resizeHandler);
+        }
         if (_container != null && _container.parent != null) {
             _container.parent.removeChild(_container);
         }
         _container = null;
+        _resizeHandler = null;
+        _pendingMessages = [];
         #end
         _initialized = false;
+        detachListeners();
     }
 }
 

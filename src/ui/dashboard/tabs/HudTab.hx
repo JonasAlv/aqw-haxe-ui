@@ -153,6 +153,23 @@ class HudTab implements IDashboardTab {
         );
 
         modal.addItemRow(
+            "Top Bar: Script Button",
+            "Show or hide the Script Manager button. This opens the editor without starting a script.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = TopBar.isButtonVisible("scripts", true);
+                var next = !cur;
+                TopBar.setButtonVisible("scripts", next);
+                ApiNotificationManager.notify("Top Bar Script: " + (next ? "Visible" : "Hidden"));
+            },
+            function():Bool {
+                return TopBar.isButtonVisible("scripts", true);
+            }
+        );
+
+        modal.addItemRow(
             "Top Bar: Bank Button",
             "Quick 1-click bank opener on the top bar.",
             "toggle",

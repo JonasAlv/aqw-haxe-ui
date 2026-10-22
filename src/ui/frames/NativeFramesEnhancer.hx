@@ -650,12 +650,6 @@ class NativeFramesEnhancer {
         ApiConfig.setBool(CONFIG_RIGHT_CLICK, enabled);
     }
 
-    public static inline function isTargetOfTargetEnabled():Bool {
-        return false;
-    }
-
-    public static inline function setTargetOfTargetEnabled(enabled:Bool):Void {}
-
     public static inline function isMovableFramesEnabled():Bool {
         return ApiConfig.getBool(CONFIG_MOVABLE, true);
     }
@@ -1201,8 +1195,6 @@ class NativeFramesEnhancer {
     public static function setHpPercentEnabled(enabled:Bool):Void {}
     public static function isRightClickEnabled():Bool return true;
     public static function setRightClickEnabled(enabled:Bool):Void {}
-    public static function isTargetOfTargetEnabled():Bool return false;
-    public static function setTargetOfTargetEnabled(enabled:Bool):Void {}
     public static function isMovableFramesEnabled():Bool return true;
     public static function setMovableFramesEnabled(enabled:Bool):Void {}
     public static function resetFramePositions():Void {}

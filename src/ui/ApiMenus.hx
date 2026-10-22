@@ -13,8 +13,10 @@ import flash.display.Sprite;
 import flash.display.Stage;
 import flash.events.Event;
 import flash.events.MouseEvent;
+import flash.events.TimerEvent;
 import flash.text.TextField;
 import flash.text.TextFormat;
+import flash.utils.Timer;
 import ui.ApiDashboardModal;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
@@ -27,6 +29,8 @@ class ApiMenus {
     private static var _injected:Bool = false;
     private static var _stage:Stage = null;
     private static var _host:Dynamic = null;
+    private static var _runtimeTimer:Timer = null;
+    private static var _accountListener:Dynamic = null;
 
     public static function isInGame():Bool {
         try {
@@ -118,13 +122,14 @@ class ApiMenus {
         ApiConfig.reload();
 
         if (Api.dispatcher != null) {
-            Api.dispatcher.addEventListener(ApiEvent.ACCOUNT_CHANGED, function(e:Dynamic):Void {
+            _accountListener = function(e:Dynamic):Void {
                 ApiConfig.reload();
                 var acc = (ApiStorage.currentAccount != null) ? ApiStorage.currentAccount : "";
                 if (acc != "") {
                     ApiNotificationManager.notify("Active profile: " + acc);
                 }
-            });
+            };
+            Api.dispatcher.addEventListener(ApiEvent.ACCOUNT_CHANGED, _accountListener);
         }
 
         // 3. Restore loot and AC settings
@@ -154,40 +159,62 @@ class ApiMenus {
         // 6. Master Modular Widgets & Widget Creation System (WidgetManager)
         WidgetManager.init(theStage, host);
 
-        // 7. Frame hooks (cutscenes, infinite range, death spawn)
+        // 7. Central API keybind registry and input dispatcher.
+        ApiKeybinds.init(theStage, host);
+
+        // 8. Frame hooks (cutscenes, infinite range, death spawn)
         setupFrameHooks(theStage);
     }
 
     private static function setupFrameHooks(theStage:Stage):Void {
-        theStage.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
-            var isScriptRunning = ScriptManager.SINGLETON.isRunning;
+        if (_runtimeTimer != null) return;
+        _stage = theStage;
+        // State-maintenance work does not need a render-frame callback. Keep a small watchdog
+        // for missed game events while avoiding repeated AQW object mutation at 60 FPS.
+        _runtimeTimer = new Timer(250);
+        _runtimeTimer.addEventListener(TimerEvent.TIMER, onRuntimeTick, false, 0, true);
+        _runtimeTimer.start();
+    }
 
-            // Cutscene skipping (Skua logic - always active during scripts or when enabled in settings)
-            var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
-            if (Api.map != null) {
-                Api.map.skipCutscenes = skipCutscenesActive;
-                if (skipCutscenesActive) {
-                    Api.map.checkSkipCutscenes();
-                }
-            }
+    private static function onRuntimeTick(e:TimerEvent):Void {
+        if (!isInGame()) return;
+        var isScriptRunning = ScriptManager.SINGLETON.isRunning;
+        var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
+        var infiniteRangeActive = isScriptRunning || ApiConfig.getBool("api_infinite_range", false);
+        var deathSpawnActive = isScriptRunning || ApiConfig.getBool("api_death_spawn", false);
 
-            // Infinite range & Death spawn tick
-            var infiniteRangeActive = isScriptRunning || ApiConfig.getBool("api_infinite_range", false);
-            var deathSpawnActive = isScriptRunning || ApiConfig.getBool("api_death_spawn", false);
+        if (Api.map != null) {
+            if (Api.map.skipCutscenes != skipCutscenesActive) Api.map.skipCutscenes = skipCutscenesActive;
+            if (skipCutscenesActive) Api.map.checkSkipCutscenes();
+            if (Api.map.autoDeathSpawn != deathSpawnActive) Api.map.autoDeathSpawn = deathSpawnActive;
+            if (deathSpawnActive) Api.map.checkAutoDeathSpawn();
+        }
+        if (Api.combat != null) {
+            if (Api.combat.infiniteRange != infiniteRangeActive) Api.combat.infiniteRange = infiniteRangeActive;
+            if (infiniteRangeActive) Api.combat.applyInfiniteRange();
+        }
+    }
 
-            if (Api.map != null) {
-                Api.map.autoDeathSpawn = deathSpawnActive;
-                if (deathSpawnActive) {
-                    Api.map.checkAutoDeathSpawn();
-                }
-            }
-            if (Api.combat != null) {
-                Api.combat.infiniteRange = infiniteRangeActive;
-                if (infiniteRangeActive) {
-                    Api.combat.applyInfiniteRange();
-                }
-            }
-        });
+    public static function dispose():Void {
+        if (_runtimeTimer != null) {
+            _runtimeTimer.stop();
+            _runtimeTimer.removeEventListener(TimerEvent.TIMER, onRuntimeTick);
+            _runtimeTimer = null;
+        }
+        if (_accountListener != null && Api.dispatcher != null) {
+            Api.dispatcher.removeEventListener(ApiEvent.ACCOUNT_CHANGED, _accountListener);
+            _accountListener = null;
+        }
+        // These managers own their own stage/container resources. Dispose them
+        // before allowing a future injection so a reinjected UI cannot retain
+        // stale notification, HUD, or filter listeners.
+        try { ApiNotificationManager.instance.destroy(); } catch (_:Dynamic) {}
+        try { ApiHudManager.dispose(); } catch (_:Dynamic) {}
+        try { ScreenFilterManager.dispose(); } catch (_:Dynamic) {}
+        try { ApiKeybinds.dispose(); } catch (_:Dynamic) {}
+        _injected = false;
+        _stage = null;
+        _host = null;
     }
 }
 #else
@@ -196,5 +223,6 @@ class ApiMenus {
     public static function injectStandalone(stage:Dynamic):Void {}
     public static function resetMenuButtonPosition():Void {}
     public static function updateFloatingMenuVisibility():Void {}
+    public static function dispose():Void {}
 }
 #end

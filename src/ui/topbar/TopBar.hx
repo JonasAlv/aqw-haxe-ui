@@ -17,6 +17,7 @@ import ui.ApiDashboardModal;
 import ui.ApiMenus;
 import ui.ApiNotificationManager;
 import ui.ApiStyle;
+import ui.prompts.ApiPrompts;
 
 /**
  * TopBar: Sleek Skua-style control bar.
@@ -26,7 +27,7 @@ import ui.ApiStyle;
  * - Draggable by holding anywhere on the bar (no clunky grab handle).
  * - Stackable Vertical Layout: Can be toggled between Horizontal and Vertical Stack
  *   with left accent markers matching user theme.
- * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Bank.
+ * - Configurable Buttons: Toggle visibility of Auto, Jump, Players, Menu, Script, Bank.
  * - Adaptive Dropdown Direction: Dropdowns automatically open UP when in the lower half of screen
  *   or lacking room below, and DOWN when in the top half. Dropdowns NEVER cover or move the button!
  * - Perfectly attached: uses true visual panel heights (e.g. _playersPanel.getPanelHeight()).
@@ -61,6 +62,9 @@ class TopBar extends Sprite {
 
     private var _tabBank:Sprite;
     private var _txtBank:TextField;
+
+    private var _tabScripts:Sprite;
+    private var _txtScripts:TextField;
 
     // Dropdown Panels (attached to stage for pure coordinate stability)
     private var _dropdownContainer:Sprite;
@@ -182,6 +186,13 @@ class TopBar extends Sprite {
         }
     }
 
+    /** Open the full Script Manager without changing the Script Runner state. */
+    public static function openScriptManager():Void {
+        if (instance == null) return;
+        instance.closeDropdown();
+        ApiPrompts.showScriptManager(instance._host != null ? instance._host : instance._stage);
+    }
+
     public static function init(stageObj:Dynamic, hostObj:Dynamic = null):Void {
         if (instance != null) return;
         var theStage:Stage = null;
@@ -232,6 +243,7 @@ class TopBar extends Sprite {
             { id: "jump",    label: "Jump",    accent: 0x38BDF8, defVis: true,  hWidth: 38.0 },
             { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 76.0 },
             { id: "menu",    label: "Menu",    accent: 0xEF4444, defVis: true,  hWidth: 42.0 },
+            { id: "scripts", label: "Script",  accent: 0xE879F9, defVis: true,  hWidth: 48.0 },
             { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 }
         ];
 
@@ -280,6 +292,9 @@ class TopBar extends Sprite {
             } else if (bDef.id == "bank") {
                 _tabBank = tabBtn;
                 _txtBank = cast tabBtn.getChildByName("label");
+            } else if (bDef.id == "scripts") {
+                _tabScripts = tabBtn;
+                _txtScripts = cast tabBtn.getChildByName("label");
             }
         }
 
@@ -384,6 +399,8 @@ class TopBar extends Sprite {
         } else if (id == "menu") {
             closeDropdown();
             toggleDashboard();
+        } else if (id == "scripts") {
+            openScriptManager();
         } else if (id == "bank") {
             closeDropdown();
             toggleBank();
@@ -394,8 +411,6 @@ class TopBar extends Sprite {
         try {
             if (Api.inventory != null) {
                 Api.inventory.toggleBank();
-            } else if (Api.game != null && Api.game.world != null) {
-                Api.game.world.toggleBank();
             }
         } catch (_:Dynamic) {}
     }
@@ -457,6 +472,7 @@ class TopBar extends Sprite {
             "jump" => 0x38BDF8,
             "players" => 0xC084FC,
             "menu" => 0xEF4444,
+            "scripts" => 0xE879F9,
             "bank" => 0xF59E0B
         ];
         var buttonWidths = [
@@ -464,6 +480,7 @@ class TopBar extends Sprite {
             "jump"    => 38.0,
             "players" => 76.0,
             "menu"    => 42.0,
+            "scripts" => 48.0,
             "bank"    => 40.0
         ];
         var tabH:Float = isVert ? 22.0 : 20.0;
@@ -904,6 +921,7 @@ class TopBar {
     public static function toggleAuto(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public static function toggleJump(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public static function togglePlayers(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
+    public static function openScriptManager():Void {}
     public function isHunting():Bool return false;
 }
 #end

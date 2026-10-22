@@ -26,6 +26,7 @@ import ui.dashboard.tabs.EnhancementsTab;
 import ui.dashboard.tabs.HudTab;
 import ui.dashboard.tabs.UnitFramesTab;
 import ui.dashboard.tabs.SettingsTab;
+import ui.dashboard.tabs.KeybindsTab;
 
 enum DashboardTab {
     TabScripts;
@@ -34,6 +35,7 @@ enum DashboardTab {
     TabHud;
     TabUnitFrames;
     TabSettings;
+    TabKeybinds;
 }
 
 class ApiDashboardModal extends Sprite {
@@ -141,7 +143,8 @@ class ApiDashboardModal extends Sprite {
             TabEnhancements => new EnhancementsTab(),
             TabHud => new HudTab(),
             TabUnitFrames => new UnitFramesTab(),
-            TabSettings => new SettingsTab()
+            TabSettings => new SettingsTab(),
+            TabKeybinds => new KeybindsTab()
         ];
 
         updateDimensions();
@@ -373,7 +376,8 @@ class ApiDashboardModal extends Sprite {
             { id: TabEnhancements, label: "Enhancements" },
             { id: TabHud, label: "On-Screen HUD" },
             { id: TabUnitFrames, label: "Unit Frames" },
-            { id: TabSettings, label: "Settings" }
+            { id: TabSettings, label: "Settings" },
+            { id: TabKeybinds, label: "Keybinds" }
         ];
 
         var tabY:Float = 60;
