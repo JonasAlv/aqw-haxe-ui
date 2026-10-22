@@ -33,8 +33,14 @@ class NameplateDisplay extends Sprite {
     public static inline var SUB_H:Float            = 14.0;  // Subtitle height
 
     // Palette Definitions
-    // Players (friendly / neutral)
-    public static inline var COLOR_NAME_PLAYER:Int     = 0x66CCFF; // Sky cyan
+    // Players (friendly / neutral). These match AE Avatar.as:
+    // regular players are white; upgraded members are light blue.
+    public static inline var COLOR_NAME_PLAYER:Int     = 0xFFFFFF;
+    public static inline var COLOR_NAME_MEMBER:Int    = 0x8CD5FF;
+    public static inline var COLOR_NAME_ADMIN:Int     = 0xBB6DFF; // access 100 / 50
+    public static inline var COLOR_NAME_STAFF_GOLD:Int = 0xFECB38; // access 60 / 61 / 62
+    public static inline var COLOR_NAME_STAFF_GREEN:Int = 0x50FF28; // access 40
+    public static inline var COLOR_NAME_STAFF_TEAL:Int = 0x00CE91; // access 30
     public static inline var COLOR_SUB_PLAYER:Int      = 0xFFFFFF; // Crisp white
     public static inline var COLOR_BAR_BG_PLAYER:Int   = 0x0A0B10; // High-contrast solid dark charcoal well
     public static inline var COLOR_BORDER_PLAYER:Int   = 0x000000; // Solid black border
@@ -67,6 +73,7 @@ class NameplateDisplay extends Sprite {
     private var _lastIsTarget:Bool = false;
     private var _lastShowNames:Bool = true;
     private var _lastShowBar:Bool = false;
+    private var _lastNameColor:Int = -1;
 
     public function new(isEnemy:Bool) {
         super();
@@ -243,7 +250,6 @@ class NameplateDisplay extends Sprite {
         // Note: pname.x in Flash is -68.0 (an internal left-offset for a 136px box), whereas
         // mcChar.x (0.0) is the true unit center. Since NameplateDisplay is already centered around 0,
         // x must be mcChar.x (0.0).
-        var nativeNameVisible:Bool = true;
         try {
             var pn:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
             if (pn != null) {
@@ -277,7 +283,6 @@ class NameplateDisplay extends Sprite {
                     if (scaleY != sY) scaleY = sY;
                 } catch (_:Dynamic) {}
 
-                nativeNameVisible = (pn.visible != false);
             }
         } catch (_:Dynamic) {}
 
@@ -287,13 +292,17 @@ class NameplateDisplay extends Sprite {
             _nameTxt.text = rawName;
             _nameTxt.filters = ApiStyle.getTextOutlineFilter();
         }
+        var nameColor:Int = isEnemy ? COLOR_NAME_ENEMY : resolvePlayerNameColor(ent);
+        if (nameColor != _lastNameColor) {
+            _lastNameColor = nameColor;
+            _nameTxt.textColor = nameColor;
+        }
         if (rawSub != _lastSub) {
             _lastSub = rawSub;
             _subTxt.text = rawSub;
             _subTxt.filters = ApiStyle.getTextOutlineFilter();
         }
 
-        showNames = showNames && nativeNameVisible;
         _nameTxt.visible = showNames;
         _subTxt.visible = (showNames && rawSub != "");
 
@@ -451,6 +460,30 @@ class NameplateDisplay extends Sprite {
         }
     }
 
+    /** Mirrors AE's Avatar.as name color selection, including access levels. */
+    private function resolvePlayerNameColor(ent:EntityDTO):Int {
+        if (ent == null || ent.raw == null) return COLOR_NAME_PLAYER;
+        try {
+            var data:Dynamic = com.aqwapi.utils.ApiUtils.safeField(ent.raw, "objData");
+            var accessLevel:Int = (data != null && com.aqwapi.utils.ApiUtils.safeField(data, "intAccessLevel") != null)
+                ? Std.int(com.aqwapi.utils.ApiUtils.safeField(data, "intAccessLevel")) : 0;
+            switch (accessLevel) {
+                case 100, 50: return COLOR_NAME_ADMIN;
+                case 60, 61, 62: return COLOR_NAME_STAFF_GOLD;
+                case 40: return COLOR_NAME_STAFF_GREEN;
+                case 30: return COLOR_NAME_STAFF_TEAL;
+            }
+
+            var upgraded:Dynamic = com.aqwapi.utils.ApiUtils.safeField(ent.raw, "isUpgraded");
+            if (upgraded != null && Reflect.isFunction(upgraded)) {
+                try {
+                    if (Reflect.callMethod(ent.raw, upgraded, []) == true) return COLOR_NAME_MEMBER;
+                } catch (_:Dynamic) {}
+            }
+        } catch (_:Dynamic) {}
+        return COLOR_NAME_PLAYER;
+    }
+
     public function destroy():Void {
         removeEventListener(MouseEvent.CLICK, onClick);
         if (_targetArrows != null) {
@@ -471,7 +504,7 @@ class NameplateDisplay extends Sprite {
  *
  * Coordinates:
  * - Replaces AQW's heavy, embedded-font vector names with bitmap-cached fast font (_sans).
- * - Player Nameplates: Green overhead health bar + Sky Cyan name + White guild subtitle.
+ * - Player Nameplates: Green overhead health bar + AE-matching name colors + White guild subtitle.
  * - Enemy Nameplates: Red overhead health bar + Vibrant Red name + Coral race subtitle.
  * - Consumes clean EntityDTO data from the API; handles ONLY UI rendering and events.
  * - Full interactive click-to-target support.
@@ -483,6 +516,7 @@ class NameplateUnitFrame {
     private static var _pocket:Dynamic = null;
     private static var _overlay:Dynamic = null;
     private static var _theStage:Dynamic = null;
+    private static var _nativeStates:Array<Dynamic> = [];
 
     public static function init(pocket:Dynamic = null, overlay:Dynamic = null):Void {
         if (_initialized) return;
@@ -604,11 +638,11 @@ class NameplateUnitFrame {
 
     private static function onEnterFrame(e:Event):Void {
         if (!ApiMenus.isInGame() || !isWidgetEnabled()) {
-            if (_activePlates.length > 0) disableAllPlates();
+            if (_activePlates.length > 0 || _nativeStates.length > 0) disableAllPlates();
             return;
         }
 
-        // 1. Prune detached, dead, off-stage, or no-longer-replaced plates (restoring the native one)
+        // 1. Prune detached, dead, off-stage, or no-longer-replaced plates.
         var i:Int = _activePlates.length - 1;
         while (i >= 0) {
             var p = _activePlates[i];
@@ -624,7 +658,6 @@ class NameplateUnitFrame {
             }
 
             if (dead) {
-                if (p.entity != null) p.entity.showNativeName();
                 p.destroy();
                 _activePlates.splice(i, 1);
             }
@@ -633,44 +666,25 @@ class NameplateUnitFrame {
 
         // 2. Query entities on screen directly from the API
         var entities:Array<EntityDTO> = (Api.map != null) ? Api.map.getEntitiesOnScreen() : [];
+        var seenNativeUnits:Array<Dynamic> = [];
 
         for (ent in entities) {
             if (ent == null || !ent.hasGraphic || ent.pMC == null) continue;
             var isEnemy:Bool = ent.isMonster || ent.isHostilePvP;
+            // Once this module is enabled, it owns native name/guild visibility
+            // for every visible unit. This prevents the game's pname from
+            // reappearing when a custom name toggle is OFF.
+            takeNativeOwnership(ent.pMC, isEnemy ? isEnemiesEnabled() : isPlayersEnabled());
+            seenNativeUnits.push(ent.pMC);
             if (!isTypeReplaced(isEnemy)) continue;
             attachOrUpdate(ent, isEnemy);
         }
+        restoreUnseenNativeUnits(seenNativeUnits);
     }
 
     private static function attachOrUpdate(ent:EntityDTO, isEnemy:Bool):Void {
         var mc:Dynamic = ent.pMC;
         if (mc == null) return;
-
-        // Suppress native pname / hpBar according to active settings (alpha only; the game keeps owning position and visibility)
-        try {
-            var pn:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
-            if (pn != null) {
-                var hidePn:Bool = isEnemy ? isEnemyNamesEnabled() : isPlayerNamesEnabled();
-                if (hidePn) {
-                    if (pn.alpha != 0.0) pn.alpha = 0.0;
-                } else {
-                    if (pn.alpha != 1.0) pn.alpha = 1.0;
-                }
-            }
-        } catch (_:Dynamic) {}
-
-        try {
-            var hb:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "hpBar");
-            if (hb != null) {
-                var customHPEnabled:Bool = isEnemy ? isEnemiesEnabled() : isPlayersEnabled();
-                if (customHPEnabled) {
-                    if (hb.alpha != 0.0) hb.alpha = 0.0;
-                    hb.visible = false;
-                } else {
-                    if (hb.alpha != 1.0) hb.alpha = 1.0;
-                }
-            }
-        } catch (_:Dynamic) {}
 
         var plate:NameplateDisplay = null;
         for (p in _activePlates) {
@@ -702,10 +716,98 @@ class NameplateUnitFrame {
 
     private static function disableAllPlates():Void {
         for (p in _activePlates) {
-            if (p.entity != null) p.entity.showNativeName();
             p.destroy();
         }
         _activePlates = [];
+        restoreAllNativeUnits();
+    }
+
+    /** Save native visibility once, then suppress only the pieces the module owns. */
+    private static function takeNativeOwnership(mc:Dynamic, customHPEnabled:Bool):Void {
+        if (mc == null) return;
+        var state:Dynamic = null;
+        for (candidate in _nativeStates) {
+            if (candidate.mc == mc) {
+                state = candidate;
+                break;
+            }
+        }
+        if (state == null) {
+            var pn:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "pname");
+            var hb:Dynamic = com.aqwapi.utils.ApiUtils.safeField(mc, "hpBar");
+            state = {
+                mc: mc,
+                pn: pn,
+                pnAlpha: pn != null ? pn.alpha : 1.0,
+                pnVisible: pn != null ? pn.visible : true,
+                hb: hb,
+                hbAlpha: hb != null ? hb.alpha : 1.0,
+                hbVisible: hb != null ? hb.visible : true,
+                hbSuppressed: false
+            };
+            _nativeStates.push(state);
+        }
+
+        // Native pname contains both the player name and guild name. Hide it
+        // unconditionally while this module is active; the custom toggles now
+        // decide whether our replacement labels are visible.
+        if (state.pn != null) state.pn.alpha = 0.0;
+
+        if (state.hb != null) {
+            if (customHPEnabled) {
+                state.hb.alpha = 0.0;
+                state.hb.visible = false;
+                state.hbSuppressed = true;
+            } else if (state.hbSuppressed == true) {
+                restoreNativeHealthBar(state);
+                state.hbSuppressed = false;
+            }
+        }
+    }
+
+    private static function restoreNativeHealthBar(state:Dynamic):Void {
+        if (state == null || state.hb == null) return;
+        state.hb.alpha = state.hbAlpha;
+        state.hb.visible = state.hbVisible;
+    }
+
+    private static function restoreUnseenNativeUnits(seen:Array<Dynamic>):Void {
+        var i:Int = _nativeStates.length - 1;
+        while (i >= 0) {
+            var state:Dynamic = _nativeStates[i];
+            var found:Bool = false;
+            for (mc in seen) {
+                if (mc == state.mc) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                restoreNativeState(state);
+                _nativeStates.splice(i, 1);
+            }
+            i--;
+        }
+    }
+
+    private static function restoreAllNativeUnits():Void {
+        for (state in _nativeStates) restoreNativeState(state);
+        _nativeStates = [];
+    }
+
+    private static function restoreNativeState(state:Dynamic):Void {
+        if (state == null) return;
+        try {
+            if (state.pn != null) {
+                state.pn.alpha = state.pnAlpha;
+                state.pn.visible = state.pnVisible;
+            }
+        } catch (_:Dynamic) {}
+        // If custom bars were never suppressing this unit, the game owns its
+        // current V-controlled state and must be left untouched.
+        try {
+            if (state.hbSuppressed == true) restoreNativeHealthBar(state);
+        } catch (_:Dynamic) {}
     }
 }
 #else
