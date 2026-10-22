@@ -1,6 +1,9 @@
+# Canonical Ruffle UI build used by aqw-mugetsu, aqw-rs-mugetsu, and Artix.
+# Keep the API source path adjacent to the UI so this profile is reproducible
+# from the repository checkout.
 -cp src
 -cp ../aqw-haxe-api/src
--D air
+-D ruffle
 -swf-version 40
 -debug
 -lib hscript

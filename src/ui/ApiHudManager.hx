@@ -8,6 +8,8 @@ import com.aqwapi.utils.ApiLogger;
 import flash.display.Sprite;
 import flash.events.Event;
 import flash.events.MouseEvent;
+import flash.events.TimerEvent;
+import flash.utils.Timer;
 import flash.text.TextField;
 import flash.text.TextFormat;
 import flash.text.TextFormatAlign;
@@ -30,6 +32,11 @@ class ApiHudManager {
     private static var _pocket:Dynamic = null;
     private static var _overlay:Dynamic = null;
     private static var _buttons:Map<String, Sprite> = new Map<String, Sprite>();
+    private static var _refreshers:Map<String, Void->Void> = new Map<String, Void->Void>();
+    private static var _dragMoveHandlers:Map<String, Dynamic> = new Map<String, Dynamic>();
+    private static var _dragUpHandlers:Map<String, Dynamic> = new Map<String, Dynamic>();
+    private static var _stage:Dynamic = null;
+    private static var _refreshTimer:Timer = null;
     private static var _defs:Array<HudButtonDef> = [];
     private static var _initialized:Bool = false;
 
@@ -63,7 +70,8 @@ class ApiHudManager {
         var theStage:Dynamic = (_pocket != null && _pocket.stage != null) ? _pocket.stage : (_overlay != null ? _overlay.stage : null);
 
         var attachToStage = function(stageObj:Dynamic):Void {
-            if (stageObj == null) return;
+            if (stageObj == null || _refreshTimer != null) return;
+            _stage = stageObj;
             for (def in _defs) {
                 if (!_buttons.exists(def.id)) {
                     var btn = createButton(def, stageObj);
@@ -71,6 +79,13 @@ class ApiHudManager {
                     stageObj.addChild(btn);
                 }
             }
+            // HUD state is API/game state, not animation. Polling it at 4 Hz avoids
+            // one visibility/configuration pass per render frame while remaining
+            // responsive enough for menu and combat status changes.
+            _refreshTimer = new Timer(250);
+            _refreshTimer.addEventListener(TimerEvent.TIMER, onRefreshTimer, false, 0, true);
+            _refreshTimer.start();
+            onRefreshTimer(null);
         };
 
         if (theStage != null) {
@@ -231,7 +246,7 @@ class ApiHudManager {
             dragStartY = e.stageY - btn.y;
         });
 
-        theStage.addEventListener(MouseEvent.MOUSE_MOVE, function(e:MouseEvent):Void {
+        var dragMoveHandler:Dynamic = function(e:MouseEvent):Void {
             if (isDragging) {
                 var dx = (e.stageX - dragStartX) - btn.x;
                 var dy = (e.stageY - dragStartY) - btn.y;
@@ -249,9 +264,11 @@ class ApiHudManager {
                 btn.x = nx;
                 btn.y = ny;
             }
-        });
+        };
+        _dragMoveHandlers.set(def.id, dragMoveHandler);
+        theStage.addEventListener(MouseEvent.MOUSE_MOVE, dragMoveHandler, false, 0, true);
 
-        theStage.addEventListener(MouseEvent.MOUSE_UP, function(e:MouseEvent):Void {
+        var dragUpHandler:Dynamic = function(e:MouseEvent):Void {
             if (isDragging) {
                 btn.cacheAsBitmap = true;
                 if (hasDragged) {
@@ -267,7 +284,9 @@ class ApiHudManager {
                 }
             }
             isDragging = false;
-        });
+        };
+        _dragUpHandlers.set(def.id, dragUpHandler);
+        theStage.addEventListener(MouseEvent.MOUSE_UP, dragUpHandler, false, 0, true);
 
         btn.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
             if (hasDragged) {
@@ -281,8 +300,9 @@ class ApiHudManager {
             }
         });
 
-        // Visibility and live state update loop
-        btn.addEventListener(Event.ENTER_FRAME, function(e:Event):Void {
+        // Visibility/state refresh is driven by one manager-level ticker instead of one
+        // ENTER_FRAME listener per button.
+        _refreshers.set(def.id, function():Void {
             var inGame = ApiMenus.isInGame();
             if (!inGame) {
                 btn.visible = false;
@@ -303,6 +323,13 @@ class ApiHudManager {
 
         updateVisual();
         return btn;
+    }
+
+    private static function onRefreshTimer(e:TimerEvent):Void {
+        for (def in _defs) {
+            var refresh = _refreshers.get(def.id);
+            if (refresh != null) refresh();
+        }
     }
 
     public static function isButtonEnabled(id:String):Bool {
@@ -327,6 +354,31 @@ class ApiHudManager {
             ApiMenus.resetMenuButtonPosition();
         } catch (_:Dynamic) {}
     }
+
+    public static function dispose():Void {
+        if (_refreshTimer != null) {
+            _refreshTimer.stop();
+            _refreshTimer.removeEventListener(TimerEvent.TIMER, onRefreshTimer);
+            _refreshTimer = null;
+        }
+        if (_stage != null) {
+            for (def in _defs) {
+                var moveHandler = _dragMoveHandlers.get(def.id);
+                var upHandler = _dragUpHandlers.get(def.id);
+                if (moveHandler != null) try { _stage.removeEventListener(MouseEvent.MOUSE_MOVE, moveHandler); } catch (_:Dynamic) {}
+                if (upHandler != null) try { _stage.removeEventListener(MouseEvent.MOUSE_UP, upHandler); } catch (_:Dynamic) {}
+            }
+        }
+        for (btn in _buttons) {
+            if (btn != null && btn.parent != null) btn.parent.removeChild(btn);
+        }
+        _buttons = new Map<String, Sprite>();
+        _refreshers = new Map<String, Void->Void>();
+        _dragMoveHandlers = new Map<String, Dynamic>();
+        _dragUpHandlers = new Map<String, Dynamic>();
+        _stage = null;
+        _initialized = false;
+    }
 }
 #else
 class ApiHudManager {
@@ -334,5 +386,6 @@ class ApiHudManager {
     public static function isButtonEnabled(id:String):Bool return false;
     public static function setButtonEnabled(id:String, enabled:Bool):Void {}
     public static function resetAllPositions():Void {}
+    public static function dispose():Void {}
 }
 #end

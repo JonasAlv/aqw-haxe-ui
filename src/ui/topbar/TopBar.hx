@@ -394,8 +394,6 @@ class TopBar extends Sprite {
         try {
             if (Api.inventory != null) {
                 Api.inventory.toggleBank();
-            } else if (Api.game != null && Api.game.world != null) {
-                Api.game.world.toggleBank();
             }
         } catch (_:Dynamic) {}
     }

@@ -20,8 +20,8 @@ import ui.ApiNotificationManager;
  * High-performance Screen & Visual Filter Manager.
  *
  * Renders hardware-tiled subpixel phosphor/scanlines, ambient vignette, cel film grain,
- * vector anti-aliasing, and zero-cost GPU ColorTransform color grading.
- * Runs locked at 60 FPS with 0% CPU overhead.
+ * vector anti-aliasing, and GPU ColorTransform color grading.
+ * The frame hook only maintains layer attachment and redraws after geometry changes.
  */
 class ScreenFilterManager {
     // Retro Screen Filters (Scanlines and Shadow Mask only)
@@ -75,6 +75,8 @@ class ScreenFilterManager {
 
     private static var _lastW:Float = 0;
     private static var _lastH:Float = 0;
+    private static var _lastColorWorld:Dynamic = null;
+    private static var _resizeHandler:Dynamic = null;
 
     public static function init(stageRef:Dynamic):Void {
         if (_initialized) return;
@@ -117,18 +119,45 @@ class ScreenFilterManager {
         // Enter frame listener to maintain layer positioning and responsive resizing
         _container.addEventListener(Event.ENTER_FRAME, onEnterFrame);
         if (_theStage != null) {
-            _theStage.addEventListener(Event.RESIZE, function(e:Event):Void {
+            _resizeHandler = function(e:Event):Void {
                 _lastW = 0;
                 _lastH = 0;
-            });
+            };
+            _theStage.addEventListener(Event.RESIZE, _resizeHandler, false, 0, true);
         }
+    }
+
+    public static function dispose():Void {
+        // Do not leave a previous color grade applied to the game world when the
+        // UI is reinjected or unloaded.
+        _currentColorGrade = COLOR_NONE;
+        applyColorGrade();
+        if (_container != null) {
+            _container.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
+            if (_container.parent != null) _container.parent.removeChild(_container);
+        }
+        if (_resizeHandler != null && _theStage != null) {
+            _theStage.removeEventListener(Event.RESIZE, _resizeHandler);
+        }
+        if (_currentPatternBmd != null) _currentPatternBmd.dispose();
+        if (_currentGrainBmd != null) _currentGrainBmd.dispose();
+        _currentPatternBmd = null;
+        _currentGrainBmd = null;
+        _resizeHandler = null;
+        _lastColorWorld = null;
+        _container = null;
+        _grainShape = null;
+        _patternShape = null;
+        _vignetteShape = null;
+        _theStage = null;
+        _initialized = false;
     }
 
     private static function onEnterFrame(e:Event):Void {
         if (!_initialized) return;
 
-        // 1. Maintain zero-cost GPU ColorTransform on world across room/map changes
-        if (_currentColorGrade != COLOR_NONE) {
+        // 1. Reapply the color transform only when AQW replaces the world object.
+        if (Api.game != null && Api.game.world != null && Api.game.world != _lastColorWorld) {
             applyColorGrade();
         }
 
@@ -214,6 +243,7 @@ class ScreenFilterManager {
                     new ColorTransform();
             };
             w.transform.colorTransform = ct;
+            _lastColorWorld = w;
         } catch (_:Dynamic) {}
     }
 
@@ -516,6 +546,7 @@ class ScreenFilterManager {
 #else
 class ScreenFilterManager {
     public static function init(stageRef:Dynamic):Void {}
+    public static function dispose():Void {}
     public static function isEnabled():Bool return false;
     public static function toggleQuick():Void {}
     public static function cycleMode():Void {}

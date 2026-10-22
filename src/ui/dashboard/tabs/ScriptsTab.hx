@@ -51,41 +51,8 @@ class ScriptsTab implements IDashboardTab {
             }
         );
 
-        // 3. Load Script from file
-        #if air
-        modal.addItemRow(
-            "Load Script File",
-            "Browse and load an .hscript or text file directly from your local filesystem.",
-            "button",
-            "Load",
-            false,
-            function():Void {
-                try {
-                    var fileCls:Dynamic = untyped __global__["flash.filesystem.File"];
-                    var fsCls:Dynamic = untyped __global__["flash.filesystem.FileStream"];
-                    var fmCls:Dynamic = untyped __global__["flash.filesystem.FileMode"];
-                    var ffCls:Dynamic = untyped __global__["flash.net.FileFilter"];
-
-                    var file = fileCls.desktopDirectory;
-                    file.addEventListener("select", function(ev:Dynamic):Void {
-                        var stream = Type.createInstance(fsCls, []);
-                        stream.open(file, fmCls.READ);
-                        var content:String = stream.readUTFBytes(stream.bytesAvailable);
-                        stream.close();
-
-                        ScriptManager.SINGLETON.loadScript(content);
-                        ScriptManager.SINGLETON.start();
-                        ApiNotificationManager.notify("Loaded: " + file.name);
-                    });
-                    file.browseForOpen("Select Script", [Type.createInstance(ffCls, ["HScript / Text (*.hscript, *.txt)", "*.hscript;*.txt"])]);
-                } catch (e:Dynamic) {
-                    ApiNotificationManager.notify("File error: " + e);
-                }
-            }
-        );
-        #end
-
-        // 4. Paste Script
+        // 3. Paste Script. Ruffle scripts are managed by the API storage/editor;
+        // AIR filesystem browsing is intentionally not part of this runtime.
         modal.addItemRow(
             "Paste Script",
             "Paste raw HScript code and execute it immediately in the runtime engine.",
@@ -99,7 +66,7 @@ class ScriptsTab implements IDashboardTab {
 
         modal.addSectionHeader("Automation & Logging");
 
-        // 5. Class Loadouts (For Scripts)
+        // 4. Class Loadouts (For Scripts)
         modal.addItemRow(
             "Class Loadouts (Scripting)",
             "Configure default Farm, Solo, Boss, and Dodge classes for script auto-swapping.",
@@ -111,16 +78,16 @@ class ScriptsTab implements IDashboardTab {
             }
         );
 
-        // 6. Clear Log
+        // 5. Clear Log
         modal.addItemRow(
             "Clear Bot Log",
-            "Truncates bot.log to start fresh for monitoring and debugging sessions.",
+            "Clears the API runtime log and in-memory diagnostics.",
             "button",
             "Clear Log",
             false,
             function():Void {
                 ApiLogger.clearLog();
-                ApiNotificationManager.notify("bot.log cleared!");
+                ApiNotificationManager.notify("API log cleared!");
             }
         );
     }

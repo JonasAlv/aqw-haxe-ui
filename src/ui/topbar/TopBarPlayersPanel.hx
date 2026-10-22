@@ -343,18 +343,10 @@ class TopBarPlayersPanel extends Sprite {
             return;
         }
 
-        var g:Dynamic = Api.game;
-        if (g != null && g.world != null && g.world.goto != null) {
-            try {
-                g.world.goto(player.username);
-                ApiNotificationManager.notify("Goto: " + player.username);
-                return;
-            } catch (_:Dynamic) {}
-        }
-
-        if (Api.transport != null) {
-            Api.transport.send("zm", "cmd", ["goto", player.username.toLowerCase()]);
-            ApiNotificationManager.notify("Sent goto packet for: " + player.username);
+        if (Api.map != null && Api.map.gotoPlayer(player.username)) {
+            ApiNotificationManager.notify("Goto: " + player.username);
+        } else {
+            ApiNotificationManager.notify("Unable to goto " + player.username + " right now.");
         }
     }
 
