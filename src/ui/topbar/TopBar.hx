@@ -71,6 +71,7 @@ class TopBar extends Sprite {
     private var _autoPanel:TopBarAutoPanel;
     private var _jumpPanel:TopBarJumpPanel;
     private var _playersPanel:TopBarPlayersPanel;
+    private var _enhancePanel:TopBarEnhancePanel;
 
     // State
     private var _activeTab:String = null;
@@ -186,6 +187,13 @@ class TopBar extends Sprite {
         }
     }
 
+    public static function toggleEnhance(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {
+        if (instance != null) {
+            if (instance._activeTab == "enhance") instance.closeDropdown();
+            else instance.openTab("enhance", anchorX, anchorY, anchorW, anchorH);
+        }
+    }
+
     /** Open the full Script Manager without changing the Script Runner state. */
     public static function openScriptManager():Void {
         if (instance == null) return;
@@ -244,6 +252,7 @@ class TopBar extends Sprite {
             { id: "players", label: "Players", accent: 0xC084FC, defVis: true,  hWidth: 76.0 },
             { id: "menu",    label: "Menu",    accent: 0xEF4444, defVis: true,  hWidth: 42.0 },
             { id: "scripts", label: "Script",  accent: 0xE879F9, defVis: true,  hWidth: 48.0 },
+            { id: "enhance", label: "ENH",     accent: 0xF59E0B, defVis: true,  hWidth: 38.0 },
             { id: "bank",    label: "Bank",    accent: 0xF59E0B, defVis: false, hWidth: 40.0 }
         ];
 
@@ -401,6 +410,8 @@ class TopBar extends Sprite {
             toggleDashboard();
         } else if (id == "scripts") {
             openScriptManager();
+        } else if (id == "enhance") {
+            toggleTab(id);
         } else if (id == "bank") {
             closeDropdown();
             toggleBank();
@@ -473,6 +484,7 @@ class TopBar extends Sprite {
             "players" => 0xC084FC,
             "menu" => 0xEF4444,
             "scripts" => 0xE879F9,
+            "enhance" => 0xF59E0B,
             "bank" => 0xF59E0B
         ];
         var buttonWidths = [
@@ -481,6 +493,7 @@ class TopBar extends Sprite {
             "players" => 76.0,
             "menu"    => 42.0,
             "scripts" => 48.0,
+            "enhance" => 38.0,
             "bank"    => 40.0
         ];
         var tabH:Float = isVert ? 22.0 : 20.0;
@@ -512,6 +525,10 @@ class TopBar extends Sprite {
         _playersPanel = new TopBarPlayersPanel();
         _playersPanel.visible = false;
         _dropdownContainer.addChild(_playersPanel);
+
+        _enhancePanel = new TopBarEnhancePanel();
+        _enhancePanel.visible = false;
+        _dropdownContainer.addChild(_enhancePanel);
     }
 
     public function toggleTab(tabId:String):Void {
@@ -526,6 +543,7 @@ class TopBar extends Sprite {
         if (tabId == "auto") return TopBarAutoPanel.PANEL_HEIGHT;
         if (tabId == "jump") return TopBarJumpPanel.PANEL_HEIGHT;
         if (tabId == "players" && _playersPanel != null) return _playersPanel.getPanelHeight();
+        if (tabId == "enhance") return TopBarEnhancePanel.PANEL_HEIGHT;
         return 120.0;
     }
 
@@ -542,6 +560,7 @@ class TopBar extends Sprite {
         _autoPanel.visible = false;
         _jumpPanel.visible = false;
         _playersPanel.visible = false;
+        _enhancePanel.visible = false;
 
         updateAllTabStyles();
 
@@ -558,6 +577,10 @@ class TopBar extends Sprite {
             _playersPanel.visible = true;
             _playersPanel.refreshPlayers();
             activePanel = _playersPanel;
+        } else if (tabId == "enhance") {
+            _enhancePanel.visible = true;
+            _enhancePanel.refresh();
+            activePanel = _enhancePanel;
         }
 
         if (activePanel != null && _stage != null) {
@@ -596,7 +619,8 @@ class TopBar extends Sprite {
                 }
             }
 
-            var panelW:Float = TopBarAutoPanel.PANEL_WIDTH; // 220.0
+            var panelW:Float = (tabId == "enhance")
+                ? TopBarEnhancePanel.PANEL_WIDTH : TopBarAutoPanel.PANEL_WIDTH;
             var panelH:Float = getActivePanelVisualHeight(tabId); // Exact visual height
 
             var isVert:Bool = isVertical();
@@ -685,6 +709,7 @@ class TopBar extends Sprite {
         if (_autoPanel != null) _autoPanel.visible = false;
         if (_jumpPanel != null) _jumpPanel.visible = false;
         if (_playersPanel != null) _playersPanel.visible = false;
+        if (_enhancePanel != null) _enhancePanel.visible = false;
         if (_dropdownContainer != null) _dropdownContainer.visible = false;
 
         updateAllTabStyles();
@@ -921,6 +946,7 @@ class TopBar {
     public static function toggleAuto(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public static function toggleJump(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public static function togglePlayers(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
+    public static function toggleEnhance(?anchorX:Float, ?anchorY:Float, ?anchorW:Float, ?anchorH:Float):Void {}
     public static function openScriptManager():Void {}
     public function isHunting():Bool return false;
 }

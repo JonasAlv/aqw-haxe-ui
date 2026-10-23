@@ -151,6 +151,8 @@ class ApiKeybinds {
             });
         register("counter_toggle", "Counter Handler", "Toggle protection against counter and reflect auras.", 0,
             function():Void { toggleCounterHandler(); });
+        register("vigil_guard_toggle", "Vigil Guard", "Toggle automatic slot-6 Vigil protection for server warnings.", 0,
+            function():Void { toggleVigilGuard(); });
     }
 
     private static function onKeyDown(e:KeyboardEvent):Void {
@@ -258,6 +260,12 @@ class ApiKeybinds {
         var next:Bool = !CombatEngine.counterHandler;
         if (Api.combat != null) Api.combat.enableCounterHandler(next);
         else CombatEngine.counterHandler = next;
+    }
+
+    private static function toggleVigilGuard():Void {
+        var next:Bool = !CombatEngine.vigilGuardEnabled;
+        if (Api.combat != null) Api.combat.enableVigilGuard(next, "Vigil");
+        else CombatEngine.vigilGuardEnabled = next;
     }
 
     private static function consume(e:KeyboardEvent):Void {

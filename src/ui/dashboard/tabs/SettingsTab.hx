@@ -37,7 +37,26 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 2. Provoke All (Cell Farm)
+        // 2. Drop Combat on Stop
+        modal.addItemRow(
+            "Drop Combat on Stop",
+            "Reload the current room when automation stops. Keep off for normal gameplay.",
+            "toggle",
+            "",
+            false,
+            function():Void {
+                var cur = ApiConfig.getBool("api_drop_combat_on_stop", false);
+                var next = !cur;
+                ApiConfig.setBool("api_drop_combat_on_stop", next);
+                if (Api.combat != null) Api.combat.dropCombatOnStop = next;
+                ApiNotificationManager.notify("Drop Combat on Stop: " + (next ? "Enabled" : "Disabled"));
+            },
+            function():Bool {
+                return (Api.combat != null) ? Api.combat.dropCombatOnStop : ApiConfig.getBool("api_drop_combat_on_stop", false);
+            }
+        );
+
+        // 3. Provoke All (Cell Farm)
         modal.addItemRow(
             "Provoke All (Cell Farm)",
             "Aggro and magnetize all living monsters in the room simultaneously for rapid clearing.",
@@ -57,7 +76,7 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 3. Death Spawn
+        // 4. Death Spawn
         modal.addItemRow(
             "Death Spawn (Same Room)",
             "Automatically sets your respawn point to your current room so you never walk back on death.",
@@ -76,7 +95,7 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 4. Skip Cutscenes
+        // 5. Skip Cutscenes
         modal.addItemRow(
             "Skip Cutscenes",
             "Automatically cancel cutscene animations whenever they appear.",
@@ -96,7 +115,7 @@ class SettingsTab implements IDashboardTab {
             }
         );
 
-        // 5. Private Rooms
+        // 6. Private Rooms
         modal.addItemRow(
             "Private Rooms",
             "Automatically join private rooms (e.g. map-100000). Turn off to join public rooms.",

@@ -46,6 +46,9 @@ class TopBarAutoPanel extends Sprite {
     private var _btnCounter:Sprite;
     private var _txtCounter:TextField;
     private var _iconCounter:Shape;
+    private var _btnVigil:Sprite;
+    private var _txtVigil:TextField;
+    private var _iconVigil:Shape;
 
     private var _isHunting:Bool = false;
     private var _huntTimer:flash.utils.Timer = null;
@@ -221,6 +224,40 @@ class TopBarAutoPanel extends Sprite {
             toggleCounterHandler();
         });
         addChild(_btnCounter);
+
+        // --- Row 4 (x = 114): Server-triggered Vigil guard ---
+        _btnVigil = new Sprite();
+        _btnVigil.buttonMode = true;
+        _btnVigil.useHandCursor = true;
+        _btnVigil.x = 114.0;
+        _btnVigil.y = 92.0;
+
+        _iconVigil = new Shape();
+        _btnVigil.addChild(_iconVigil);
+
+        _txtVigil = new TextField();
+        var vigilFmt = new TextFormat(ApiStyle.FONT_FAMILY, 9, ApiStyle.COLOR_TEXT_MUTED, true);
+        vigilFmt.align = TextFormatAlign.LEFT;
+        _txtVigil.defaultTextFormat = vigilFmt;
+        _txtVigil.x = 18.0;
+        _txtVigil.y = 1.0;
+        _txtVigil.width = 86.0;
+        _txtVigil.height = 16.0;
+        _txtVigil.selectable = false;
+        _txtVigil.mouseEnabled = false;
+        _btnVigil.addChild(_txtVigil);
+
+        renderVigilBtnStyle(CombatEngine.vigilGuardEnabled, false);
+        _btnVigil.addEventListener(MouseEvent.MOUSE_OVER, function(e:MouseEvent):Void {
+            renderVigilBtnStyle(CombatEngine.vigilGuardEnabled, true);
+        });
+        _btnVigil.addEventListener(MouseEvent.MOUSE_OUT, function(e:MouseEvent):Void {
+            renderVigilBtnStyle(CombatEngine.vigilGuardEnabled, false);
+        });
+        _btnVigil.addEventListener(MouseEvent.CLICK, function(e:MouseEvent):Void {
+            toggleVigilGuard();
+        });
+        addChild(_btnVigil);
     }
 
     private var theStage(get, never):flash.display.Stage;
@@ -399,6 +436,60 @@ class TopBarAutoPanel extends Sprite {
         }
     }
 
+    private function renderVigilBtnStyle(active:Bool, pending:Bool, hover:Bool = false):Void {
+        if (_btnVigil == null) return;
+        var g = _btnVigil.graphics;
+        g.clear();
+
+        var bgCol:Int = ApiStyle.COLOR_BG_CARD;
+        var border:Int = ApiStyle.COLOR_BORDER_DEFAULT;
+        var textCol:Int = ApiStyle.COLOR_TEXT_MUTED;
+        var iconCol:Int = ApiStyle.COLOR_TEXT_MUTED;
+        var bgAlpha:Float = 0.88;
+        var labelText:String = "Vigil: OFF";
+
+        if (pending) {
+            bgCol = ApiStyle.COLOR_STATUS_WARN;
+            bgAlpha = 0.25;
+            border = ApiStyle.COLOR_STATUS_WARN;
+            textCol = ApiStyle.COLOR_STATUS_WARN;
+            iconCol = ApiStyle.COLOR_STATUS_WARN;
+            labelText = "Vigil: HOLD";
+        } else if (active) {
+            bgCol = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_SURFACE;
+            bgAlpha = 0.95;
+            border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_STATUS_ACTIVE;
+            textCol = ApiStyle.COLOR_STATUS_ACTIVE;
+            iconCol = ApiStyle.COLOR_STATUS_ACTIVE;
+            labelText = "Vigil: ON";
+        } else {
+            bgCol = hover ? ApiStyle.COLOR_BTN_BG_HOVER : ApiStyle.COLOR_BG_CARD;
+            border = hover ? ApiStyle.COLOR_BORDER_HIGHLIGHT : ApiStyle.COLOR_BORDER_DEFAULT;
+            textCol = hover ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
+            iconCol = hover ? ApiStyle.COLOR_TEXT_PRIMARY : ApiStyle.COLOR_TEXT_MUTED;
+        }
+
+        g.beginFill(bgCol, bgAlpha);
+        g.lineStyle(1, border);
+        g.drawRoundRect(0, 0, 106.0, 20.0, 4, 4);
+        g.endFill();
+
+        if (_iconVigil != null) {
+            var ig = _iconVigil.graphics;
+            ig.clear();
+            ig.lineStyle(1.4, iconCol, 1.0, true);
+            ig.drawCircle(9.0, 10.0, 4.0);
+            ig.moveTo(9.0, 4.5);
+            ig.lineTo(9.0, 15.5);
+            ig.moveTo(3.5, 10.0);
+            ig.lineTo(14.5, 10.0);
+        }
+        if (_txtVigil != null) {
+            _txtVigil.text = labelText;
+            _txtVigil.textColor = textCol;
+        }
+    }
+
     public function toggleAutoAttack():Void {
         var running = (Api.combat != null && Api.combat.isRunning());
         var next = !running;
@@ -485,6 +576,14 @@ class TopBarAutoPanel extends Sprite {
         renderCounterBtnStyle(next, CombatEngine.isPausedByAura, false);
     }
 
+    public function toggleVigilGuard():Void {
+        var next = !CombatEngine.vigilGuardEnabled;
+        if (Api.combat != null) Api.combat.enableVigilGuard(next, "Vigil");
+        else CombatEngine.vigilGuardEnabled = next;
+        ApiNotificationManager.notify("Vigil: " + (next ? "ON" : "OFF"));
+        renderVigilBtnStyle(next, CombatEngine.isVigilGuardActive(), false);
+    }
+
     private function acquireCurrentTarget():Void {
         var ent = (Api.player != null) ? Api.player.target : null;
         if (ent != null && ent.name != null && ent.name != "") {
@@ -523,6 +622,10 @@ class TopBarAutoPanel extends Sprite {
             _lastCounterActive = counterInt;
             _lastCounterPaused = isPaused;
             renderCounterBtnStyle(isCounter, isPaused, false);
+        }
+
+        if (_btnVigil != null) {
+            renderVigilBtnStyle(CombatEngine.vigilGuardEnabled, CombatEngine.isVigilGuardActive(), false);
         }
     }
 }

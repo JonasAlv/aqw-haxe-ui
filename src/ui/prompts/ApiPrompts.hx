@@ -664,7 +664,7 @@ class ApiPrompts {
 
     public static function showSmartCombatPrompt(overlay:Dynamic):Void {
         try {
-            var dlg = ApiPromptModal.createDialog(460, 230, "Smart Combat Setup (Standalone)");
+            var dlg = ApiPromptModal.createDialog(460, 270, "Smart Combat Setup (Standalone)");
             var curEquipped = CombatEngine.getCurrentClassName();
             var subText = (curEquipped != "")
                 ? "Active class: " + curEquipped + " (For scripts, use Loadouts in Scripts tab)"
@@ -705,14 +705,14 @@ class ApiPrompts {
                 if (counterBtn != null) {
                     var lbl:flash.text.TextField = cast counterBtn.getChildByName("label");
                     if (lbl != null) {
-                        lbl.text = "Counter Handler: " + (currentCounter ? "ON (Hold Attacks on Reflect/Shields)" : "OFF");
+                        lbl.text = "Counter: " + (currentCounter ? "ON" : "OFF");
                         lbl.textColor = currentCounter ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_TEXT_MUTED;
                     }
                 }
             };
 
             counterBtn = ApiPromptModal.createButton(
-                "Counter Handler: " + (currentCounter ? "ON (Hold Attacks on Reflect/Shields)" : "OFF"),
+                "Counter: " + (currentCounter ? "ON" : "OFF"),
                 412, 28, function():Void {
                     currentCounter = !currentCounter;
                     updateCounterBtnText();
@@ -723,22 +723,54 @@ class ApiPrompts {
             updateCounterBtnText();
             dlg.addChild(counterBtn);
 
+            var currentVigil:Bool = CombatEngine.vigilGuardEnabled;
+            var vigilBtn:flash.display.Sprite = null;
+            var updateVigilBtnText:Void->Void = function():Void {
+                if (vigilBtn != null) {
+                    var lbl:flash.text.TextField = cast vigilBtn.getChildByName("label");
+                    if (lbl != null) {
+                        lbl.text = "Vigil: " + (currentVigil ? "ON" : "OFF");
+                        lbl.textColor = currentVigil ? ApiStyle.COLOR_STATUS_ACTIVE : ApiStyle.COLOR_TEXT_MUTED;
+                    }
+                }
+            };
+
+            vigilBtn = ApiPromptModal.createButton(
+                "Vigil: " + (currentVigil ? "ON" : "OFF"),
+                412, 28, function():Void {
+                    currentVigil = !currentVigil;
+                    updateVigilBtnText();
+                }, false
+            );
+            vigilBtn.x = 24;
+            vigilBtn.y = 156;
+            updateVigilBtnText();
+            dlg.addChild(vigilBtn);
+
             var saveBtn = ApiPromptModal.createButton("Save Config", 130, 35, function():Void {
                 var saveModeVal = (selectedModeStr == "Auto (First Available)") ? "Auto" : selectedModeStr;
                 ApiConfig.setString("api_smart_class", selectedClassStr);
                 ApiConfig.setString("api_smart_mode", saveModeVal);
                 ApiConfig.setBool("api_counter_handler", currentCounter);
                 CombatEngine.counterHandler = currentCounter;
+                CombatEngine.vigilGuardEnabled = currentVigil;
+                ApiConfig.setString("api_vigil_guard_item", "Vigil");
+                CombatEngine.vigilGuardItem = "Vigil";
+                if (Api.combat != null) {
+                    Api.combat.enableVigilGuard(currentVigil, "Vigil");
+                } else {
+                    ApiConfig.setBool("api_vigil_guard", currentVigil);
+                }
                 CombatEngine.smartClass = selectedClassStr;
                 CombatEngine.skillMode = saveModeVal;
                 if (Api.combat != null) {
                     Api.combat.mode = saveModeVal;
                 }
-                ApiNotificationManager.notify("Smart Combat: " + selectedClassStr + " [" + saveModeVal + "], Ctr: " + (currentCounter ? "ON" : "OFF"));
+                ApiNotificationManager.notify("Smart Combat: " + selectedClassStr + " [" + saveModeVal + "], Ctr: " + (currentCounter ? "ON" : "OFF") + ", Vigil: " + (currentVigil ? "ON" : "OFF"));
                 ApiPromptModal.close();
             }, true);
             saveBtn.x = 26;
-            saveBtn.y = 165;
+            saveBtn.y = 205;
             dlg.addChild(saveBtn);
 
             var editModesBtn = ApiPromptModal.createButton("Edit Modes", 130, 35, function():Void {
@@ -746,14 +778,14 @@ class ApiPrompts {
                 showCombatModeEditorPrompt(overlay, selectedClassStr, selectedModeStr);
             }, false);
             editModesBtn.x = 175;
-            editModesBtn.y = 165;
+            editModesBtn.y = 205;
             dlg.addChild(editModesBtn);
 
             var cancelBtn = ApiPromptModal.createButton("Cancel", 110, 35, function():Void {
                 ApiPromptModal.close();
             }, false);
             cancelBtn.x = 324;
-            cancelBtn.y = 165;
+            cancelBtn.y = 205;
             dlg.addChild(cancelBtn);
 
             ApiPromptModal.show(overlay, dlg);

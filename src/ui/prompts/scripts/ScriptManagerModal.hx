@@ -25,6 +25,7 @@ class ScriptManagerModal {
             var currentScriptName:String = "";
             var isUser:Bool = false;
             var isBundled:Bool = false;
+            var isLibrary:Bool = false;
             var currentCategory:String = "All Scripts";
 
             // Category Selection Dropdown
@@ -87,35 +88,84 @@ class ScriptManagerModal {
             // Map option labels to raw script paths
             var optToRaw:Map<String, String> = new Map<String, String>();
 
+            // Core files are include-only libraries and test files are developer assets. Neither
+            // should be exposed as runnable user scripts in the Script Manager.
+            var isHiddenScript = function(rawName:String):Bool {
+                if (rawName == null) return true;
+                var lower = rawName.toLowerCase();
+                return StringTools.startsWith(lower, "core/")
+                    || StringTools.startsWith(lower, "entrypoints/testing/")
+                    || StringTools.startsWith(lower, "testing/")
+                    || StringTools.startsWith(lower, "test/")
+                    || lower.indexOf("_test") != -1;
+            };
+
             var getCategoryForScript = function(rawName:String):String {
                 if (StringTools.startsWith(rawName, "saga/")) return "Lord of Chaos";
                 if (StringTools.startsWith(rawName, "rep/")) return "Reputation";
+                if (StringTools.startsWith(rawName, "core/")) return "Core Libraries";
+                if (StringTools.startsWith(rawName, "content/")) return "Content";
+                if (StringTools.startsWith(rawName, "entrypoints/dailies/")) return "Dailies";
+                if (StringTools.startsWith(rawName, "entrypoints/farms/")) return "Farms";
+                if (StringTools.startsWith(rawName, "entrypoints/maintenance/")) return "Maintenance";
+                if (StringTools.startsWith(rawName, "entrypoints/testing/")) return "Testing";
+                if (StringTools.startsWith(rawName, "entrypoints/")) return "Entrypoints";
+                if (StringTools.startsWith(rawName, "examples/")) return "Examples";
+                if (StringTools.startsWith(rawName, "user/")) return "User Scripts";
                 if (ScriptManager.SINGLETON.isBundledScript(rawName)) return "General";
                 return "User Scripts";
             };
 
             var formatScriptLabel = function(rawName:String, category:String):String {
                 if (rawName == "[+ New Script]") return rawName;
+                var strip = function(value:String, prefix:String):String {
+                    return StringTools.startsWith(value, prefix) ? value.substring(prefix.length) : value;
+                };
                 if (category == "Lord of Chaos") {
-                    var s = rawName;
-                    if (StringTools.startsWith(s, "saga/LordofChaos/")) s = s.substring(17);
-                    else if (StringTools.startsWith(s, "saga/")) s = s.substring(5);
-                    return s;
+                    return strip(strip(rawName, "saga/LordofChaos/"), "saga/");
                 } else if (category == "Reputation") {
-                    var s = rawName;
-                    if (StringTools.startsWith(s, "rep/")) s = s.substring(4);
-                    return s;
-                } else if (category == "General") {
-                    return rawName;
+                    return strip(rawName, "rep/");
+                } else if (category == "Core Libraries") {
+                    return strip(rawName, "core/");
+                } else if (category == "Content") {
+                    return strip(rawName, "content/");
+                } else if (category == "Dailies") {
+                    return strip(rawName, "entrypoints/dailies/");
+                } else if (category == "Farms") {
+                    return strip(rawName, "entrypoints/farms/");
+                } else if (category == "Maintenance") {
+                    return strip(rawName, "entrypoints/maintenance/");
+                } else if (category == "Testing") {
+                    return strip(rawName, "entrypoints/testing/");
+                } else if (category == "Entrypoints") {
+                    return strip(rawName, "entrypoints/");
+                } else if (category == "Examples") {
+                    return strip(rawName, "examples/");
                 } else if (category == "User Scripts") {
+                    return strip(rawName, "user/");
+                } else if (category == "General") {
                     return rawName;
                 } else {
                     // All Scripts: prefix category tag
                     var cat = getCategoryForScript(rawName);
-                    var shortTag = (cat == "Lord of Chaos") ? "[Chaos] " : (cat == "Reputation") ? "[Rep] " : (cat == "General") ? "[Gen] " : "[User] ";
-                    var clean = rawName;
-                    if (StringTools.startsWith(clean, "saga/LordofChaos/")) clean = clean.substring(17);
-                    else if (StringTools.startsWith(clean, "rep/")) clean = clean.substring(4);
+                    var shortTag = (cat == "Lord of Chaos") ? "[Chaos] "
+                        : (cat == "Reputation") ? "[Rep] "
+                        : (cat == "Core Libraries") ? "[Core] "
+                        : (cat == "Content") ? "[Content] "
+                        : (cat == "Dailies") ? "[Daily] "
+                        : (cat == "Farms") ? "[Farm] "
+                        : (cat == "Maintenance") ? "[Maintenance] "
+                        : (cat == "Testing") ? "[Test] "
+                        : (cat == "Examples") ? "[Example] "
+                        : (cat == "General") ? "[Gen] " : "[User] ";
+                    var clean = strip(rawName, "saga/LordofChaos/");
+                    clean = strip(clean, "saga/");
+                    clean = strip(clean, "rep/");
+                    clean = strip(clean, "core/");
+                    clean = strip(clean, "content/");
+                    clean = strip(clean, "entrypoints/");
+                    clean = strip(clean, "examples/");
+                    clean = strip(clean, "user/");
                     return shortTag + clean;
                 }
             };
@@ -126,6 +176,7 @@ class ScriptManagerModal {
                 var opts:Array<String> = [];
 
                 for (s in rawScripts) {
+                    if (isHiddenScript(s)) continue;
                     var scriptCat = getCategoryForScript(s);
                     if (category == "All Scripts" || category == scriptCat) {
                         var lbl = formatScriptLabel(s, category);
@@ -184,6 +235,7 @@ class ScriptManagerModal {
                     currentScriptName = "MyScript";
                     isUser = true;
                     isBundled = false;
+                    isLibrary = false;
                     lblName.text = "New Script Name (.hxs):";
                     inputName.type = TextFieldType.INPUT;
                     inputName.text = "MyScript";
@@ -195,6 +247,7 @@ class ScriptManagerModal {
                     currentScriptName = raw;
                     isBundled = ScriptManager.SINGLETON.isBundledScript(raw);
                     isUser = !isBundled;
+                    isLibrary = StringTools.startsWith(raw, "core/");
                     if (isBundled) {
                         lblName.text = "Save As User Script (.hxs):";
                         var leafName = raw;
@@ -214,7 +267,10 @@ class ScriptManagerModal {
                 updateStatusDisplay();
             };
 
-            var categories = ["All Scripts", "Lord of Chaos", "Reputation", "General", "User Scripts"];
+            var categories = [
+                "All Scripts", "Dailies", "Farms", "Content", "Maintenance",
+                "Examples", "Lord of Chaos", "Reputation", "General", "User Scripts"
+            ];
             var scriptOptions = buildFilteredOptions(currentCategory);
 
             ddScript = new Dropdown(205, 26, scriptOptions, function(sel:String):Void {
@@ -257,6 +313,10 @@ class ScriptManagerModal {
                     ApiNotificationManager.notify("Script stopped.");
                 } else {
                     var code = inputCode.text;
+                    if (isLibrary) {
+                        ApiNotificationManager.notify("Core libraries cannot run directly. Include them from an entrypoint script.");
+                        return;
+                    }
                     if (code == null || StringTools.trim(code) == "") {
                         ApiNotificationManager.notify("Cannot run empty script!");
                         return;
@@ -291,6 +351,10 @@ class ScriptManagerModal {
                 }
                 if (sName == "") {
                     ApiNotificationManager.notify("Please enter a valid script name.");
+                    return;
+                }
+                if (isHiddenScript(sName)) {
+                    ApiNotificationManager.notify("Core and test scripts are reserved and cannot be created here.");
                     return;
                 }
                 if (ScriptManager.SINGLETON.isBundledScript(sName)) {

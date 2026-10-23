@@ -21,6 +21,7 @@ import ui.Dropdown;
  */
 class ClassModeSelector extends Sprite {
     public static var lastInventoryClassKeys:Map<String, Bool> = new Map<String, Bool>();
+    private static var _boundSelectors:Map<String, Array<ClassModeSelector>> = new Map<String, Array<ClassModeSelector>>();
 
     public var classDropdown:Dropdown;
     public var modeDropdown:Dropdown;
@@ -32,6 +33,8 @@ class ClassModeSelector extends Sprite {
     private var _autoLabel:String = "Auto";
     private var _includeAllKnown:Bool = true;
     private var _onChange:String->String->Void = null;
+    private var _bindingKey:String = null;
+    private var _syncing:Bool = false;
 
     public var selectedClass(get, set):String;
     private inline function get_selectedClass():String return _selectedClass;
@@ -90,6 +93,7 @@ class ClassModeSelector extends Sprite {
             }
             refreshModes();
             notifyChange();
+            publishSelection();
         });
 
         classDropdown.itemColorCallback = function(itemName:String):Null<Int> {
@@ -112,6 +116,7 @@ class ClassModeSelector extends Sprite {
             _selectedMode = sel;
             saveModeToConfig(sel);
             notifyChange();
+            publishSelection();
         });
 
         modeDropdown.onBeforeOpen = function():Void {
@@ -183,6 +188,8 @@ class ClassModeSelector extends Sprite {
         }
         _selectedMode = initialMode;
         modeDropdown.setSelectedItem(_selectedMode);
+
+        registerBinding();
     }
 
     public function refreshClasses():Void {
@@ -219,6 +226,46 @@ class ClassModeSelector extends Sprite {
             var saveVal = (sel == "Auto (First Available)") ? "Auto" : sel;
             try { ApiConfig.setString(_modeKey, saveVal); } catch (_:Dynamic) {}
         }
+    }
+
+    private function registerBinding():Void {
+        if (_classKey == null || _modeKey == null) return;
+        _bindingKey = _classKey + "|" + _modeKey;
+        var selectors = _boundSelectors.get(_bindingKey);
+        if (selectors == null) {
+            selectors = [];
+            _boundSelectors.set(_bindingKey, selectors);
+        }
+        if (selectors.indexOf(this) == -1) selectors.push(this);
+    }
+
+    private function publishSelection():Void {
+        if (_syncing || _bindingKey == null) return;
+        var selectors = _boundSelectors.get(_bindingKey);
+        if (selectors == null) return;
+        var modeValue = (_selectedMode == "Auto (First Available)") ? "Auto" : _selectedMode;
+        for (selector in selectors) {
+            if (selector == this) continue;
+            selector.applySharedSelection(_selectedClass, modeValue);
+        }
+    }
+
+    private function applySharedSelection(classValue:String, modeValue:String):Void {
+        _syncing = true;
+        var classes = classDropdown.options;
+        if (classes.indexOf(classValue) == -1) classValue = "Current";
+        _selectedClass = classValue;
+        classDropdown.setSelectedItem(_selectedClass);
+
+        var modes = getModesForClass(_selectedClass, _autoLabel);
+        modeDropdown.setOptions(modes, true);
+        var displayMode = (modeValue == "Auto" && _autoLabel.indexOf("First Available") != -1)
+            ? _autoLabel : modeValue;
+        if (modes.indexOf(displayMode) == -1) displayMode = modes.length > 0 ? modes[0] : _autoLabel;
+        _selectedMode = displayMode;
+        modeDropdown.setSelectedItem(_selectedMode);
+        notifyChange();
+        _syncing = false;
     }
 
     private function notifyChange():Void {

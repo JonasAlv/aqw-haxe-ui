@@ -181,6 +181,7 @@ class ApiMenus {
         var isScriptRunning = ScriptManager.SINGLETON.isRunning;
         var skipCutscenesActive = isScriptRunning || ApiConfig.getBool("api_skip_cutscenes", false) || ApiConfig.getBool("option_disable_cutscenes", false);
         var infiniteRangeActive = isScriptRunning || ApiConfig.getBool("api_infinite_range", false);
+        var dropCombatActive = isScriptRunning || ApiConfig.getBool("api_drop_combat_on_stop", false);
         var deathSpawnActive = isScriptRunning || ApiConfig.getBool("api_death_spawn", false);
 
         if (Api.map != null) {
@@ -191,6 +192,7 @@ class ApiMenus {
         }
         if (Api.combat != null) {
             if (Api.combat.infiniteRange != infiniteRangeActive) Api.combat.infiniteRange = infiniteRangeActive;
+            if (Api.combat.dropCombatOnStop != dropCombatActive) Api.combat.dropCombatOnStop = dropCombatActive;
             if (infiniteRangeActive) Api.combat.applyInfiniteRange();
         }
     }
